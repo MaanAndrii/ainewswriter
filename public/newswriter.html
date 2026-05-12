@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Редактор новин</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/newswriter.css">
+</head>
+<body>
+
+<header class="hdr">
+  <span class="hdr-title">Редактор новин</span>
+  <span class="hdr-sub">AI &middot; Рерайт для онлайн-медіа</span>
+  <a class="hdr-link" href="/admin/admin.php" target="_blank" rel="noopener">Адмін-панель</a>
+</header>
+
+<div class="layout">
+  <aside class="panel-l">
+    <div>
+      <label class="lbl">Вхідний матеріал</label>
+      <textarea id="source" style="min-height:170px" placeholder="Новина, Facebook-допис, Telegram, коментар&#8230; (будь-яка мова)"></textarea>
+      <p class="hint">Ctrl+Enter &#8212; запустити</p>
+    </div>
+    <div>
+      <label class="lbl">Джерело новини</label>
+      <input type="text" id="sourceRef" placeholder="Reuters, Укрінформ, Telegram-канал &#171;&#8230;&#187;">
+      <p class="hint">Вказується в кінці першого абзацу</p>
+    </div>
+    <div>
+      <label class="lbl">Глибина рерайту</label>
+      <div class="depth-row">
+        <span class="depth-label" id="depthLabel">Глибока</span>
+        <span class="depth-hint"  id="depthHint">Переписуй більшість</span>
+      </div>
+      <input type="range" id="depthSlider" min="0" max="3" step="1" value="2">
+      <div class="depth-marks"><span>Мін</span><span></span><span></span><span>Макс</span></div>
+    </div>
+    <div>
+      <label class="lbl">Тональність</label>
+      <div class="tone-grid">
+        <label class="tone-opt active" data-key="neutral">
+          <input type="radio" name="tone" value="neutral" checked>
+          <div><div class="tone-name">Нейтральний</div><div class="tone-desc">Факти без оцінок</div></div>
+        </label>
+        <label class="tone-opt" data-key="intriguing">
+          <input type="radio" name="tone" value="intriguing">
+          <div><div class="tone-name">Інтригуючий</div><div class="tone-desc">Питання, напруга</div></div>
+        </label>
+        <label class="tone-opt" data-key="emotional">
+          <input type="radio" name="tone" value="emotional">
+          <div><div class="tone-name">Емоційний</div><div class="tone-desc">Враження, реакція</div></div>
+        </label>
+        <label class="tone-opt" data-key="seo">
+          <input type="radio" name="tone" value="seo">
+          <div><div class="tone-name">SEO</div><div class="tone-desc">Ключові слова</div></div>
+        </label>
+      </div>
+    </div>
+    <div>
+      <label class="lbl">Додаткові інструкції</label>
+      <textarea id="extra" style="min-height:68px" placeholder="Акценти, уточнення, що виділити&#8230;"></textarea>
+    </div>
+    <label class="cb-row">
+      <input type="checkbox" id="makeNews" checked>
+      <span class="cb-text"><strong>Робити новину</strong> (заголовки, ліди, текст)</span>
+    </label>
+    <label class="cb-row">
+      <input type="checkbox" id="fbCheck">
+      <span class="cb-text"><strong>Facebook-допис</strong> на основі матеріалу</span>
+    </label>
+    
+    <div id="fbStyleWrap" style="display:none">
+      <label class="lbl">Стиль Facebook-допису</label>
+      <div class="depth-row">
+        <span class="depth-label" id="fbStyleLabel">Нейтральний</span>
+        <span class="depth-hint" id="fbStyleHint">Збалансований тон</span>
+      </div>
+      <input type="range" id="fbStyleSlider" min="0" max="3" step="1" value="1">
+      <div class="depth-marks"><span>Серйозний</span><span></span><span></span><span>Гумористичний</span></div>
+    </div>
+    <label class="cb-row">
+      <input type="checkbox" id="webSearch">
+      <span class="cb-text"><strong>Веб-пошук</strong> &#8212; актуалізація посад і контексту</span>
+    </label>
+    <div>
+      <label class="lbl">Модель</label>
+      <div class="model-row">
+        <select id="modelSelect"></select>
+      </div>
+    </div>
+    <button class="btn-red" id="btnProcess" onclick="runProcess(null)">
+      <div class="spin" id="spinProcess"></div>
+      <span id="btnProcessText">&#9654; Обробити матеріал</span>
+    </button>
+    <button class="btn-ghost" onclick="showPromptPreview()">Тест: показати промпт</button>
+    <button class="btn-ghost" onclick="resetAll()">&#10005; Нове завдання</button>
+  </aside>
+
+  <div style="display:flex;flex-direction:column;overflow:hidden;">
+    <div class="cost-bar" id="costBar"></div>
+    <main class="panel-r" id="output" style="flex:1;overflow-y:auto;">
+      <div class="empty">
+        <div class="empty-icon">&#10022;</div>
+        <div class="empty-text">Результат з'явиться тут</div>
+      </div>
+    </main>
+  </div>
+</div>
+
+
+<div class="modal-backdrop" id="promptModal" onclick="if(event.target===this)closePromptModal()">
+  <div class="modal">
+    <div class="modal-h"><b>Промпт для AI (без відправки)</b><button class="btn-sm" onclick="closePromptModal()">Закрити</button></div>
+    <label class="lbl">System prompt (override для тесту)</label>
+    <pre id="promptPreview"></pre>
+  </div>
+</div>
+
+<script src="assets/newswriter.js"></script>
+</body>
+</html>
