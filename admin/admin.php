@@ -17,7 +17,7 @@ if (isset($_POST['pwd'])) {
 }
 if (isset($_GET['logout'])) {
   session_destroy();
-  header('Location: /public/newswriter.html');
+  header('Location: /');
   exit;
 }
 
@@ -142,6 +142,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:8px 10px;
     <button type="button" class="tab-btn" data-tab="stats">Статистика</button>
     <button type="button" class="tab-btn" data-tab="security">Безпека</button>
     <button type="button" class="tab-btn" data-tab="logs">Логи</button>
+    <button type="button" class="tab-btn" data-tab="io">Імпорт / Експорт</button>
   </div>
 
   <section class="tab-pane active" data-pane="ai">
@@ -321,6 +322,41 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:8px 10px;
       </table>
     </div>
   </aside>
+
+  <section class="tab-pane" data-pane="io">
+    <div class="card">
+      <div class="ttl">Експорт налаштувань</div>
+      <p class="small" style="margin-bottom:12px">Завантажує JSON-файл з моделями, промтами та параметрами генерації. <strong>API-ключі не включаються.</strong></p>
+      <button type="button" class="btn" id="btn_export">⬇ Завантажити backup.json</button>
+      <div class="small" id="export_status" style="margin-top:8px"></div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="ttl">Імпорт налаштувань</div>
+      <p class="small" style="margin-bottom:12px">Оберіть раніше збережений <code>backup.json</code>. Можна вибірково відновити лише потрібні розділи.</p>
+
+      <label class="lbl">Файл backup.json</label>
+      <input type="file" id="import_file" accept=".json" style="margin-bottom:12px">
+
+      <div id="import_preview" style="display:none">
+        <label class="lbl">Що є у файлі</label>
+        <div id="import_summary" style="font-size:12px;margin-bottom:10px"></div>
+
+        <label class="lbl">Що імпортувати</label>
+        <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
+          <label style="font-size:13px"><input type="checkbox" id="imp_models" checked> Моделі AI (<span id="imp_models_count">0</span> шт.)</label>
+          <label style="font-size:13px"><input type="checkbox" id="imp_profiles" checked> Параметри промтів та профілі</label>
+          <label style="font-size:13px"><input type="checkbox" id="imp_system" checked> System prompt (override)</label>
+          <label style="font-size:13px"><input type="checkbox" id="imp_prompts_json" checked> prompts.json (системні шаблони)</label>
+          <label style="font-size:13px"><input type="checkbox" id="imp_api_keys" checked> API-ключі (anthropic, xai, gemini, mistral)</label>
+        </div>
+
+        <button type="button" class="btn-mini danger" id="btn_import_confirm">Застосувати імпорт</button>
+      </div>
+
+      <div class="small" id="import_status" style="margin-top:8px"></div>
+    </div>
+  </section>
 </div>
 <script>
 (function(){
@@ -574,6 +610,128 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:8px 10px;
   if (!Array.isArray(models)) models = [];
   models = dedupeModels(models);
   render();
+  // ── Import / Export ─────────────────────────────────────────────────────
+
+  var importedPayload = null;
+
+  // EXPORT
+  var btnExport = document.getElementById('btn_export');
+  if (btnExport) {
+    btnExport.addEventListener('click', function() {
+      var status = document.getElementById('export_status');
+      btnExport.disabled = true;
+      status.textContent = 'Завантаження...';
+      apiPost({ action: 'export_settings' }, function(err, d) {
+        btnExport.disabled = false;
+        if (err) { status.textContent = 'Помилка: ' + err.message; return; }
+        var json = JSON.stringify(d.data, null, 2);
+        var blob = new Blob([json], { type: 'application/json' });
+        var url  = URL.createObjectURL(blob);
+        var now  = new Date().toISOString().slice(0, 10);
+        var a = document.createElement('a');
+        a.href = url; a.download = 'ainewswriter-backup-' + now + '.json';
+        document.body.appendChild(a); a.click();
+        document.body.removeChild(a); URL.revokeObjectURL(url);
+        status.textContent = 'Файл збережено ✔';
+      });
+    });
+  }
+
+  // IMPORT — file pick
+  var importFile = document.getElementById('import_file');
+  if (importFile) {
+    importFile.addEventListener('change', function() {
+      var file = this.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        var status  = document.getElementById('import_status');
+        var preview = document.getElementById('import_preview');
+        var summary = document.getElementById('import_summary');
+        try {
+          importedPayload = JSON.parse(e.target.result);
+        } catch(ex) {
+          status.textContent = 'Невалідний JSON: ' + ex.message;
+          preview.style.display = 'none';
+          return;
+        }
+        if (!importedPayload.__version) {
+          status.textContent = 'Файл не схожий на backup ainewswriter (відсутній __version)';
+          preview.style.display = 'none';
+          return;
+        }
+        // show summary
+        var lines = [];
+        if (importedPayload.__exported_at) lines.push('📅 Дата: ' + importedPayload.__exported_at);
+        if (Array.isArray(importedPayload.models))
+          lines.push('🤖 Моделі: ' + importedPayload.models.length + ' шт.');
+        if (importedPayload.prompt_profiles)  lines.push('⚙️ Профілі промтів: є');
+        if (importedPayload.system_prompt_default_override !== undefined)
+          lines.push('📝 System prompt: є (' + String(importedPayload.system_prompt_default_override).length + ' симв.)');
+        if (importedPayload.prompts_json)     lines.push('📄 prompts.json: є');
+        if (importedPayload.api_keys) {
+          var keyCount = Object.values(importedPayload.api_keys).filter(function(v){ return v && v.length > 0; }).length;
+          lines.push('🔑 API-ключі: ' + keyCount + ' шт.');
+        }
+        summary.innerHTML = lines.join('<br>');
+
+        var cnt = document.getElementById('imp_models_count');
+        if (cnt) cnt.textContent = Array.isArray(importedPayload.models) ? importedPayload.models.length : 0;
+
+        // show/hide checkboxes depending on what file contains
+        document.getElementById('imp_models').closest('label').style.display    = Array.isArray(importedPayload.models) ? '' : 'none';
+        document.getElementById('imp_profiles').closest('label').style.display  = importedPayload.prompt_profiles ? '' : 'none';
+        document.getElementById('imp_system').closest('label').style.display    = (importedPayload.system_prompt_default_override !== undefined) ? '' : 'none';
+        document.getElementById('imp_prompts_json').closest('label').style.display = importedPayload.prompts_json ? '' : 'none';
+        document.getElementById('imp_api_keys').closest('label').style.display = importedPayload.api_keys ? '' : 'none';
+
+        preview.style.display = '';
+        status.textContent = '';
+      };
+      reader.readAsText(file);
+    });
+  }
+
+  // IMPORT — confirm
+  var btnImport = document.getElementById('btn_import_confirm');
+  if (btnImport) {
+    btnImport.addEventListener('click', function() {
+      if (!importedPayload) return;
+      if (!confirm('Застосувати вибрані налаштування з файлу? Поточні дані будуть перезаписані.')) return;
+
+      // Build selective payload
+      var sel = {};
+      sel.__version = importedPayload.__version;
+      if (document.getElementById('imp_models').checked     && Array.isArray(importedPayload.models))
+        sel.models = importedPayload.models;
+      if (document.getElementById('imp_profiles').checked   && importedPayload.prompt_profiles)
+        sel.prompt_profiles = importedPayload.prompt_profiles;
+      if (document.getElementById('imp_system').checked     && importedPayload.system_prompt_default_override !== undefined)
+        sel.system_prompt_default_override = importedPayload.system_prompt_default_override;
+      if (document.getElementById('imp_prompts_json').checked && importedPayload.prompts_json)
+        sel.prompts_json = importedPayload.prompts_json;
+      if (document.getElementById('imp_api_keys').checked && importedPayload.api_keys)
+        sel.api_keys = importedPayload.api_keys;
+
+      var status = document.getElementById('import_status');
+      btnImport.disabled = true;
+      status.textContent = 'Імпортую...';
+
+      apiPost({ action: 'import_settings', data: sel }, function(err, d) {
+        btnImport.disabled = false;
+        if (err) { status.textContent = 'Помилка: ' + err.message; return; }
+        var res = d.imported || {};
+        var msg = 'Імпорт виконано ✔';
+        if (res.models_count !== undefined)  msg += ' · моделей: ' + res.models_count;
+        if (res.has_prompts_json) msg += ' · prompts.json оновлено';
+        if (res.keys_imported)    msg += ' · ключів: ' + res.keys_imported;
+        status.textContent = msg;
+        // Reload page to show updated data
+        setTimeout(function(){ window.location.reload(); }, 1200);
+      });
+    });
+  }
+
 })();
 </script>
 </body>
