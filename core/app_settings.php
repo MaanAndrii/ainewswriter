@@ -59,8 +59,6 @@ function get_fallback_prompts() {
                 'fb_checkbox_on' => 'Facebook-допис: до {{facebook_max_chars}} символів.',
                 'depth_prefix' => 'Глибина рерайту: {{depth_text}}.',
                 'source_ref_rule' => 'Використай джерело: {{source_ref}}.',
-                'fact_rule' => 'Не вигадуй фактів.',
-                'precision_rule' => 'Мова: українська.',
                 'websearch_on' => 'Web-пошук увімкнений.',
                 'websearch_off' => 'Web-пошук вимкнений.',
                 'input_title' => 'ВХІДНИЙ МАТЕРІАЛ:',
