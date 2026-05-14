@@ -423,7 +423,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:8px 10px;
 
   function apiPost(payload, cb){
     var xhr = new XMLHttpRequest();
-    xhr.open('POST', '/api/settings_api.php', true);
+    xhr.open('POST', '/api/settings', true);
     xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.onload = function(){
       var d = {};
