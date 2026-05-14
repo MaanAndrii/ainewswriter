@@ -58,12 +58,6 @@ function get_fallback_prompts() {
                 'news_requirements_on' => 'Заголовки: {{headlines_count}} варіантів.',
                 'fb_checkbox_on' => 'Facebook-допис: до {{facebook_max_chars}} символів.',
                 'depth_prefix' => 'Глибина рерайту: {{depth_text}}.',
-                'depth_instr' => [
-                    'мінімальна — зберігай більшість формулювань, правки лише точкові.',
-                    'помірна — перефразуй приблизно половину речень.',
-                    'глибока — перепиши більшість речень.',
-                    'повна переробка — повністю перезбери текст.'
-                ],
                 'source_ref_rule' => 'Використай джерело: {{source_ref}}.',
                 'fact_rule' => 'Не вигадуй фактів.',
                 'precision_rule' => 'Мова: українська.',
@@ -98,7 +92,7 @@ function validate_prompts($prompts) {
     $requiredSystemFields = ['default'];
     $requiredUserFields = [
         'json_rule', 'requirements_title', 'news_fields_on',
-        'news_requirements_on', 'depth_prefix', 'depth_instr'
+        'news_requirements_on', 'depth_prefix'
     ];
 
     // Перевірка SYSTEM промтів
