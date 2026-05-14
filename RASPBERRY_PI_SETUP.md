@@ -98,15 +98,27 @@ server {
     server_name _;
 
     root /var/www/ainewswriter;
-    index public/newswriter.html index.php;
+    index index.php;
 
-    location / {
-        try_files $uri $uri/ /public/newswriter.html;
+    # Головна сторінка — index.php робить redirect на /public/newswriter.html
+    location = / {
+        try_files $uri /index.php;
     }
 
+    # Статичні файли (CSS, JS, HTML) — роздаємо напряму
+    location /public/ {
+        try_files $uri =404;
+    }
+
+    # PHP — обробляємо через php-fpm
     location ~ \.php$ {
         include snippets/fastcgi-php.conf;
         fastcgi_pass unix:/run/php/php8.4-fpm.sock;
+    }
+
+    # Блокуємо прямий доступ до службових файлів
+    location ~* \.(env|log|md)$ {
+        deny all;
     }
 }
 ```
@@ -150,8 +162,9 @@ sudo systemctl restart nginx
 
 Відкрийте в браузері:
 
-- `http://<IP_RASPBERRY>/public/newswriter.html`
+- `http://<IP_RASPBERRY>/` → автоматично перейде на редактор новин
 - `http://<IP_RASPBERRY>/admin/admin.php`
+- `http://<IP_RASPBERRY>/admin/log_viewer.php`
 
 ---
 
@@ -214,4 +227,5 @@ sudo nginx -t
 2. `php -l` для всіх PHP-файлів
 3. `nginx -t`
 4. перезапуск `php-fpm` + `nginx`
-5. відкриття `/admin/admin.php` і `/public/newswriter.html`
+5. відкриття `http://<IP>/` — має редиректити на редактор
+6. відкриття `/admin/admin.php` і перевірка статистики
