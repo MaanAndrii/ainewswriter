@@ -100,17 +100,19 @@ server {
     root /var/www/ainewswriter;
     index index.php;
 
-    # Головна сторінка — index.php робить redirect на /public/newswriter.html
-    location = / {
+    # Статичні файли — роздаємо напряму (без PHP)
+    location /public/assets/ {
+        try_files $uri =404;
+        expires 7d;
+        add_header Cache-Control "public";
+    }
+
+    # Всі інші запити йдуть через роутер index.php
+    location / {
         try_files $uri /index.php;
     }
 
-    # Статичні файли (CSS, JS, HTML) — роздаємо напряму
-    location /public/ {
-        try_files $uri =404;
-    }
-
-    # PHP — обробляємо через php-fpm
+    # PHP через php-fpm
     location ~ \.php$ {
         include snippets/fastcgi-php.conf;
         fastcgi_pass unix:/run/php/php8.4-fpm.sock;
