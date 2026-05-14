@@ -1,4 +1,4 @@
-var PROXY_URL = '/api/proxy.php';
+var PROXY_URL = '/api/proxy';
 var MODEL_PRICES = {};
 var MODEL_META = {};
 var DEPTH_LABELS = ['Мінімальна', 'Помірна', 'Глибока', 'Повна переробка'];
@@ -160,7 +160,7 @@ document.getElementById('modelSelect').addEventListener('change', function () {
 });
 function loadModelSettings() {
   var xhr = new XMLHttpRequest();
-  xhr.open('GET', '/api/settings_api.php', true);
+  xhr.open('GET', '/api/settings', true);
   xhr.onload = function () {
     if (xhr.status !== 200) return;
     var d = {};
