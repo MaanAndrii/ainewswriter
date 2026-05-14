@@ -548,7 +548,6 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:8px 10px;
         return m;
       }()),
       depth_prefix:          val('pf_depth_prefix'),
-      depth_instr:           lines('pf_depth_instr'),
       depth_short_rules:     lines('pf_depth_short_rules'),
       source_ref_rule:       val('pf_source_ref_rule'),
       websearch_on:          val('pf_websearch_on'),
