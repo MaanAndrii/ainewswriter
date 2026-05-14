@@ -503,7 +503,6 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:8px 10px;
     'pf_tone_prefix':          'Префікс тональності',
     'pf_tone_short_rules':     'Короткі описи тональностей',
     'pf_depth_prefix':         'Префікс глибини рерайту',
-    'pf_depth_instr':          'Інструкції глибини',
     'pf_websearch_on':         'Web-пошук увімкнено',
     'pf_websearch_off':        'Web-пошук вимкнено'
   };
