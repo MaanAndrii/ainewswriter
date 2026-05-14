@@ -247,7 +247,9 @@ function buildPrompt(source, sourceRef, extra, fbCheck, fbStyle, tone, makeNews,
     : '';
   var fbWhenDisabled = String(profile.facebook_when_disabled || 'omit');
   var jsonFacebookField = fbCheck ? '\n  "facebook": "..."' : (fbWhenDisabled === 'empty_string' ? '\n  "facebook": ""' : '');
-  return profile.json_rule + '\n{\n' + newsFields + jsonFacebookField + '\n}\n\n'
+  var jsonNewsFields = newsFields;
+  if (jsonNewsFields && jsonFacebookField) jsonNewsFields = jsonNewsFields.replace(/,?\s*$/, ',');
+  return profile.json_rule + '\n{\n' + jsonNewsFields + jsonFacebookField + '\n}\n\n'
     + profile.requirements_title + '\n'
     + (newsReqs ? ('- ' + newsReqs + '\n') : '')
     + '- ' + toneInstr + '\n'
