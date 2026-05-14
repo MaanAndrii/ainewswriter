@@ -192,7 +192,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:8px 10px;
       function pp_arr($pp, $key) { $v = $pp[$key] ?? []; return htmlspecialchars(implode("\n", (array)$v)); }
       function pp_tone($pp) {
         $m = $pp['tone_short_rules'] ?? []; $out = [];
-        foreach (['neutral','intriguing','emotional','seo'] as $k) $out[] = $k.': '.($m[$k] ?? '');
+        foreach (['neutral','intriguing','emotional','seo'] as $k) $out[] = ($m[$k] ?? '');
         return htmlspecialchars(implode("\n", $out));
       }
       function pp_fb($pp) {
@@ -249,7 +249,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:8px 10px;
       <label class="lbl" style="margin-top:10px">Префікс тональності <span style="color:#A32D2D">*</span> <span class="small" style="font-weight:400">— підтримує {{tone_label}}, {{tone_short}}</span></label>
       <input type="text" id="pf_tone_prefix" value="<?= pp_str($pp,'tone_prefix') ?>">
 
-      <label class="lbl" style="margin-top:10px">Короткі описи тональностей <span style="color:#A32D2D">*</span> <span class="small" style="font-weight:400">— по одному рядку: neutral: ..., intriguing: ..., emotional: ..., seo: ...</span></label>
+      <label class="lbl" style="margin-top:10px">Короткі описи тональностей <span style="color:#A32D2D">*</span> <span class="small" style="font-weight:400">— 4 рядки: нейтральний, інтригуючий, емоційний, SEO</span></label>
       <textarea id="pf_tone_short_rules" rows="4" style="font-family:var(--font-mono, monospace);font-size:12px"><?= pp_tone($pp) ?></textarea>
 
       <label class="lbl" style="margin-top:10px">Префікс глибини рерайту <span style="color:#A32D2D">*</span> <span class="small" style="font-weight:400">— підтримує {{depth_text}}, {{depth_short}}</span></label>
@@ -518,12 +518,10 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:8px 10px;
       if (!el) continue;
       if ((el.value || '').trim() === '') errors.push('• ' + REQUIRED_PROMPT_FIELDS[id]);
     }
-    // tone_short_rules: перевіряємо що є всі 4 тональності
+    // tone_short_rules: перевіряємо що є рівно 4 рядки
     var tsr = (document.getElementById('pf_tone_short_rules').value || '').trim();
     var tsrLines = tsr.split('\n').filter(function(l){ return l.trim(); });
-    var required_tones = ['neutral:', 'intriguing:', 'emotional:', 'seo:'];
-    var missing_tones = required_tones.filter(function(t){ return !tsrLines.some(function(l){ return l.trim().startsWith(t); }); });
-    if (missing_tones.length) errors.push('• Тональності: відсутні рядки для ' + missing_tones.join(', '));
+    if (tsrLines.length < 4) errors.push('• Короткі описи тональностей: потрібно 4 рядки (нейтральний, інтригуючий, емоційний, SEO), зараз ' + tsrLines.length);
     // depth_instr: 4 рядки
     var di = (document.getElementById('pf_depth_instr').value || '').trim();
     var diLines = di.split('\n').filter(function(l){ return l.trim(); });
@@ -534,14 +532,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:8px 10px;
   function readPromptFields() {
     function val(id) { return (document.getElementById(id) && document.getElementById(id).value || '').trim(); }
     function lines(id) { return val(id).split('\n').map(function(l){ return l.trim(); }).filter(Boolean); }
-    function toneMap(id) {
-      var m = {}; var raw = lines(id);
-      raw.forEach(function(l) {
-        var colon = l.indexOf(':');
-        if (colon > 0) m[l.slice(0, colon).trim()] = l.slice(colon + 1).trim();
-      });
-      return m;
-    }
+
     return {
       json_rule:             val('pf_json_rule'),
       requirements_title:    val('pf_requirements_title'),
@@ -549,7 +540,13 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:8px 10px;
       news_fields_on:        val('pf_news_fields_on'),
       news_requirements_on:  val('pf_news_requirements_on'),
       tone_prefix:           val('pf_tone_prefix'),
-      tone_short_rules:      toneMap('pf_tone_short_rules'),
+      tone_short_rules:      (function(){
+        var keys = ['neutral','intriguing','emotional','seo'];
+        var vals = lines('pf_tone_short_rules');
+        var m = {};
+        keys.forEach(function(k, i){ m[k] = vals[i] || ''; });
+        return m;
+      }()),
       depth_prefix:          val('pf_depth_prefix'),
       depth_instr:           lines('pf_depth_instr'),
       depth_short_rules:     lines('pf_depth_short_rules'),
@@ -641,7 +638,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:8px 10px;
           setVal('pf_news_fields_on',       p.news_fields_on);
           setVal('pf_news_requirements_on', p.news_requirements_on);
           setVal('pf_tone_prefix',          p.tone_prefix);
-          setToneMap('pf_tone_short_rules', p.tone_short_rules || {});
+          setLines('pf_tone_short_rules', ['neutral','intriguing','emotional','seo'].map(function(k){ return (p.tone_short_rules || {})[k] || ''; }));
           setVal('pf_depth_prefix',         p.depth_prefix);
           setLines('pf_depth_instr',        p.depth_instr);
           setLines('pf_depth_short_rules',  p.depth_short_rules);
