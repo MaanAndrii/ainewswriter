@@ -525,7 +525,6 @@ function renderResults(data, source, makeNews, fbCheck, depth) {
       var lc  = lok ? '#2a5a30' : '#8a6a20';
       var lt  = lok ? '\u2713' : (len < 150 ? '(замало, норма 150-200)' : '(забагато, норма 150-200)');
       html += '<div class="lead-card">'
-        + '<div class="lead-num">Лід \u00B7 варіант ' + l.num + '</div>'
         + '<div class="lead-text">' + esc(l.text) + '</div>'
         + '<div class="lead-len" style="color:' + lc + '">' + len + ' символів ' + lt + '</div>'
         + makeCopyBtn(l.text)
