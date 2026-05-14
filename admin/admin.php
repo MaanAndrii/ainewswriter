@@ -138,7 +138,6 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:8px 10px;
   <div class="tabs" style="grid-column:1 / -1">
     <button type="button" class="tab-btn active" data-tab="ai">Налаштування AI</button>
     <button type="button" class="tab-btn" data-tab="prompts">Промти і параметри</button>
-    <button type="button" class="tab-btn" data-tab="prompts_json">Редагування prompts.json</button>
     <button type="button" class="tab-btn" data-tab="stats">Статистика</button>
     <button type="button" class="tab-btn" data-tab="security">Безпека</button>
     <button type="button" class="tab-btn" data-tab="logs">Логи</button>
@@ -187,48 +186,100 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:8px 10px;
   </section>
 
   <section class="tab-pane" data-pane="prompts">
+    <?php
+      $pp = $settings['prompt_profiles']['user'] ?? get_default_prompt_profiles()['user'];
+      function pp_str($pp, $key, $def='') { return htmlspecialchars((string)($pp[$key] ?? $def)); }
+      function pp_arr($pp, $key) { $v = $pp[$key] ?? []; return htmlspecialchars(implode("\n", (array)$v)); }
+      function pp_tone($pp) {
+        $m = $pp['tone_short_rules'] ?? []; $out = [];
+        foreach (['neutral','intriguing','emotional','seo'] as $k) $out[] = $k.': '.($m[$k] ?? '');
+        return htmlspecialchars(implode("\n", $out));
+      }
+      function pp_fb($pp) {
+        $a = $pp['fb_style_rules'] ?? []; $out = [];
+        foreach ($a as $i => $v) $out[] = $v;
+        return htmlspecialchars(implode("\n", $out));
+      }
+    ?>
+
     <div class="card">
-      <div class="ttl">Промти і параметри</div>
-      <label class="lbl">SYSTEM промпт</label>
-      <textarea id="system_default_override" class="big"><?= htmlspecialchars($defaultOverride !== '' ? $defaultOverride : $defaultPrompt) ?></textarea>
+      <div class="ttl">System prompt</div>
+      <textarea id="system_default_override" class="big" style="min-height:180px"><?= htmlspecialchars($defaultOverride !== '' ? $defaultOverride : $defaultPrompt) ?></textarea>
+      <div class="small" style="margin-top:4px">Базові інструкції для моделі — роль редактора, мовні вимоги, формат відповіді.</div>
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
-        <button type="button" class="btn-mini danger" id="save_system_default_btn">Зберегти SYSTEM промпт</button>
+        <button type="button" class="btn-mini muted" id="restore_prompts_defaults_btn">Відновити за замовчуванням</button>
+        <button type="button" class="btn-mini danger" id="save_system_default_btn">Зберегти system prompt</button>
       </div>
-
-      <label class="lbl">Параметри генерації</label>
-      <div class="row">
-        <div><label class="small">К-сть заголовків</label><input type="number" id="lim_headlines" min="1" value="<?= (int)(($settings['prompt_profiles']['user']['headlines_count'] ?? 4)) ?>"></div>
-        <div><label class="small">К-сть лідів</label><input type="number" id="lim_leads" min="1" value="<?= (int)(($settings['prompt_profiles']['user']['leads_count'] ?? 2)) ?>"></div>
-        <div><label class="small">Макс. символів новини</label><input type="number" id="lim_article" min="300" value="<?= (int)(($settings['prompt_profiles']['user']['article_max_chars'] ?? 3000)) ?>"></div>
-        <div><label class="small">Макс. символів Facebook</label><input type="number" id="lim_fb" min="50" value="<?= (int)(($settings['prompt_profiles']['user']['facebook_max_chars'] ?? 400)) ?>"></div>
-      </div>
-      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px"><button type="button" class="btn-mini" id="save_prompt_limits_btn">Зберегти параметри генерації</button></div>
-
-      <label class="lbl">JSON профілі USER-підказок (чекбокси/повзунки/блоки)</label>
-      <textarea id="prompt_profiles_json" class="big"><?= htmlspecialchars(json_encode($settings['prompt_profiles'] ?? get_default_prompt_profiles(), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?></textarea>
-      <div class="small">JSON-архітектура додаткових prompt-блоків. Впливає на USER-prompt перед відправленням.</div>
-      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
-        <button type="button" class="btn-mini danger" id="save_prompt_profiles_btn">Зберегти JSON промптів</button>
-      </div>
+      <div class="small" id="save_system_status" style="text-align:right;margin-top:4px"></div>
     </div>
-  </section>
 
-  <!-- Вкладка для редагування prompts.json -->
-  <section class="tab-pane" data-pane="prompts_json">
-    <div class="card">
-      <div class="ttl">Редагування prompts.json</div>
-      <label class="lbl">Вміст файлу prompts.json</label>
-      <textarea id="prompts_json_editor" class="big"><?= htmlspecialchars($promptsJsonPretty) ?></textarea>
-      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
-        <button type="button" class="btn-mini danger" id="save_prompts_json_btn">Зберегти prompts.json</button>
+    <div class="card" style="margin-top:14px">
+      <div class="ttl">Параметри генерації</div>
+      <div class="row">
+        <div><label class="small">К-сть заголовків</label><input type="number" id="lim_headlines" min="1" max="10" value="<?= (int)($pp['headlines_count'] ?? 4) ?>"></div>
+        <div><label class="small">К-сть лідів</label><input type="number" id="lim_leads" min="1" max="5" value="<?= (int)($pp['leads_count'] ?? 2) ?>"></div>
+        <div><label class="small">Макс. символів новини</label><input type="number" id="lim_article" min="300" max="10000" value="<?= (int)($pp['article_max_chars'] ?? 3000) ?>"></div>
+        <div><label class="small">Макс. символів Facebook</label><input type="number" id="lim_fb" min="50" max="2000" value="<?= (int)($pp['facebook_max_chars'] ?? 400) ?>"></div>
       </div>
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
-        <button type="button" class="btn-mini muted" id="restore_prompts_defaults_btn">Відновити промти за замовчуванням</button>
+        <button type="button" class="btn-mini" id="save_prompt_limits_btn">Зберегти параметри</button>
       </div>
-      <div class="small">
-        Редагуйте цей файл, щоб змінити дефолтні промти. Зміни застосовуються відразу після збереження.<br>
-        <strong>Увага:</strong> Неправильний JSON може зламати роботу системи!
+      <div class="small" id="save_limits_status" style="text-align:right;margin-top:4px"></div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <div class="ttl">Складові user-промту</div>
+      <div class="small" style="margin-bottom:12px">Кожне поле — це шматок тексту який підставляється в промт при генерації. Поля позначені <span style="color:#A32D2D;font-weight:500">*</span> є обов'язковими.</div>
+
+      <label class="lbl">JSON-правило <span style="color:#A32D2D">*</span> <span class="small" style="font-weight:400">— перший рядок user-промту, вимога повернути JSON</span></label>
+      <textarea id="pf_json_rule" rows="2" style="font-family:var(--font-mono, monospace);font-size:12px"><?= pp_str($pp,'json_rule') ?></textarea>
+
+      <label class="lbl" style="margin-top:10px">Заголовок блоку параметрів <span style="color:#A32D2D">*</span> <span class="small" style="font-weight:400">— напр. «ПАРАМЕТРИ ЦЬОГО ЗАПУСКУ:»</span></label>
+      <input type="text" id="pf_requirements_title" value="<?= pp_str($pp,'requirements_title') ?>">
+
+      <label class="lbl" style="margin-top:10px">Заголовок вхідного матеріалу <span style="color:#A32D2D">*</span> <span class="small" style="font-weight:400">— напр. «ВХІДНИЙ МАТЕРІАЛ:»</span></label>
+      <input type="text" id="pf_input_title" value="<?= pp_str($pp,'input_title','ВХІДНИЙ МАТЕРІАЛ:') ?>">
+
+      <label class="lbl" style="margin-top:10px">Поля JSON при увімкненій новині <span style="color:#A32D2D">*</span> <span class="small" style="font-weight:400">— рядки всередині {}</span></label>
+      <textarea id="pf_news_fields_on" rows="3" style="font-family:var(--font-mono, monospace);font-size:12px"><?= pp_str($pp,'news_fields_on') ?></textarea>
+
+      <label class="lbl" style="margin-top:10px">Вимоги до новини <span style="color:#A32D2D">*</span> <span class="small" style="font-weight:400">— підтримує {{headlines_count}}, {{leads_count}}, {{article_max_chars}}, {{tone_label}}</span></label>
+      <textarea id="pf_news_requirements_on" rows="2"><?= pp_str($pp,'news_requirements_on') ?></textarea>
+
+      <label class="lbl" style="margin-top:10px">Префікс тональності <span style="color:#A32D2D">*</span> <span class="small" style="font-weight:400">— підтримує {{tone_label}}, {{tone_short}}</span></label>
+      <input type="text" id="pf_tone_prefix" value="<?= pp_str($pp,'tone_prefix') ?>">
+
+      <label class="lbl" style="margin-top:10px">Короткі описи тональностей <span style="color:#A32D2D">*</span> <span class="small" style="font-weight:400">— по одному рядку: neutral: ..., intriguing: ..., emotional: ..., seo: ...</span></label>
+      <textarea id="pf_tone_short_rules" rows="4" style="font-family:var(--font-mono, monospace);font-size:12px"><?= pp_tone($pp) ?></textarea>
+
+      <label class="lbl" style="margin-top:10px">Префікс глибини рерайту <span style="color:#A32D2D">*</span> <span class="small" style="font-weight:400">— підтримує {{depth_text}}, {{depth_short}}</span></label>
+      <input type="text" id="pf_depth_prefix" value="<?= pp_str($pp,'depth_prefix') ?>">
+
+      <label class="lbl" style="margin-top:10px">Інструкції глибини (0–3) <span style="color:#A32D2D">*</span> <span class="small" style="font-weight:400">— 4 рядки для повзунка мін→макс</span></label>
+      <textarea id="pf_depth_instr" rows="4" style="font-family:var(--font-mono, monospace);font-size:12px"><?= pp_arr($pp,'depth_instr') ?></textarea>
+
+      <label class="lbl" style="margin-top:10px">Короткі інструкції глибини (0–3) <span class="small" style="font-weight:400">— 4 рядки, підставляється в {{depth_short}}</span></label>
+      <textarea id="pf_depth_short_rules" rows="4" style="font-family:var(--font-mono, monospace);font-size:12px"><?= pp_arr($pp,'depth_short_rules') ?></textarea>
+
+      <label class="lbl" style="margin-top:10px">Правило джерела <span class="small" style="font-weight:400">— підтримує {{source_ref}}</span></label>
+      <input type="text" id="pf_source_ref_rule" value="<?= pp_str($pp,'source_ref_rule') ?>">
+
+      <label class="lbl" style="margin-top:10px">Web-пошук увімкнено <span style="color:#A32D2D">*</span></label>
+      <input type="text" id="pf_websearch_on" value="<?= pp_str($pp,'websearch_on') ?>">
+
+      <label class="lbl" style="margin-top:10px">Web-пошук вимкнено <span style="color:#A32D2D">*</span></label>
+      <input type="text" id="pf_websearch_off" value="<?= pp_str($pp,'websearch_off') ?>">
+
+      <label class="lbl" style="margin-top:10px">Facebook-рядок (увімкнено) <span class="small" style="font-weight:400">— підтримує {{facebook_max_chars}}, {{fb_style_rule}}</span></label>
+      <textarea id="pf_fb_checkbox_on" rows="2"><?= pp_str($pp,'fb_checkbox_on') ?></textarea>
+
+      <label class="lbl" style="margin-top:10px">Стилі Facebook (0–3) <span class="small" style="font-weight:400">— 4 рядки для повзунка серйозний→гумористичний</span></label>
+      <textarea id="pf_fb_style_rules" rows="4" style="font-family:var(--font-mono, monospace);font-size:12px"><?= pp_fb($pp) ?></textarea>
+
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+        <button type="button" class="btn-mini danger" id="save_prompt_fields_btn">Зберегти складові промту</button>
       </div>
+      <div class="small" id="save_fields_status" style="text-align:right;margin-top:4px"></div>
     </div>
   </section>
 
@@ -445,77 +496,167 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:8px 10px;
     });
   }
 
-  var saveLimitsBtn = document.getElementById('save_prompt_limits_btn');
-  if (saveLimitsBtn) {
-    saveLimitsBtn.addEventListener('click', function(){
-      apiPost({action:'save_prompt_limits', limits:{
-        headlines_count: Number(document.getElementById('lim_headlines').value || 4),
-        leads_count: Number(document.getElementById('lim_leads').value || 2),
-        article_max_chars: Number(document.getElementById('lim_article').value || 3000),
-        facebook_max_chars: Number(document.getElementById('lim_fb').value || 400)
-      }}, function(err){
-        if (err) return alert('Не вдалося зберегти параметри: ' + err.message);
-        alert('Параметри генерації збережено ✔');
-      });
-    });
+  // ── Обов'язкові поля промту ─────────────────────────────────────────────────
+  var REQUIRED_PROMPT_FIELDS = {
+    'pf_json_rule':            'JSON-правило',
+    'pf_requirements_title':   'Заголовок блоку параметрів',
+    'pf_input_title':          'Заголовок вхідного матеріалу',
+    'pf_news_fields_on':       'Поля JSON при увімкненій новині',
+    'pf_news_requirements_on': 'Вимоги до новини',
+    'pf_tone_prefix':          'Префікс тональності',
+    'pf_tone_short_rules':     'Короткі описи тональностей',
+    'pf_depth_prefix':         'Префікс глибини рерайту',
+    'pf_depth_instr':          'Інструкції глибини',
+    'pf_websearch_on':         'Web-пошук увімкнено',
+    'pf_websearch_off':        'Web-пошук вимкнено'
+  };
+
+  function validatePromptFields() {
+    var errors = [];
+    for (var id in REQUIRED_PROMPT_FIELDS) {
+      var el = document.getElementById(id);
+      if (!el) continue;
+      if ((el.value || '').trim() === '') errors.push('• ' + REQUIRED_PROMPT_FIELDS[id]);
+    }
+    // tone_short_rules: перевіряємо що є всі 4 тональності
+    var tsr = (document.getElementById('pf_tone_short_rules').value || '').trim();
+    var tsrLines = tsr.split('\n').filter(function(l){ return l.trim(); });
+    var required_tones = ['neutral:', 'intriguing:', 'emotional:', 'seo:'];
+    var missing_tones = required_tones.filter(function(t){ return !tsrLines.some(function(l){ return l.trim().startsWith(t); }); });
+    if (missing_tones.length) errors.push('• Тональності: відсутні рядки для ' + missing_tones.join(', '));
+    // depth_instr: 4 рядки
+    var di = (document.getElementById('pf_depth_instr').value || '').trim();
+    var diLines = di.split('\n').filter(function(l){ return l.trim(); });
+    if (diLines.length < 4) errors.push('• Інструкції глибини: потрібно рівно 4 рядки (зараз ' + diLines.length + ')');
+    return errors;
   }
 
-  var saveProfilesBtn = document.getElementById('save_prompt_profiles_btn');
-  if (saveProfilesBtn) {
-    saveProfilesBtn.addEventListener('click', function(){
-      var raw = document.getElementById('prompt_profiles_json').value || '';
-      var parsed;
-      try { parsed = JSON.parse(raw); } catch (e) { alert('Невалідний JSON'); return; }
-      if (!confirm('Підтвердити зміну JSON промптів? Це вплине на генерацію.')) return;
-      apiPost({action:'save_prompt_profiles', profiles: parsed}, function(err){
-        if (err) return alert('Не вдалося зберегти JSON промптів: ' + err.message);
-        alert('JSON промптів збережено ✔');
+  function readPromptFields() {
+    function val(id) { return (document.getElementById(id) && document.getElementById(id).value || '').trim(); }
+    function lines(id) { return val(id).split('\n').map(function(l){ return l.trim(); }).filter(Boolean); }
+    function toneMap(id) {
+      var m = {}; var raw = lines(id);
+      raw.forEach(function(l) {
+        var colon = l.indexOf(':');
+        if (colon > 0) m[l.slice(0, colon).trim()] = l.slice(colon + 1).trim();
       });
-    });
+      return m;
+    }
+    return {
+      json_rule:             val('pf_json_rule'),
+      requirements_title:    val('pf_requirements_title'),
+      input_title:           val('pf_input_title'),
+      news_fields_on:        val('pf_news_fields_on'),
+      news_requirements_on:  val('pf_news_requirements_on'),
+      tone_prefix:           val('pf_tone_prefix'),
+      tone_short_rules:      toneMap('pf_tone_short_rules'),
+      depth_prefix:          val('pf_depth_prefix'),
+      depth_instr:           lines('pf_depth_instr'),
+      depth_short_rules:     lines('pf_depth_short_rules'),
+      source_ref_rule:       val('pf_source_ref_rule'),
+      websearch_on:          val('pf_websearch_on'),
+      websearch_off:         val('pf_websearch_off'),
+      fb_checkbox_on:        val('pf_fb_checkbox_on'),
+      fb_style_rules:        lines('pf_fb_style_rules'),
+      facebook_when_disabled: 'omit'
+    };
   }
 
+  // Зберегти system prompt
   var saveSystemBtn = document.getElementById('save_system_default_btn');
   if (saveSystemBtn) {
     saveSystemBtn.addEventListener('click', function(){
       var text = (document.getElementById('system_default_override').value || '').trim();
-      if (!text) { alert('SYSTEM промпт не може бути порожнім'); return; }
-      if (!confirm('Підтвердити зміну SYSTEM промпта за замовчуванням?')) return;
+      var status = document.getElementById('save_system_status');
+      if (!text) { status.textContent = 'System prompt не може бути порожнім'; return; }
+      if (!confirm('Зберегти system prompt?')) return;
       apiPost({action:'save_system_default_override', value: text}, function(err){
-        if (err) return alert('Не вдалося зберегти SYSTEM промпт: ' + err.message);
-        alert('SYSTEM промпт збережено ✔');
+        if (err) { status.textContent = 'Помилка: ' + err.message; return; }
+        status.textContent = 'System prompt збережено ✔';
       });
     });
   }
 
-  // Нова кнопка для збереження prompts.json
-  var savePromptsJsonBtn = document.getElementById('save_prompts_json_btn');
-  if (savePromptsJsonBtn) {
-    savePromptsJsonBtn.addEventListener('click', function() {
-      var promptsJson = document.getElementById('prompts_json_editor').value;
-      try {
-        JSON.parse(promptsJson);
-      } catch (e) {
-        alert('Невалідний JSON: ' + e.message);
+  // Зберегти параметри генерації (числа)
+  var saveLimitsBtn = document.getElementById('save_prompt_limits_btn');
+  if (saveLimitsBtn) {
+    saveLimitsBtn.addEventListener('click', function(){
+      var status = document.getElementById('save_limits_status');
+      apiPost({action:'save_prompt_limits', limits:{
+        headlines_count:  Number(document.getElementById('lim_headlines').value || 4),
+        leads_count:      Number(document.getElementById('lim_leads').value || 2),
+        article_max_chars:Number(document.getElementById('lim_article').value || 3000),
+        facebook_max_chars:Number(document.getElementById('lim_fb').value || 400)
+      }}, function(err){
+        if (err) { status.textContent = 'Помилка: ' + err.message; return; }
+        status.textContent = 'Параметри збережено ✔';
+      });
+    });
+  }
+
+  // Зберегти складові user-промту (поля)
+  var saveFieldsBtn = document.getElementById('save_prompt_fields_btn');
+  if (saveFieldsBtn) {
+    saveFieldsBtn.addEventListener('click', function(){
+      var status = document.getElementById('save_fields_status');
+      var errors = validatePromptFields();
+      if (errors.length) {
+        status.innerHTML = '<span style="color:#A32D2D">Виправте помилки:<br>' + errors.join('<br>') + '</span>';
         return;
       }
-      if (!confirm('Підтвердити збереження prompts.json? Це вплине на роботу системи!')) return;
-      apiPost({action: 'save_prompts', prompts: JSON.parse(promptsJson)}, function(err) {
-        if (err) return alert('Не вдалося зберегти prompts.json: ' + err.message);
-        alert('prompts.json збережено ✔');
+      var fields = readPromptFields();
+      // Зберігаємо через save_prompt_profiles з поточними числовими лімітами
+      var currentProfiles = { user: Object.assign({
+        headlines_count:   Number(document.getElementById('lim_headlines').value || 4),
+        leads_count:       Number(document.getElementById('lim_leads').value || 2),
+        article_max_chars: Number(document.getElementById('lim_article').value || 3000),
+        facebook_max_chars:Number(document.getElementById('lim_fb').value || 400)
+      }, fields) };
+      apiPost({action:'save_prompt_profiles', profiles: currentProfiles}, function(err){
+        if (err) { status.textContent = 'Помилка: ' + err.message; return; }
+        status.textContent = 'Складові промту збережено ✔';
       });
     });
   }
 
-
+  // Відновити за замовчуванням
   var restorePromptsBtn = document.getElementById('restore_prompts_defaults_btn');
   if (restorePromptsBtn) {
     restorePromptsBtn.addEventListener('click', function(){
-      if (!confirm('Скинути SYSTEM/USER промти до значень за замовчуванням?')) return;
+      if (!confirm('Скинути system prompt та всі складові user-промту до значень за замовчуванням?')) return;
       apiPost({action:'restore_default_prompts'}, function(err, d){
-        if (err) return alert('Не вдалося відновити промти: ' + err.message);
+        if (err) { alert('Не вдалося відновити: ' + err.message); return; }
         if (d && d.prompt_system) document.getElementById('system_default_override').value = d.prompt_system;
-        if (d && d.prompt_profiles) document.getElementById('prompt_profiles_json').value = JSON.stringify(d.prompt_profiles, null, 2);
-        alert('Промти відновлено до дефолтних ✔');
+        if (d && d.prompt_profiles && d.prompt_profiles.user) {
+          var p = d.prompt_profiles.user;
+          function setVal(id, v) { var el = document.getElementById(id); if (el) el.value = v || ''; }
+          function setLines(id, arr) { setVal(id, (arr || []).join('\n')); }
+          function setToneMap(id, m) {
+            var lines = ['neutral','intriguing','emotional','seo'].map(function(k){ return k + ': ' + (m[k] || ''); });
+            setVal(id, lines.join('\n'));
+          }
+          setVal('pf_json_rule',            p.json_rule);
+          setVal('pf_requirements_title',   p.requirements_title);
+          setVal('pf_input_title',          p.input_title);
+          setVal('pf_news_fields_on',       p.news_fields_on);
+          setVal('pf_news_requirements_on', p.news_requirements_on);
+          setVal('pf_tone_prefix',          p.tone_prefix);
+          setToneMap('pf_tone_short_rules', p.tone_short_rules || {});
+          setVal('pf_depth_prefix',         p.depth_prefix);
+          setLines('pf_depth_instr',        p.depth_instr);
+          setLines('pf_depth_short_rules',  p.depth_short_rules);
+          setVal('pf_source_ref_rule',      p.source_ref_rule);
+          setVal('pf_websearch_on',         p.websearch_on);
+          setVal('pf_websearch_off',        p.websearch_off);
+          setVal('pf_fb_checkbox_on',       p.fb_checkbox_on);
+          setLines('pf_fb_style_rules',     p.fb_style_rules);
+          if (p.headlines_count)   document.getElementById('lim_headlines').value  = p.headlines_count;
+          if (p.leads_count)       document.getElementById('lim_leads').value       = p.leads_count;
+          if (p.article_max_chars) document.getElementById('lim_article').value     = p.article_max_chars;
+          if (p.facebook_max_chars)document.getElementById('lim_fb').value          = p.facebook_max_chars;
+        }
+        document.getElementById('save_system_status').textContent = 'Відновлено за замовчуванням ✔';
+        document.getElementById('save_fields_status').textContent = 'Відновлено за замовчуванням ✔';
       });
     });
   }
