@@ -219,8 +219,8 @@ function buildPrompt(source, sourceRef, extra, fbCheck, fbStyle, tone, makeNews,
   var toneShort = toneShortMap[tone] || toneLabel;
 
   var extraBlock = extra            ? '\n\nДодаткові інструкції / контекст:\n' + extra : '';
-  var refBlock   = sourceRef        ? '\n\nДЖЕРЕЛО: ' + sourceRef : '';
   var regenBlock = regenInstruction ? '\n\nІНСТРУКЦІЇ ДЛЯ ПЕРЕГЕНЕРАЦІЇ:\n' + regenInstruction : '';
+  // refBlock видалено — джерело вказується через source_ref_rule в параметрах
   var refPrompt  = sourceRef
     ? String(profile.source_ref_rule || '').replace('{{source_ref}}', sourceRef)
     : '';
@@ -248,7 +248,7 @@ function buildPrompt(source, sourceRef, extra, fbCheck, fbStyle, tone, makeNews,
   var fbWhenDisabled = String(profile.facebook_when_disabled || 'omit');
   var jsonFacebookField = fbCheck ? '\n  "facebook": "..."' : (fbWhenDisabled === 'empty_string' ? '\n  "facebook": ""' : '');
   var jsonNewsFields = newsFields;
-  if (jsonNewsFields && jsonFacebookField) jsonNewsFields = jsonNewsFields.replace(/,?\s*$/, ',');
+  if (jsonNewsFields && jsonFacebookField) jsonNewsFields = jsonNewsFields.replace(/[,\s]+$/, '') + ',';
   return profile.json_rule + '\n{\n' + jsonNewsFields + jsonFacebookField + '\n}\n\n'
     + profile.requirements_title + '\n'
     + (newsReqs ? ('- ' + newsReqs + '\n') : '')
@@ -257,7 +257,7 @@ function buildPrompt(source, sourceRef, extra, fbCheck, fbStyle, tone, makeNews,
     + (refPrompt ? ('- ' + refPrompt + '\n') : '')
     + '- ' + (webSearch ? (profile.websearch_on || '') : (profile.websearch_off || '')) + '\n'
     + (fbLine ? ('- ' + fbLine + '\n') : '')
-    + refBlock + extraBlock + regenBlock + '\n'
+    + extraBlock + regenBlock + '\n'
     + (profile.input_title || 'ВХІДНИЙ МАТЕРІАЛ:') + '\n' + source;
 }
 // ── API call via XHR ──
