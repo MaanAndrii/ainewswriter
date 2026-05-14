@@ -238,7 +238,9 @@ function buildPrompt(source, sourceRef, extra, fbCheck, fbStyle, tone, makeNews,
       .replaceAll('{{tone_label}}', toneLabel)
       .replaceAll('{{headlines_count}}', String(profile.headlines_count || 4))
       .replaceAll('{{leads_count}}', String(profile.leads_count || 2))
-      .replaceAll('{{article_max_chars}}', String(profile.article_max_chars || 3000));
+      .replaceAll('{{article_max_chars}}', String(profile.article_max_chars || 3000))
+      .replaceAll('{{lead_min_chars}}', String(profile.lead_min_chars || 150))
+      .replaceAll('{{lead_max_chars}}', String(profile.lead_max_chars || 180));
   }
   var fbStyleRules = Array.isArray(profile.fb_style_rules) ? profile.fb_style_rules : FB_STYLE_RULES;
   var fbStyleRule = fbStyleRules[fbStyle] || fbStyleRules[1] || '';
