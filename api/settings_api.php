@@ -159,6 +159,88 @@ if ($method === 'POST') {
     exit;
   }
 
+  // Export settings (no API keys)
+  if ($action === 'export_settings') {
+    $settings = load_settings();
+    $promptsFile = dirname(__DIR__) . '/prompts.json';
+    $promptsData = file_exists($promptsFile) ? json_decode(file_get_contents($promptsFile), true) : [];
+    $keys = get_runtime_keys();
+    $export = [
+      '__version'    => 1,
+      '__exported_at' => date('c'),
+      'models'       => $settings['models'] ?? [],
+      'prompt_profiles' => $settings['prompt_profiles'] ?? get_default_prompt_profiles(),
+      'system_prompt_default_override' => (string)($settings['system_prompt_default_override'] ?? ''),
+      'prompts_json' => $promptsData,
+      'api_keys'     => $keys,
+    ];
+    echo json_encode(['ok' => true, 'data' => $export], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+    exit;
+  }
+
+  // Import settings
+  if ($action === 'import_settings') {
+    $payload = $data['data'] ?? null;
+    if (!is_array($payload) || ($payload['__version'] ?? 0) < 1) {
+      http_response_code(400);
+      echo json_encode(['ok' => false, 'error' => 'Невалідний файл імпорту (відсутній __version)']);
+      exit;
+    }
+
+    $errors = [];
+    if (isset($payload['models'])) {
+      if (!is_array($payload['models'])) {
+        $errors[] = 'models: має бути масив';
+      } else {
+        $err = validate_models_payload($payload['models']);
+        if ($err) $errors[] = 'models: ' . $err;
+      }
+    }
+    if ($errors) {
+      http_response_code(400);
+      echo json_encode(['ok' => false, 'error' => implode('; ', $errors)]);
+      exit;
+    }
+
+    $current    = load_settings();
+    $newModels  = isset($payload['models'])           ? $payload['models']           : ($current['models'] ?? []);
+    $newProfiles= isset($payload['prompt_profiles'])  ? $payload['prompt_profiles']  : ($current['prompt_profiles'] ?? get_default_prompt_profiles());
+    $newOverride= array_key_exists('system_prompt_default_override', $payload)
+                    ? (string)$payload['system_prompt_default_override']
+                    : (string)($current['system_prompt_default_override'] ?? '');
+
+    save_settings([
+      'models'       => $newModels,
+      'system_prompt_custom' => (string)($current['system_prompt_custom'] ?? ''),
+      'system_prompt_default_override' => $newOverride,
+      'prompt_profiles' => $newProfiles,
+    ]);
+
+    if (isset($payload['prompts_json']) && is_array($payload['prompts_json'])) {
+      save_prompts_to_json($payload['prompts_json']);
+    }
+
+    $importedKeys = 0;
+    if (isset($payload['api_keys']) && is_array($payload['api_keys'])) {
+      $keyMap = ['anthropic' => 'ANTHROPIC_API_KEY', 'xai' => 'XAI_API_KEY', 'gemini' => 'GEMINI_API_KEY', 'mistral' => 'MISTRAL_API_KEY'];
+      $toSave = [];
+      foreach ($keyMap as $provider => $envKey) {
+        $val = trim((string)($payload['api_keys'][$provider] ?? ''));
+        if ($val !== '') $toSave[$envKey] = $val;
+      }
+      if ($toSave) { save_env_values($toSave); $importedKeys = count($toSave); }
+    }
+
+    echo json_encode(['ok' => true, 'imported' => [
+      'models_count'    => count($newModels),
+      'has_prompts_json'=> isset($payload['prompts_json']),
+      'has_profiles'    => isset($payload['prompt_profiles']),
+      'has_system'      => array_key_exists('system_prompt_default_override', $payload),
+      'keys_imported'   => $importedKeys,
+    ]], JSON_UNESCAPED_UNICODE);
+    exit;
+  }
+
   http_response_code(400);
   echo json_encode(['ok' => false, 'error' => 'Unknown action']);
   exit;
