@@ -261,8 +261,8 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:8px 10px;
       <label class="lbl" style="margin-top:10px">Короткі інструкції глибини (0–3) <span class="small" style="font-weight:400">— 4 записи розділені <code>---</code>, підставляється в {{depth_short}}</span></label>
       <textarea id="pf_depth_short_rules" rows="4" style="font-family:var(--font-mono, monospace);font-size:12px"><?= pp_arr($pp,'depth_short_rules') ?></textarea>
 
-      <label class="lbl" style="margin-top:10px">Правило джерела <span class="small" style="font-weight:400">— підтримує {{source_ref}}</span></label>
-      <input type="text" id="pf_source_ref_rule" value="<?= pp_str($pp,'source_ref_rule') ?>">
+      <label class="lbl" style="margin-top:10px">Інструкція для джерела <span class="small" style="font-weight:400">— {{source_ref}} замінюється значенням з поля «Джерело новини»; опишіть як органічно вписати джерело в перший абзац</span></label>
+      <textarea id="pf_source_ref_rule" rows="3"><?= pp_str($pp,'source_ref_rule') ?></textarea>
 
       <label class="lbl" style="margin-top:10px">Web-пошук увімкнено <span style="color:#A32D2D">*</span></label>
       <input type="text" id="pf_websearch_on" value="<?= pp_str($pp,'websearch_on') ?>">
