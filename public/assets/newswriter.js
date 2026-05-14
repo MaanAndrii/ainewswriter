@@ -566,19 +566,5 @@ function renderResults(data, source, makeNews, fbCheck, depth) {
       + makeCopyBtn(data.facebook)
       + '</div></div>';
   }
-  // Regen
-  html += '<div class="regen-box">'
-    + '<div class="regen-lbl">\u21BA Перегенерувати з правками</div>'
-    + '<textarea id="regenNote" style="min-height:72px;background:#fff" placeholder="Що змінити? Напр.: зроби заголовки коротшими, посилий емоційність\u2026"></textarea>'
-    + '<div class="regen-row">'
-    + '<button id="btnRegen" class="btn-regen" onclick="doRegen()"><div class="spin" id="spinRegen"></div><span id="regenBtnLbl">\u21BA Застосувати правки</span></button>'
-    + '<span class="regen-hint">або змінити параметри і натиснути «Обробити»</span>'
-    + '</div></div>';
-  html += '</div>';
   document.getElementById('output').innerHTML = html;
-}
-function doRegen() {
-  var note = getVal('regenNote');
-  if (!note) return;
-  runProcess(note);
 }
