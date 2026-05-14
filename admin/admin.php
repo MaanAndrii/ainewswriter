@@ -189,16 +189,16 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:8px 10px;
     <?php
       $pp = $settings['prompt_profiles']['user'] ?? get_default_prompt_profiles()['user'];
       function pp_str($pp, $key, $def='') { return htmlspecialchars((string)($pp[$key] ?? $def)); }
-      function pp_arr($pp, $key) { $v = $pp[$key] ?? []; return htmlspecialchars(implode("\n", (array)$v)); }
+      function pp_arr($pp, $key) { $v = $pp[$key] ?? []; return htmlspecialchars(implode("\n---\n", (array)$v)); }
       function pp_tone($pp) {
         $m = $pp['tone_short_rules'] ?? []; $out = [];
         foreach (['neutral','intriguing','emotional','seo'] as $k) $out[] = ($m[$k] ?? '');
-        return htmlspecialchars(implode("\n", $out));
+        return htmlspecialchars(implode("\n---\n", $out));
       }
       function pp_fb($pp) {
         $a = $pp['fb_style_rules'] ?? []; $out = [];
         foreach ($a as $i => $v) $out[] = $v;
-        return htmlspecialchars(implode("\n", $out));
+        return htmlspecialchars(implode("\n---\n", $out));
       }
     ?>
 
@@ -249,16 +249,16 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:8px 10px;
       <label class="lbl" style="margin-top:10px">Префікс тональності <span style="color:#A32D2D">*</span> <span class="small" style="font-weight:400">— підтримує {{tone_label}}, {{tone_short}}</span></label>
       <input type="text" id="pf_tone_prefix" value="<?= pp_str($pp,'tone_prefix') ?>">
 
-      <label class="lbl" style="margin-top:10px">Короткі описи тональностей <span style="color:#A32D2D">*</span> <span class="small" style="font-weight:400">— 4 рядки: нейтральний, інтригуючий, емоційний, SEO</span></label>
+      <label class="lbl" style="margin-top:10px">Короткі описи тональностей <span style="color:#A32D2D">*</span> <span class="small" style="font-weight:400">— 4 записи розділені <code>---</code>: нейтральний, інтригуючий, емоційний, SEO</span></label>
       <textarea id="pf_tone_short_rules" rows="4" style="font-family:var(--font-mono, monospace);font-size:12px"><?= pp_tone($pp) ?></textarea>
 
       <label class="lbl" style="margin-top:10px">Префікс глибини рерайту <span style="color:#A32D2D">*</span> <span class="small" style="font-weight:400">— підтримує {{depth_text}}, {{depth_short}}</span></label>
       <input type="text" id="pf_depth_prefix" value="<?= pp_str($pp,'depth_prefix') ?>">
 
-      <label class="lbl" style="margin-top:10px">Інструкції глибини (0–3) <span style="color:#A32D2D">*</span> <span class="small" style="font-weight:400">— 4 рядки для повзунка мін→макс</span></label>
+      <label class="lbl" style="margin-top:10px">Інструкції глибини (0–3) <span style="color:#A32D2D">*</span> <span class="small" style="font-weight:400">— 4 записи розділені <code>---</code>, для повзунка мін→макс</span></label>
       <textarea id="pf_depth_instr" rows="4" style="font-family:var(--font-mono, monospace);font-size:12px"><?= pp_arr($pp,'depth_instr') ?></textarea>
 
-      <label class="lbl" style="margin-top:10px">Короткі інструкції глибини (0–3) <span class="small" style="font-weight:400">— 4 рядки, підставляється в {{depth_short}}</span></label>
+      <label class="lbl" style="margin-top:10px">Короткі інструкції глибини (0–3) <span class="small" style="font-weight:400">— 4 записи розділені <code>---</code>, підставляється в {{depth_short}}</span></label>
       <textarea id="pf_depth_short_rules" rows="4" style="font-family:var(--font-mono, monospace);font-size:12px"><?= pp_arr($pp,'depth_short_rules') ?></textarea>
 
       <label class="lbl" style="margin-top:10px">Правило джерела <span class="small" style="font-weight:400">— підтримує {{source_ref}}</span></label>
@@ -273,7 +273,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:8px 10px;
       <label class="lbl" style="margin-top:10px">Facebook-рядок (увімкнено) <span class="small" style="font-weight:400">— підтримує {{facebook_max_chars}}, {{fb_style_rule}}</span></label>
       <textarea id="pf_fb_checkbox_on" rows="2"><?= pp_str($pp,'fb_checkbox_on') ?></textarea>
 
-      <label class="lbl" style="margin-top:10px">Стилі Facebook (0–3) <span class="small" style="font-weight:400">— 4 рядки для повзунка серйозний→гумористичний</span></label>
+      <label class="lbl" style="margin-top:10px">Стилі Facebook (0–3) <span class="small" style="font-weight:400">— 4 записи розділені <code>---</code>, для повзунка серйозний→гумористичний</span></label>
       <textarea id="pf_fb_style_rules" rows="4" style="font-family:var(--font-mono, monospace);font-size:12px"><?= pp_fb($pp) ?></textarea>
 
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
@@ -520,18 +520,21 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:8px 10px;
     }
     // tone_short_rules: перевіряємо що є рівно 4 рядки
     var tsr = (document.getElementById('pf_tone_short_rules').value || '').trim();
-    var tsrLines = tsr.split('\n').filter(function(l){ return l.trim(); });
-    if (tsrLines.length < 4) errors.push('• Короткі описи тональностей: потрібно 4 рядки (нейтральний, інтригуючий, емоційний, SEO), зараз ' + tsrLines.length);
+    var tsrLines = tsr.split(/\n?---\n?/).map(function(l){ return l.trim(); }).filter(Boolean);
+    if (tsrLines.length < 4) errors.push('• Короткі описи тональностей: потрібно 4 записи розділені --- (нейтральний, інтригуючий, емоційний, SEO), зараз ' + tsrLines.length);
     // depth_instr: 4 рядки
     var di = (document.getElementById('pf_depth_instr').value || '').trim();
-    var diLines = di.split('\n').filter(function(l){ return l.trim(); });
-    if (diLines.length < 4) errors.push('• Інструкції глибини: потрібно рівно 4 рядки (зараз ' + diLines.length + ')');
+    var diLines = di.split(/\n?---\n?/).map(function(l){ return l.trim(); }).filter(Boolean);
+    if (diLines.length < 4) errors.push('• Інструкції глибини: потрібно 4 записи розділені --- (зараз ' + diLines.length + ')');
     return errors;
   }
 
   function readPromptFields() {
     function val(id) { return (document.getElementById(id) && document.getElementById(id).value || '').trim(); }
-    function lines(id) { return val(id).split('\n').map(function(l){ return l.trim(); }).filter(Boolean); }
+    function lines(id) {
+      var raw = val(id);
+      return raw.split(/\n?---\n?/).map(function(s){ return s.trim(); }).filter(Boolean);
+    }
 
     return {
       json_rule:             val('pf_json_rule'),
@@ -627,7 +630,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:8px 10px;
         if (d && d.prompt_profiles && d.prompt_profiles.user) {
           var p = d.prompt_profiles.user;
           function setVal(id, v) { var el = document.getElementById(id); if (el) el.value = v || ''; }
-          function setLines(id, arr) { setVal(id, (arr || []).join('\n')); }
+          function setLines(id, arr) { setVal(id, (arr || []).join('\n---\n')); }
           function setToneMap(id, m) {
             var lines = ['neutral','intriguing','emotional','seo'].map(function(k){ return k + ': ' + (m[k] || ''); });
             setVal(id, lines.join('\n'));
