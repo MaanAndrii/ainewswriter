@@ -224,11 +224,9 @@ function buildPrompt(source, sourceRef, extra, fbCheck, fbStyle, tone, makeNews,
   var refPrompt  = sourceRef
     ? String(profile.source_ref_rule || '').replace('{{source_ref}}', sourceRef)
     : '';
-  var depthProfile = Array.isArray(profile.depth_instr) ? profile.depth_instr : [];
-  var depthText = depthProfile[depth] || depthProfile[2] || '';
   var depthShortRules = Array.isArray(profile.depth_short_rules) ? profile.depth_short_rules : [];
-  var depthShort = depthShortRules[depth] || depthText;
-  var depthInstr = String(profile.depth_prefix || '').replace('{{depth_text}}', depthText).replace('{{depth_short}}', depthShort);
+  var depthShort = depthShortRules[depth] || '';
+  var depthInstr = String(profile.depth_prefix || '').replace('{{depth_short}}', depthShort);
   var toneInstr = String(profile.tone_prefix || '').replace('{{tone_label}}', toneLabel).replace('{{tone_short}}', toneShort);
   var newsFields = '';
   var newsReqs = '';
