@@ -555,7 +555,9 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
       websearch_off:         val('pf_websearch_off'),
       fb_checkbox_on:        val('pf_fb_checkbox_on'),
       fb_style_rules:        lines('pf_fb_style_rules'),
-      facebook_when_disabled: 'omit'
+      facebook_when_disabled: 'omit',
+      lead_min_chars: val('lim_lead_min'),
+      lead_max_chars: val('lim_lead_max')
     };
   }
 
