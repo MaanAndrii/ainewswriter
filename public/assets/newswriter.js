@@ -339,7 +339,9 @@ function callAPI(prompt, model, webSearch, systemPromptOverride, expectNews, exp
       return reject(new Error('Модель не повернула JSON. Спробуй ще раз.'));
     }
     try {
-      var safeJsonText = jsonText.replace(/\t/g, '\\t').replace(/\r\n/g, '\\n').replace(/\r/g, '\\n').replace(/\n/g, '\\n');
+      var safeJsonText = jsonText.replace(/"(?:[^"\\]|\\.)*"/g, function(m) {
+        return m.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t');
+      });
       var parsed = JSON.parse(safeJsonText);
       if (!hasMeaningfulContent(parsed, expectNews, expectFacebook)) {
         if (attempt < 3) return callAPI(prompt, model, webSearch, systemPromptOverride, expectNews, expectFacebook, attempt + 1, resolve, reject);
