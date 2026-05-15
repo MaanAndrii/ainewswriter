@@ -327,7 +327,7 @@ document.getElementById('btn_load_api').addEventListener('click', function() {
     try {
       var d = JSON.parse(xhr.responseText);
       if (!d.ok || !d.responses || !d.responses.length) {
-        container.innerHTML = '<span style="font-family:'Roboto Mono',monospace;font-size:11px;color:#8a8278">Відповідей ще немає</span>';
+        container.innerHTML = '<span style="font-family:monospace;font-size:11px;color:#8a8278">Відповідей ще немає</span>';
         return;
       }
       var html = '';
@@ -340,8 +340,8 @@ document.getElementById('btn_load_api').addEventListener('click', function() {
         html += '<div class="api-entry">'
               + '<div class="api-entry-hdr" data-api="' + i + '">'
               + '<span class="tag ' + tagCls + '">' + tagTxt + '</span>'
-              + '<span style="font-family:'Roboto Mono',monospace;font-size:11px">' + esc(r.ts || '') + '</span>'
-              + '<span style="font-family:'Roboto Mono',monospace;font-size:11px;color:#8a8278">' + esc(r.provider || '') + ' / ' + esc(r.model || '') + '</span>'
+              + '<span style="font-family:monospace;font-size:11px">' + esc(r.ts || '') + '</span>'
+              + '<span style="font-family:monospace;font-size:11px;color:#8a8278">' + esc(r.provider || '') + ' / ' + esc(r.model || '') + '</span>'
               + '</div>'
               + '<div class="api-entry-body" id="api-body-' + i + '"><pre>' + escHtml(body) + '</pre></div>'
               + '</div>';
