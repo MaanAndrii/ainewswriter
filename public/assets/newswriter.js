@@ -222,7 +222,7 @@ function buildPrompt(source, sourceRef, extra, fbCheck, fbStyle, tone, makeNews,
   var regenBlock = regenInstruction ? '\n\nІНСТРУКЦІЇ ДЛЯ ПЕРЕГЕНЕРАЦІЇ:\n' + regenInstruction : '';
   // refBlock видалено — джерело вказується через source_ref_rule в параметрах
   var refPrompt  = sourceRef
-    ? String(profile.source_ref_rule || '').replace('{{source_ref}}', sourceRef)
+    ? String(profile.source_ref_rule || '').replaceAll('{{source_ref}}', sourceRef)
     : '';
   var depthShortRules = Array.isArray(profile.depth_short_rules) ? profile.depth_short_rules : [];
   var depthShort = depthShortRules[depth] || '';
