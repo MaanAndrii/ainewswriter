@@ -222,6 +222,10 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
         <div><label class="small">Макс. символів новини</label><input type="number" id="lim_article" min="300" max="10000" value="<?= (int)($pp['article_max_chars'] ?? 3000) ?>"></div>
         <div><label class="small">Макс. символів Facebook</label><input type="number" id="lim_fb" min="50" max="2000" value="<?= (int)($pp['facebook_max_chars'] ?? 400) ?>"></div>
       </div>
+      <div class="row" style="margin-top:8px">
+        <div><label class="small">Мін. символів ліду</label><input type="number" id="lim_lead_min" min="50" max="500" value="<?= (int)($pp['lead_min_chars'] ?? 150) ?>"></div>
+        <div><label class="small">Макс. символів ліду</label><input type="number" id="lim_lead_max" min="50" max="500" value="<?= (int)($pp['lead_max_chars'] ?? 180) ?>"></div>
+      </div>
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
         <button type="button" class="btn-mini" id="save_prompt_limits_btn">Зберегти параметри</button>
       </div>
@@ -244,7 +248,7 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
       <label class="lbl" style="margin-top:10px">Поля JSON при увімкненій новині <span style="color:#A32D2D">*</span> <span class="small" style="font-weight:400">— рядки всередині {}</span></label>
       <textarea id="pf_news_fields_on" rows="3" style="font-family:var(--font-mono, monospace);font-size:12px"><?= pp_str($pp,'news_fields_on') ?></textarea>
 
-      <label class="lbl" style="margin-top:10px">Вимоги до новини <span style="color:#A32D2D">*</span> <span class="small" style="font-weight:400">— підтримує {{headlines_count}}, {{leads_count}}, {{article_max_chars}}, {{tone_label}}</span></label>
+      <label class="lbl" style="margin-top:10px">Вимоги до новини <span style="color:#A32D2D">*</span> <span class="small" style="font-weight:400">— підтримує {{headlines_count}}, {{leads_count}}, {{lead_min_chars}}, {{lead_max_chars}}, {{article_max_chars}}, {{tone_label}}</span></label>
       <textarea id="pf_news_requirements_on" rows="2"><?= pp_str($pp,'news_requirements_on') ?></textarea>
 
       <label class="lbl" style="margin-top:10px">Префікс тональності <span style="color:#A32D2D">*</span> <span class="small" style="font-weight:400">— підтримує {{tone_label}}, {{tone_short}}</span></label>
@@ -579,7 +583,9 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
         headlines_count:  Number(document.getElementById('lim_headlines').value || 4),
         leads_count:      Number(document.getElementById('lim_leads').value || 2),
         article_max_chars:Number(document.getElementById('lim_article').value || 3000),
-        facebook_max_chars:Number(document.getElementById('lim_fb').value || 400)
+        facebook_max_chars:Number(document.getElementById('lim_fb').value || 400),
+        lead_min_chars:   Number(document.getElementById('lim_lead_min').value || 150),
+        lead_max_chars:   Number(document.getElementById('lim_lead_max').value || 180)
       }}, function(err){
         if (err) { status.textContent = 'Помилка: ' + err.message; return; }
         status.textContent = 'Параметри збережено ✔';
@@ -603,7 +609,9 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
         headlines_count:   Number(document.getElementById('lim_headlines').value || 4),
         leads_count:       Number(document.getElementById('lim_leads').value || 2),
         article_max_chars: Number(document.getElementById('lim_article').value || 3000),
-        facebook_max_chars:Number(document.getElementById('lim_fb').value || 400)
+        facebook_max_chars:Number(document.getElementById('lim_fb').value || 400),
+        lead_min_chars:    Number(document.getElementById('lim_lead_min').value || 150),
+        lead_max_chars:    Number(document.getElementById('lim_lead_max').value || 180)
       }, fields) };
       apiPost({action:'save_prompt_profiles', profiles: currentProfiles}, function(err){
         if (err) { status.textContent = 'Помилка: ' + err.message; return; }
@@ -646,6 +654,8 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
           if (p.leads_count)       document.getElementById('lim_leads').value       = p.leads_count;
           if (p.article_max_chars) document.getElementById('lim_article').value     = p.article_max_chars;
           if (p.facebook_max_chars)document.getElementById('lim_fb').value          = p.facebook_max_chars;
+          if (p.lead_min_chars)    document.getElementById('lim_lead_min').value    = p.lead_min_chars;
+          if (p.lead_max_chars)    document.getElementById('lim_lead_max').value    = p.lead_max_chars;
         }
         document.getElementById('save_system_status').textContent = 'Відновлено за замовчуванням ✔';
         document.getElementById('save_fields_status').textContent = 'Відновлено за замовчуванням ✔';
