@@ -466,14 +466,6 @@ function resetAll() {
   document.getElementById('fbStyleHint').textContent = FB_STYLE_HINTS[1];
   syncFbStyleUI();
   syncActionButtons();
-function syncActionButtons() {
-  var canRun = getCheck('makeNews') || getCheck('fbCheck');
-  var processBtn = document.getElementById('btnProcess');
-  if (processBtn) processBtn.disabled = !canRun;
-  var testBtn = document.querySelector('button[onclick="showPromptPreview()"]');
-  if (testBtn) testBtn.disabled = !canRun;
-}
-syncActionButtons();
   document.getElementById('webSearch').checked  = false;
   document.getElementById('depthSlider').value = 2;
   document.getElementById('depthLabel').textContent = DEPTH_LABELS[2];
