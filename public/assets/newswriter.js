@@ -77,12 +77,12 @@ function fmtCost(usd) {
   if (usd < 0.0001) return '< $0.0001';
   return '$' + usd.toFixed(4);
 }
-function showCost(usage, model) {
+function showCost(usage, model, webSearchUsed) {
   var bar = document.getElementById('costBar');
   if (!bar || !usage) return;
   var p    = MODEL_PRICES[model] || {};
   var cost = calcCost(usage.input_tokens, usage.output_tokens, model);
-  var wsLabel = getWebSearch() ? ' + веб-пошук' : '';
+  var wsLabel = webSearchUsed ? ' + веб-пошук 🔍' : '';
   bar.innerHTML = '<span class="cost-model">Модель: <strong>' + esc(p.label || model) + wsLabel + '</strong></span>'
     + '<span>Вхід: <strong>' + usage.input_tokens + ' токенів</strong></span>'
     + '<span>Вихід: <strong>' + usage.output_tokens + ' токенів</strong></span>'
@@ -349,6 +349,7 @@ function callAPI(prompt, model, webSearch, systemPromptOverride, expectNews, exp
       }
       parsed._usage = d.usage || null;
       parsed._model = model;
+      parsed._webSearchUsed = !!(d.meta && d.meta.web_search_used);
       resolve(parsed);
     } catch (e) {
       if (attempt < 3) return callAPI(prompt, model, webSearch, systemPromptOverride, expectNews, expectFacebook, attempt + 1, resolve, reject);
@@ -408,7 +409,7 @@ function runProcess(regenInstruction) {
   var systemPromptOverride = getVal('systemPromptOverride');
   callAPI(prompt, model, webSearch, systemPromptOverride, makeNews, fbCheck, 1,
     function (data) {
-      if (data._usage) showCost(data._usage, data._model || model);
+      if (data._usage) showCost(data._usage, data._model || model, data._webSearchUsed);
       copyStore = {}; copyIdx = 0;
       renderResults(data, source, makeNews, fbCheck, depth);
       setBtn('btnProcess', 'spinProcess', 'btnProcessText', false, '\u25BA Обробити матеріал');
@@ -439,7 +440,7 @@ function doDeepen() {
     'Текст недостатньо перероблено. Зроби значно глибший рерайт — переформулюй більшість речень, змінюй структуру, використовуй синоніми. Мінімум 20% змін.', getWebSearch());
   callAPI(prompt, model, getWebSearch(), getVal('systemPromptOverride'), makeNews, fbCheck, 1,
     function (data) {
-      if (data._usage) showCost(data._usage, data._model || model);
+      if (data._usage) showCost(data._usage, data._model || model, data._webSearchUsed);
       copyStore = {}; copyIdx = 0;
       renderResults(data, source, makeNews, fbCheck, depth);
     },

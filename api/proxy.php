@@ -121,7 +121,7 @@ $modelMeta = $modelsMap[$model] ?? null;
 if (!$modelMeta) send_json(500, ['error' => 'Немає доступних моделей у налаштуваннях']);
 
 $provider = (string)$modelMeta['provider'];
-$use_web_search = !empty($data['webSearch']) && $provider === 'anthropic' && !empty($modelMeta['web_search']);
+$use_web_search = !empty($data['webSearch']) && in_array($provider, ['anthropic', 'xai', 'gemini'], true) && !empty($modelMeta['web_search']);
 $keys = $settings['keys'] ?? ['anthropic' => '', 'xai' => '', 'gemini' => '', 'mistral' => ''];
 
 if ($provider === 'anthropic') {
@@ -139,6 +139,7 @@ if ($provider === 'anthropic') {
   if ($system_prompt !== '') $messages[] = ['role' => 'system', 'content' => $system_prompt];
   $messages[] = ['role' => 'user', 'content' => $prompt];
   $request = ['model' => $model, 'messages' => $messages, 'max_tokens' => 4000, 'temperature' => 0.4, 'stream' => false];
+  if ($use_web_search) $request['search_parameters'] = ['mode' => 'on', 'return_citations' => true];
   $url = 'https://api.x.ai/v1/chat/completions';
   $headers = ['Content-Type: application/json', 'Authorization: Bearer ' . $key];
 } elseif ($provider === 'mistral') {
@@ -159,6 +160,7 @@ if ($provider === 'anthropic') {
     ]],
     'generationConfig' => ['temperature' => 0.4, 'maxOutputTokens' => 4000],
   ];
+  if ($use_web_search) $request['tools'] = [['google_search' => (object)[]]];
   $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . rawurlencode($model) . ':generateContent?key=' . rawurlencode($key);
   $headers = ['Content-Type: application/json'];
 } else {
@@ -223,10 +225,22 @@ if ($httpCode !== 200) {
 
 $text = '';
 $usage = [];
+$web_search_used = false;
 if ($provider === 'anthropic') {
-  foreach ($result['content'] ?? [] as $block) if (($block['type'] ?? '') === 'text') $text .= $block['text'];
+  foreach ($result['content'] ?? [] as $block) {
+    if (($block['type'] ?? '') === 'text') $text .= $block['text'];
+    if (($block['type'] ?? '') === 'tool_use' && ($block['name'] ?? '') === 'web_search') $web_search_used = true;
+    if (($block['type'] ?? '') === 'tool_result') $web_search_used = true;
+  }
   $usage = $result['usage'] ?? [];
-} elseif ($provider === 'xai' || $provider === 'mistral') {
+} elseif ($provider === 'xai') {
+  $content = $result['choices'][0]['message']['content'] ?? '';
+  $text = is_array($content) ? '' : (string)$content;
+  $u = $result['usage'] ?? [];
+  $usage = ['input_tokens' => (int)($u['prompt_tokens'] ?? 0), 'output_tokens' => (int)($u['completion_tokens'] ?? 0), 'cache_creation_input_tokens' => 0, 'cache_read_input_tokens' => 0];
+  $citations = $result['citations'] ?? $result['choices'][0]['citations'] ?? [];
+  $web_search_used = !empty($citations);
+} elseif ($provider === 'mistral') {
   $content = $result['choices'][0]['message']['content'] ?? '';
   $text = is_array($content) ? '' : (string)$content;
   $u = $result['usage'] ?? [];
@@ -234,6 +248,8 @@ if ($provider === 'anthropic') {
 } else {
   $text = (string)($result['candidates'][0]['content']['parts'][0]['text'] ?? '');
   $usage = ['input_tokens' => (int)($result['usageMetadata']['promptTokenCount'] ?? 0), 'output_tokens' => (int)($result['usageMetadata']['candidatesTokenCount'] ?? 0), 'cache_creation_input_tokens' => 0, 'cache_read_input_tokens' => 0];
+  $groundingMeta = $result['candidates'][0]['groundingMetadata'] ?? [];
+  $web_search_used = !empty($groundingMeta);
 }
 
 if (trim($text) === '') send_json(500, ['error' => 'Порожня відповідь від API']);
@@ -252,7 +268,7 @@ if (LOG_ON) {
     'cost' => $cost,
     'duration' => number_format($durationSec, 2, '.', ''),
     'prompt_len' => str_length($prompt),
-    'web' => $use_web_search,
+    'web' => $web_search_used,
     'cache_status' => ((int)($usage['cache_read_input_tokens'] ?? 0) > 0) ? 'cache-hit' : (((int)($usage['cache_creation_input_tokens'] ?? 0) > 0) ? 'cache-write' : 'no-cache'),
   ]);
   write_log_entry($log_line);
@@ -266,4 +282,4 @@ save_api_response([
   'code'     => 200,
   'body'     => str_slice((string)$response, 0, 8000),
 ]);
-send_json(200, ['ok' => true, 'text' => $text, 'usage' => $usage, 'meta' => ['provider' => $provider, 'model' => $model]]);
+send_json(200, ['ok' => true, 'text' => $text, 'usage' => $usage, 'meta' => ['provider' => $provider, 'model' => $model, 'web_search_used' => $web_search_used]]);
