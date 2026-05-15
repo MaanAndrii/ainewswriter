@@ -121,7 +121,7 @@ $modelMeta = $modelsMap[$model] ?? null;
 if (!$modelMeta) send_json(500, ['error' => 'Немає доступних моделей у налаштуваннях']);
 
 $provider = (string)$modelMeta['provider'];
-$use_web_search = !empty($data['webSearch']) && in_array($provider, ['anthropic', 'xai', 'gemini'], true) && !empty($modelMeta['web_search']);
+$use_web_search = !empty($data['webSearch']) && in_array($provider, ['anthropic', 'gemini'], true) && !empty($modelMeta['web_search']);
 $keys = $settings['keys'] ?? ['anthropic' => '', 'xai' => '', 'gemini' => '', 'mistral' => ''];
 
 if ($provider === 'anthropic') {
@@ -139,7 +139,6 @@ if ($provider === 'anthropic') {
   if ($system_prompt !== '') $messages[] = ['role' => 'system', 'content' => $system_prompt];
   $messages[] = ['role' => 'user', 'content' => $prompt];
   $request = ['model' => $model, 'messages' => $messages, 'max_tokens' => 4000, 'temperature' => 0.4, 'stream' => false];
-  if ($use_web_search) $request['search_parameters'] = ['mode' => 'on', 'return_citations' => true];
   $url = 'https://api.x.ai/v1/chat/completions';
   $headers = ['Content-Type: application/json', 'Authorization: Bearer ' . $key];
 } elseif ($provider === 'mistral') {
