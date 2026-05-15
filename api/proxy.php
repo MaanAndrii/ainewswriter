@@ -12,6 +12,11 @@ define('LOG_MAX_BYTES', 5 * 1024 * 1024);
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
 ini_set('display_startup_errors', 0);
+ini_set('log_errors', 1);
+
+set_exception_handler(function (Throwable $e) {
+  send_json(500, ['error' => 'Внутрішня помилка сервера: ' . $e->getMessage()]);
+});
 
 require_once __DIR__ . '/../core/app_settings.php';
 
@@ -222,11 +227,12 @@ if ($provider === 'anthropic') {
   foreach ($result['content'] ?? [] as $block) if (($block['type'] ?? '') === 'text') $text .= $block['text'];
   $usage = $result['usage'] ?? [];
 } elseif ($provider === 'xai' || $provider === 'mistral') {
-  $text = $result['choices'][0]['message']['content'] ?? '';
+  $content = $result['choices'][0]['message']['content'] ?? '';
+  $text = is_array($content) ? '' : (string)$content;
   $u = $result['usage'] ?? [];
   $usage = ['input_tokens' => (int)($u['prompt_tokens'] ?? 0), 'output_tokens' => (int)($u['completion_tokens'] ?? 0), 'cache_creation_input_tokens' => 0, 'cache_read_input_tokens' => 0];
 } else {
-  $text = $result['candidates'][0]['content']['parts'][0]['text'] ?? '';
+  $text = (string)($result['candidates'][0]['content']['parts'][0]['text'] ?? '');
   $usage = ['input_tokens' => (int)($result['usageMetadata']['promptTokenCount'] ?? 0), 'output_tokens' => (int)($result['usageMetadata']['candidatesTokenCount'] ?? 0), 'cache_creation_input_tokens' => 0, 'cache_read_input_tokens' => 0];
 }
 
