@@ -16,6 +16,7 @@ var copyIdx = 0;
 var SYSTEM_PROMPT_DEFAULT = '';
 var SYSTEM_PROMPT_CUSTOM = '';
 var PROMPT_PROFILES = {};
+
 // ── Copy ──
 function storeCopy(text) {
   var id = 'c' + (copyIdx++);
@@ -44,7 +45,7 @@ function doCopy(btn, id) {
   if (ok) showOk(btn); else showFail(btn);
 }
 function showOk(btn) {
-  btn.textContent = '\u2713 скопійовано';
+  btn.textContent = '✓ скопійовано';
   btn.className = 'copy-btn ok';
   setTimeout(function () { btn.textContent = 'копіювати'; btn.className = 'copy-btn'; }, 2000);
 }
@@ -57,6 +58,7 @@ function makeCopyBtn(text) {
   var id = storeCopy(text);
   return '<button class="copy-btn" onclick="doCopy(this,\'' + id + '\')">копіювати</button>';
 }
+
 // ── Helpers ──
 function esc(s) {
   return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -68,6 +70,7 @@ function getTone()    { var el = document.querySelector('input[name="tone"]:chec
 function getFbStyle() { var el = document.getElementById('fbStyleSlider'); return el ? parseInt(el.value, 10) : 1; }
 function getModel()      { var el = document.getElementById('modelSelect'); return el ? el.value : 'claude-haiku-4-5-20251001'; }
 function getWebSearch()  { var el = document.getElementById('webSearch'); return el ? el.checked : false; }
+
 // ── Cost ──
 function calcCost(inputTok, outputTok, model) {
   var p = MODEL_PRICES[model] || { inp: 3.0, out: 15.0 };
@@ -88,6 +91,7 @@ function showCost(usage, model) {
     + '<span>Вихід: <strong>' + usage.output_tokens + ' токенів</strong></span>'
     + '<span>Вартість запиту: <strong>' + fmtCost(cost) + '</strong></span>';
 }
+
 // ── Similarity (Jaccard) ──
 function similarity(a, b) {
   if (!a || !b) return 0;
@@ -102,6 +106,7 @@ function similarity(a, b) {
   var u = Object.keys(union).length;
   return u ? Math.round(inter / u * 100) : 0;
 }
+
 // ── Init UI ──
 document.getElementById('depthSlider').addEventListener('input', function (e) {
   var v = parseInt(e.target.value, 10);
@@ -158,6 +163,7 @@ document.getElementById('modelSelect').addEventListener('change', function () {
     webSearchEl.closest('.cb-row').title = '';
   }
 });
+
 function loadModelSettings() {
   var xhr = new XMLHttpRequest();
   xhr.open('GET', '/api/settings', true);
@@ -189,6 +195,7 @@ function loadModelSettings() {
   xhr.send();
 }
 loadModelSettings();
+
 // ── Prompt profile merge ──
 function normalizePromptText(value) {
   if (typeof value !== 'string') return value;
@@ -208,6 +215,7 @@ function normalizePromptProfile(profile) {
   }
   return profile;
 }
+
 // ── Build prompt ──
 function buildPrompt(source, sourceRef, extra, fbCheck, fbStyle, tone, makeNews, depth, regenInstruction, webSearch) {
   var profile = (PROMPT_PROFILES && PROMPT_PROFILES.user) ? normalizePromptProfile(PROMPT_PROFILES.user) : {};
@@ -220,13 +228,14 @@ function buildPrompt(source, sourceRef, extra, fbCheck, fbStyle, tone, makeNews,
 
   var extraBlock = extra            ? '\n\nДодаткові інструкції / контекст:\n' + extra : '';
   var regenBlock = regenInstruction ? '\n\nІНСТРУКЦІЇ ДЛЯ ПЕРЕГЕНЕРАЦІЇ:\n' + regenInstruction : '';
-  // refBlock видалено — джерело вказується через source_ref_rule в параметрах
   var refPrompt  = sourceRef
-    ? String(profile.source_ref_rule || '').replaceAll('{{source_ref}}', sourceRef)
+    ? String(profile.source_ref_rule || '').replace('{{source_ref}}', sourceRef)
     : '';
+  var depthProfile = Array.isArray(profile.depth_instr) ? profile.depth_instr : [];
+  var depthText = depthProfile[depth] || depthProfile[2] || '';
   var depthShortRules = Array.isArray(profile.depth_short_rules) ? profile.depth_short_rules : [];
-  var depthShort = depthShortRules[depth] || '';
-  var depthInstr = String(profile.depth_prefix || '').replace('{{depth_short}}', depthShort);
+  var depthShort = depthShortRules[depth] || depthText;
+  var depthInstr = String(profile.depth_prefix || '').replace('{{depth_text}}', depthText).replace('{{depth_short}}', depthShort);
   var toneInstr = String(profile.tone_prefix || '').replace('{{tone_label}}', toneLabel).replace('{{tone_short}}', toneShort);
   var newsFields = '';
   var newsReqs = '';
@@ -238,7 +247,8 @@ function buildPrompt(source, sourceRef, extra, fbCheck, fbStyle, tone, makeNews,
       .replaceAll('{{leads_count}}', String(profile.leads_count || 2))
       .replaceAll('{{article_max_chars}}', String(profile.article_max_chars || 3000))
       .replaceAll('{{lead_min_chars}}', String(profile.lead_min_chars || 150))
-      .replaceAll('{{lead_max_chars}}', String(profile.lead_max_chars || 180));
+      .replaceAll('{{lead_max_chars}}', String(profile.lead_max_chars || 200))
+      .replaceAll('{{source_ref}}', sourceRef || '');  // Додано: заміна для {{source_ref}}
   }
   var fbStyleRules = Array.isArray(profile.fb_style_rules) ? profile.fb_style_rules : FB_STYLE_RULES;
   var fbStyleRule = fbStyleRules[fbStyle] || fbStyleRules[1] || '';
@@ -260,6 +270,7 @@ function buildPrompt(source, sourceRef, extra, fbCheck, fbStyle, tone, makeNews,
     + extraBlock + regenBlock + '\n'
     + (profile.input_title || 'ВХІДНИЙ МАТЕРІАЛ:') + '\n' + source;
 }
+
 // ── API call via XHR ──
 function hasMeaningfulContent(parsed, expectNews, expectFacebook) {
   if (!parsed || typeof parsed !== 'object') return false;
@@ -277,6 +288,7 @@ function hasMeaningfulContent(parsed, expectNews, expectFacebook) {
   if (expectFacebook && (parsed.facebook || '').trim() !== '') return true;
   return false;
 }
+
 function extractFirstJsonObject(text) {
   if (!text) return null;
   var inString = false;
@@ -311,6 +323,7 @@ function extractFirstJsonObject(text) {
   }
   return null;
 }
+
 function callAPI(prompt, model, webSearch, systemPromptOverride, expectNews, expectFacebook, attempt, resolve, reject) {
   attempt = attempt || 1;
   var extra = attempt > 1 ? '\n\nКРИТИЧНО: поверни ВИКЛЮЧНО валідний JSON, починай з {' : '';
@@ -356,10 +369,12 @@ function callAPI(prompt, model, webSearch, systemPromptOverride, expectNews, exp
   xhr.ontimeout = function () { reject(new Error('Перевищено час очікування (120с)')); };
   xhr.send(body);
 }
+
 function closePromptModal(){
-  var m=document.getElementById('promptModal');
-  if(m) m.style.display='none';
+  var m = document.getElementById('promptModal');
+  if (m) m.style.display = 'none';
 }
+
 function showPromptPreview(){
   var source    = getVal('source');
   var sourceRef = getVal('sourceRef');
@@ -374,9 +389,9 @@ function showPromptPreview(){
   var prompt = buildPrompt(source, sourceRef, extra, fbCheck, fbStyle, tone, makeNews, depth, null, webSearch);
   var sys = normalizePromptText(SYSTEM_PROMPT_CUSTOM || SYSTEM_PROMPT_DEFAULT);
   document.getElementById('promptPreview').textContent = (sys ? (sys + '\n\n') : '') + prompt;
-
   document.getElementById('promptModal').style.display = 'flex';
 }
+
 // ── Process ──
 function runProcess(regenInstruction) {
   var source    = getVal('source');
@@ -394,11 +409,11 @@ function runProcess(regenInstruction) {
   var output  = document.getElementById('output');
   if (!isRegen && !confirm('Підтвердити відправку тексту в обробку?')) return;
   if (!isRegen) {
-    setBtn('btnProcess', 'spinProcess', 'btnProcessText', true, 'Обробляю\u2026');
-    output.innerHTML = '<div class="empty"><div class="empty-text" style="color:#b5401a">Генерую публікацію\u2026</div></div>';
+    setBtn('btnProcess', 'spinProcess', 'btnProcessText', true, 'Обробляю…');
+    output.innerHTML = '<div class="empty"><div class="empty-text" style="color:#b5401a">Генерую публікацію…</div></div>';
     document.getElementById('costBar').innerHTML = '';
   } else {
-    setBtn('btnRegen', 'spinRegen', 'regenBtnLbl', true, 'Перегенеровую\u2026');
+    setBtn('btnRegen', 'spinRegen', 'regenBtnLbl', true, 'Перегенеровую…');
   }
   var webSearch = getWebSearch();
   var prompt = buildPrompt(source, sourceRef, extra, fbCheck, fbStyle, tone, makeNews, depth, regenInstruction, webSearch);
@@ -408,16 +423,17 @@ function runProcess(regenInstruction) {
       if (data._usage) showCost(data._usage, data._model || model);
       copyStore = {}; copyIdx = 0;
       renderResults(data, source, makeNews, fbCheck, depth);
-      setBtn('btnProcess', 'spinProcess', 'btnProcessText', false, '\u25BA Обробити матеріал');
-      setBtn('btnRegen',   'spinRegen',   'regenBtnLbl',    false, '\u21BA Застосувати правки');
+      setBtn('btnProcess', 'spinProcess', 'btnProcessText', false, '▶ Обробити матеріал');
+      setBtn('btnRegen',   'spinRegen',   'regenBtnLbl',    false, '↩ Застосувати правки');
     },
     function (err) {
-      output.innerHTML = '<div class="err-box"><strong>\u26A0 Помилка:</strong> ' + esc(err.message) + '</div>';
-      setBtn('btnProcess', 'spinProcess', 'btnProcessText', false, '\u25BA Обробити матеріал');
-      setBtn('btnRegen',   'spinRegen',   'regenBtnLbl',    false, '\u21BA Застосувати правки');
+      output.innerHTML = '<div class="err-box"><strong>⚠ Помилка:</strong> ' + esc(err.message) + '</div>';
+      setBtn('btnProcess', 'spinProcess', 'btnProcessText', false, '▶ Обробити матеріал');
+      setBtn('btnRegen',   'spinRegen',   'regenBtnLbl',    false, '↩ Застосувати правки');
     }
   );
 }
+
 function doDeepen() {
   var source    = currentSource || getVal('source');
   var sourceRef = getVal('sourceRef');
@@ -447,6 +463,7 @@ function doDeepen() {
     }
   );
 }
+
 function setBtn(btnId, spId, lblId, on, text) {
   var btn = document.getElementById(btnId);
   var sp  = document.getElementById(spId);
@@ -455,6 +472,7 @@ function setBtn(btnId, spId, lblId, on, text) {
   if (sp)  sp.style.display = on ? 'block' : 'none';
   if (lbl && text) lbl.textContent = text;
 }
+
 function resetAll() {
   document.getElementById('source').value    = '';
   document.getElementById('sourceRef').value = '';
@@ -466,14 +484,6 @@ function resetAll() {
   document.getElementById('fbStyleHint').textContent = FB_STYLE_HINTS[1];
   syncFbStyleUI();
   syncActionButtons();
-function syncActionButtons() {
-  var canRun = getCheck('makeNews') || getCheck('fbCheck');
-  var processBtn = document.getElementById('btnProcess');
-  if (processBtn) processBtn.disabled = !canRun;
-  var testBtn = document.querySelector('button[onclick="showPromptPreview()"]');
-  if (testBtn) testBtn.disabled = !canRun;
-}
-syncActionButtons();
   document.getElementById('webSearch').checked  = false;
   document.getElementById('depthSlider').value = 2;
   document.getElementById('depthLabel').textContent = DEPTH_LABELS[2];
@@ -483,10 +493,11 @@ syncActionButtons();
   for (var i = 0; i < opts.length; i++) opts[i].classList.remove('active');
   document.querySelector('.tone-opt[data-key="neutral"]').classList.add('active');
   document.getElementById('costBar').innerHTML = '';
-  document.getElementById('output').innerHTML = '<div class="empty"><div class="empty-icon">&#10022;</div><div class="empty-text">Результат z\'явиться тут</div></div>';
+  document.getElementById('output').innerHTML = '<div class="empty"><div class="empty-icon">&#10022;</div><div class="empty-text">Результат з\'явиться тут</div></div>';
   currentSource = '';
   copyStore = {}; copyIdx = 0;
 }
+
 // ── Render ──
 function renderResults(data, source, makeNews, fbCheck, depth) {
   var article  = data.article || '';
@@ -498,8 +509,9 @@ function renderResults(data, source, makeNews, fbCheck, depth) {
   var belowTgt = chg < tgtThr;
   var simColor = belowMin ? '#b5401a' : chg >= 60 ? '#2a5a30' : chg >= 35 ? '#8a6a20' : '#4a7fa5';
   var simLabel = belowMin ? 'замало змін!' : chg >= 60 ? 'глибокий рерайт' : chg >= 35 ? 'частковий рерайт' : 'близько до оригіналу';
-  var deepLbl  = belowMin ? '\u26A0 Поглибити (нижче мінімуму)' : '\u2191 Поглибити рерайт';
+  var deepLbl  = belowMin ? '⚠ Поглибити (нижче мінімуму)' : '↑ Поглибити рерайт';
   var html = '<div class="results">';
+
   // Headlines
   if (makeNews) {
     html += '<div><div class="sec-title">Заголовки</div><div class="h-grid">';
@@ -514,6 +526,7 @@ function renderResults(data, source, makeNews, fbCheck, depth) {
     }
     html += '</div></div>';
   }
+
   // Leads
   if (makeNews) {
     html += '<div><div class="sec-title">Ліди</div>';
@@ -523,7 +536,7 @@ function renderResults(data, source, makeNews, fbCheck, depth) {
       var len = (l.text || '').length;
       var lok = len >= 150 && len <= 200;
       var lc  = lok ? '#2a5a30' : '#8a6a20';
-      var lt  = lok ? '\u2713' : (len < 150 ? '(замало, норма 150-200)' : '(забагато, норма 150-200)');
+      var lt  = lok ? '✓' : (len < 150 ? '(замало, норма 150-200)' : '(забагато, норма 150-200)');
       html += '<div class="lead-card">'
         + '<div class="lead-text">' + esc(l.text) + '</div>'
         + '<div class="lead-len" style="color:' + lc + '">' + len + ' символів ' + lt + '</div>'
@@ -532,6 +545,7 @@ function renderResults(data, source, makeNews, fbCheck, depth) {
     }
     html += '</div>';
   }
+
   // Article + similarity
   if (makeNews) {
     var simBar = '<div class="sim-block">'
@@ -545,17 +559,18 @@ function renderResults(data, source, makeNews, fbCheck, depth) {
       + '<div class="sim-mark" style="background:#b5401a55;left:' + minThr + '%" title="Мінімум 20%"></div>'
       + '<div class="sim-mark" style="background:#8a827855;left:' + tgtThr + '%" title="Ціль глибини"></div>'
       + '</div>'
-      + '<div class="sim-scale"><span>0%</span><span style="color:#b5401a88">\u25B2 мін 20%</span><span>100%</span></div>'
+      + '<div class="sim-scale"><span>0%</span><span style="color:#b5401a88">↑ мін 20%</span><span>100%</span></div>'
       + (belowTgt ? '<button id="btnDeepen" class="btn-sm" onclick="doDeepen()"><div class="spin sm" id="spinDeepen"></div>' + deepLbl + '</button>' : '')
       + '</div>';
     html += '<div><div class="sec-title">Текст новини</div>'
       + '<div class="art-block">'
       + '<div class="art-text">' + esc(article) + '</div>'
-      + '<div class="char-row" style="color:' + (charLen > 3000 ? '#b5401a' : '#8a8278') + '">' + charLen + ' / 3000 символів' + (charLen > 3000 ? ' \u2014 перевищено!' : '') + '</div>'
+      + '<div class="char-row" style="color:' + (charLen > 3000 ? '#b5401a' : '#8a8278') + '">' + charLen + ' / 3000 символів' + (charLen > 3000 ? ' — перевищено!' : '') + '</div>'
       + simBar
       + makeCopyBtn(article)
       + '</div></div>';
   }
+
   // Facebook
   if (fbCheck && data.facebook) {
     html += '<div><div class="sec-title">Facebook-допис</div>'
@@ -565,5 +580,21 @@ function renderResults(data, source, makeNews, fbCheck, depth) {
       + makeCopyBtn(data.facebook)
       + '</div></div>';
   }
+
+  // Regen
+  html += '<div class="regen-box">'
+    + '<div class="regen-lbl">↩ Перегенерувати з правками</div>'
+    + '<textarea id="regenNote" style="min-height:72px;background:#fff" placeholder="Що змінити? Напр.: зроби заголовки коротшими, посиль емоційність…"></textarea>'
+    + '<div class="regen-row">'
+    + '<button id="btnRegen" class="btn-regen" onclick="doRegen()"><div class="spin" id="spinRegen"></div><span id="regenBtnLbl">↩ Застосувати правки</span></button>'
+    + '<span class="regen-hint">або змінити параметри і натиснути «Обробити»</span>'
+    + '</div></div>';
+  html += '</div>';
   document.getElementById('output').innerHTML = html;
+}
+
+function doRegen() {
+  var note = getVal('regenNote');
+  if (!note) return;
+  runProcess(note);
 }
