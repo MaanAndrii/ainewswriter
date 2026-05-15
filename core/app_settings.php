@@ -126,8 +126,9 @@ function get_default_system_prompt() {
  * Отримання USER промтів за замовчуванням
  */
 function get_default_prompt_profiles() {
-    $prompts = load_prompts_from_json();
-    return $prompts['user_prompt_profiles']['default'] ?? [];
+  $prompts = load_prompts_from_json();
+  $defaultProfile = $prompts['user_prompt_profiles']['default'] ?? [];
+  return ['user' => $defaultProfile];  // Обгортаємо в ["user" => [...]]
 }
 
 /**
