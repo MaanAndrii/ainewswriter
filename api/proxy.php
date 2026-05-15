@@ -47,6 +47,19 @@ function calc_request_cost($usage, $modelMeta) {
 }
 
 
+function save_api_response($entry) {
+  $file = dirname(LOG_FILE) . '/api_responses.json';
+  $max  = 5;
+  $list = [];
+  if (file_exists($file)) {
+    $raw = file_get_contents($file);
+    if ($raw) $list = json_decode($raw, true) ?: [];
+  }
+  array_unshift($list, $entry);
+  if (count($list) > $max) $list = array_slice($list, 0, $max);
+  file_put_contents($file, json_encode($list, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT), LOCK_EX);
+}
+
 function write_log_entry($line) {
   $dir = dirname(LOG_FILE);
   if (!is_dir($dir)) {
@@ -172,6 +185,14 @@ if ($httpCode !== 200) {
     if (str_length($apiMessage) > 500) $apiMessage = str_slice($apiMessage, 0, 500) . '...';
   }
 
+  save_api_response([
+    'ts'       => date('c'),
+    'type'     => 'error',
+    'provider' => $provider,
+    'model'    => $model,
+    'code'     => $httpCode,
+    'body'     => mb_substr((string)$response, 0, 8000),
+  ]);
   if (LOG_ON) {
     $log_line = build_log_entry_jsonl([
       'date' => date('Y-m-d'),
@@ -223,4 +244,12 @@ if (LOG_ON) {
   write_log_entry($log_line);
 }
 
+save_api_response([
+  'ts'       => date('c'),
+  'type'     => 'success',
+  'provider' => $provider,
+  'model'    => $model,
+  'code'     => 200,
+  'body'     => mb_substr((string)$response, 0, 8000),
+]);
 send_json(200, ['ok' => true, 'text' => $text, 'usage' => $usage, 'meta' => ['provider' => $provider, 'model' => $model]]);
