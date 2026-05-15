@@ -116,6 +116,8 @@ server {
     location ~ \.php$ {
         include snippets/fastcgi-php.conf;
         fastcgi_pass unix:/run/php/php8.4-fpm.sock;
+        fastcgi_read_timeout 300;
+        fastcgi_send_timeout 300;
     }
 
     # Блокуємо прямий доступ до службових файлів
@@ -127,6 +129,8 @@ server {
 
 > Якщо у вас не PHP 8.4, змініть сокет на актуальний (наприклад `php8.3-fpm.sock`).
 
+> `fastcgi_read_timeout 300` — потрібен для AI-моделей з довгим часом відповіді (reasoning-моделі можуть думати 60–180 секунд). Без цього nginx поверне `504 Gateway Timeout` ще до того як модель відповість.
+
 Увімкніть сайт:
 
 ```bash
@@ -136,7 +140,25 @@ sudo nginx -t
 sudo systemctl restart nginx
 ```
 
-## 4) Local settings
+### Таймаут PHP-FPM
+
+Відкрийте конфіг пулу:
+
+```bash
+sudo nano /etc/php/8.4/fpm/pool.d/www.conf
+```
+
+Знайдіть і встановіть (або додайте після `pm.max_requests`):
+
+```ini
+request_terminate_timeout = 300
+```
+
+Перезапустіть PHP-FPM:
+
+```bash
+sudo systemctl restart php8.4-fpm
+```
 
 ## 6) Налаштувати локальні змінні (.env.local)
 
