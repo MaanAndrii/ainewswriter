@@ -255,6 +255,9 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:8px 10px;
       <label class="lbl" style="margin-top:10px">Префікс глибини рерайту <span style="color:#A32D2D">*</span> <span class="small" style="font-weight:400">— підтримує {{depth_text}}, {{depth_short}}</span></label>
       <input type="text" id="pf_depth_prefix" value="<?= pp_str($pp,'depth_prefix') ?>">
 
+      <label class="lbl" style="margin-top:10px">Інструкції глибини (0–3) <span style="color:#A32D2D">*</span> <span class="small" style="font-weight:400">— 4 записи розділені <code>---</code>, для повзунка мін→макс; підставляється в {{depth_text}}</span></label>
+      <textarea id="pf_depth_instr" rows="4" style="font-family:var(--font-mono, monospace);font-size:12px"><?= pp_arr($pp,'depth_instr') ?></textarea>
+
       <label class="lbl" style="margin-top:10px">Короткі інструкції глибини (0–3) <span class="small" style="font-weight:400">— 4 записи розділені <code>---</code>, підставляється в {{depth_short}}</span></label>
       <textarea id="pf_depth_short_rules" rows="4" style="font-family:var(--font-mono, monospace);font-size:12px"><?= pp_arr($pp,'depth_short_rules') ?></textarea>
 
@@ -503,6 +506,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:8px 10px;
     'pf_tone_prefix':          'Префікс тональності',
     'pf_tone_short_rules':     'Короткі описи тональностей',
     'pf_depth_prefix':         'Префікс глибини рерайту',
+    'pf_depth_instr':          'Інструкції глибини',
     'pf_websearch_on':         'Web-пошук увімкнено',
     'pf_websearch_off':        'Web-пошук вимкнено'
   };
