@@ -171,7 +171,17 @@ if ($method === 'POST') {
       '__version'    => 1,
       '__exported_at' => date('c'),
       'models'       => $settings['models'] ?? [],
-      'prompt_profiles' => $settings['prompt_profiles'] ?? get_default_prompt_profiles(),
+      'prompt_profiles' => (function() use ($settings) {
+    $defaults = get_default_prompt_profiles();
+    $saved    = $settings['prompt_profiles'] ?? [];
+    // Мерджимо дефолт з збереженим — нові поля з prompts.json завжди присутні
+    if (!empty($saved['user']) && is_array($saved['user'])) {
+      $saved['user'] = array_merge($defaults['user'] ?? [], $saved['user']);
+    } else {
+      $saved = $defaults;
+    }
+    return $saved;
+  })(),
       'system_prompt_default_override' => (string)($settings['system_prompt_default_override'] ?? ''),
       'prompts_json' => $promptsData,
       'api_keys'     => $keys,
