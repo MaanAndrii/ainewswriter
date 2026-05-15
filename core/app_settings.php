@@ -279,7 +279,16 @@ function normalize_settings($settings) {
   if ($models && !$normModels) $normModels = $defaults['models'];
 
   $profiles = $settings['prompt_profiles'] ?? get_default_prompt_profiles();
-  if (!is_array($profiles)) $profiles = get_default_prompt_profiles();
+
+  // Виправлення: обгортаємо $profiles в ["user" => [...]], якщо потрібно
+  if (is_array($profiles) && !isset($profiles['user'])) {
+    $profiles = ['user' => $profiles];
+  }
+
+  // Переконайтеся, що $profiles має поле "user"
+  if (!isset($profiles['user']) || !is_array($profiles['user'])) {
+    $profiles['user'] = get_default_prompt_profiles()['user'];
+  }
 
   return [
     'keys' => get_runtime_keys(),
