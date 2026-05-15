@@ -128,6 +128,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:8px 10px;
 .model-grid{display:grid;grid-template-columns:2fr 1.3fr .8fr .8fr .8fr;gap:8px;align-items:end}
 .btn-mini{background:#1a1714;color:#fff;border:0;border-radius:4px;padding:7px 10px;font-family:'Roboto Mono',monospace;font-size:10px;cursor:pointer}
 .btn-mini.danger{background:#8e2d16}.btn-mini.muted{background:#8a8278}
+tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
 .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}.tab-btn{background:#fff;border:1px solid #d8d0be;border-radius:4px;padding:8px 12px;font-family:'Roboto Mono',monospace;font-size:11px;cursor:pointer}.tab-btn.active{background:#1a1714;color:#fff;border-color:#1a1714}.tab-pane{display:none}.tab-pane.active{display:block}
 @media(max-width:980px){.wrap{grid-template-columns:1fr}}
 </style>
@@ -255,8 +256,6 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:8px 10px;
       <label class="lbl" style="margin-top:10px">Префікс глибини рерайту <span style="color:#A32D2D">*</span> <span class="small" style="font-weight:400">— підтримує {{depth_text}}, {{depth_short}}</span></label>
       <input type="text" id="pf_depth_prefix" value="<?= pp_str($pp,'depth_prefix') ?>">
 
-      <label class="lbl" style="margin-top:10px">Інструкції глибини (0–3) <span style="color:#A32D2D">*</span> <span class="small" style="font-weight:400">— 4 записи розділені <code>---</code>, для повзунка мін→макс; підставляється в {{depth_text}}</span></label>
-      <textarea id="pf_depth_instr" rows="4" style="font-family:var(--font-mono, monospace);font-size:12px"><?= pp_arr($pp,'depth_instr') ?></textarea>
 
       <label class="lbl" style="margin-top:10px">Короткі інструкції глибини (0–3) <span class="small" style="font-weight:400">— 4 записи розділені <code>---</code>, підставляється в {{depth_short}}</span></label>
       <textarea id="pf_depth_short_rules" rows="4" style="font-family:var(--font-mono, monospace);font-size:12px"><?= pp_arr($pp,'depth_short_rules') ?></textarea>
@@ -506,7 +505,6 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:8px 10px;
     'pf_tone_prefix':          'Префікс тональності',
     'pf_tone_short_rules':     'Короткі описи тональностей',
     'pf_depth_prefix':         'Префікс глибини рерайту',
-    'pf_depth_instr':          'Інструкції глибини',
     'pf_websearch_on':         'Web-пошук увімкнено',
     'pf_websearch_off':        'Web-пошук вимкнено'
   };
@@ -522,10 +520,6 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:8px 10px;
     var tsr = (document.getElementById('pf_tone_short_rules').value || '').trim();
     var tsrLines = tsr.split(/\n?---\n?/).map(function(l){ return l.trim(); }).filter(Boolean);
     if (tsrLines.length < 4) errors.push('• Короткі описи тональностей: потрібно 4 записи розділені --- (нейтральний, інтригуючий, емоційний, SEO), зараз ' + tsrLines.length);
-    // depth_instr: 4 рядки
-    var di = (document.getElementById('pf_depth_instr').value || '').trim();
-    var diLines = di.split(/\n?---\n?/).map(function(l){ return l.trim(); }).filter(Boolean);
-    if (diLines.length < 4) errors.push('• Інструкції глибини: потрібно 4 записи розділені --- (зараз ' + diLines.length + ')');
     return errors;
   }
 
@@ -642,7 +636,6 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:8px 10px;
           setVal('pf_tone_prefix',          p.tone_prefix);
           setLines('pf_tone_short_rules', ['neutral','intriguing','emotional','seo'].map(function(k){ return (p.tone_short_rules || {})[k] || ''; }));
           setVal('pf_depth_prefix',         p.depth_prefix);
-          setLines('pf_depth_instr',        p.depth_instr);
           setLines('pf_depth_short_rules',  p.depth_short_rules);
           setVal('pf_source_ref_rule',      p.source_ref_rule);
           setVal('pf_websearch_on',         p.websearch_on);
@@ -736,7 +729,51 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:8px 10px;
     }
   });
 
-  // Прибрано обробку drag-and-drop для переміщення рядків
+  // ── Drag-and-drop сортування моделей ───────────────────────────────────────
+  var dragSrc = null;
+
+  function onDragStart(e) {
+    dragSrc = this;
+    this.style.opacity = '0.4';
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', this.getAttribute('data-row'));
+  }
+  function onDragEnd() {
+    this.style.opacity = '';
+    tbody.querySelectorAll('tr').forEach(function(r){ r.classList.remove('drag-over'); });
+  }
+  function onDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    tbody.querySelectorAll('tr').forEach(function(r){ r.classList.remove('drag-over'); });
+    this.classList.add('drag-over');
+    return false;
+  }
+  function onDrop(e) {
+    e.stopPropagation();
+    var from = parseInt(e.dataTransfer.getData('text/plain'), 10);
+    var to   = parseInt(this.getAttribute('data-row'), 10);
+    if (!isNaN(from) && !isNaN(to) && from !== to) {
+      var moved = models.splice(from, 1)[0];
+      models.splice(to, 0, moved);
+      render();
+      saveModelsNow();
+    }
+    return false;
+  }
+
+  function bindDrag() {
+    tbody.querySelectorAll('tr[draggable]').forEach(function(row) {
+      row.addEventListener('dragstart',  onDragStart);
+      row.addEventListener('dragend',    onDragEnd);
+      row.addEventListener('dragover',   onDragOver);
+      row.addEventListener('drop',       onDrop);
+    });
+  }
+
+  var _origRender = render;
+  render = function() { _origRender(); bindDrag(); };
+
   var tabBtns = document.querySelectorAll('.tab-btn');
   var panes = document.querySelectorAll('.tab-pane');
   for (var tb=0; tb<tabBtns.length; tb++) {
