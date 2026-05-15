@@ -75,7 +75,11 @@ function write_log_entry($line) {
 function send_json($code, $payload) {
   http_response_code($code);
   header('Content-Type: application/json; charset=utf-8');
-  echo json_encode($payload, JSON_UNESCAPED_UNICODE);
+  $json = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+  if ($json === false) {
+    $json = json_encode(['error' => 'Internal encoding error (code ' . $code . ')'], 0);
+  }
+  echo $json;
   exit;
 }
 
