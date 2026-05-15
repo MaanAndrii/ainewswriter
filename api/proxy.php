@@ -57,7 +57,10 @@ function save_api_response($entry) {
   }
   array_unshift($list, $entry);
   if (count($list) > $max) $list = array_slice($list, 0, $max);
-  file_put_contents($file, json_encode($list, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT), LOCK_EX);
+  $encoded = json_encode($list, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT | JSON_INVALID_UTF8_SUBSTITUTE);
+  if ($encoded !== false) {
+    file_put_contents($file, $encoded, LOCK_EX);
+  }
 }
 
 function write_log_entry($line) {
@@ -157,7 +160,8 @@ if ($provider === 'anthropic') {
   send_json(500, ['error' => 'Невідомий провайдер моделі: ' . $provider]);
 }
 
-$payload = json_encode($request, JSON_UNESCAPED_UNICODE);
+$payload = json_encode($request, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+if ($payload === false) send_json(500, ['error' => 'Не вдалось сформувати запит до API (encoding error)']);
 $ch = curl_init($url);
 curl_setopt_array($ch, [
   CURLOPT_RETURNTRANSFER => true,

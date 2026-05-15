@@ -260,7 +260,7 @@ if ($method === 'POST') {
       $raw = file_get_contents($file);
       if ($raw) $list = json_decode($raw, true) ?: [];
     }
-    echo json_encode(['ok' => true, 'responses' => $list], JSON_UNESCAPED_UNICODE);
+    echo json_encode(['ok' => true, 'responses' => $list], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
     exit;
   }
 
@@ -286,7 +286,7 @@ echo json_encode([
   'prompt_default_override' => (string)($settings['system_prompt_default_override'] ?? ''),
   'prompt_profiles' => $settings['prompt_profiles'] ?? get_default_prompt_profiles(),
   'prompt_profiles_default' => get_default_prompt_profiles(),
-], JSON_UNESCAPED_UNICODE);
+], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
 
 /**
  * Збереження prompts.json
