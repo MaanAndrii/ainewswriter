@@ -204,7 +204,7 @@ if ($httpCode !== 200) {
     'provider' => $provider,
     'model'    => $model,
     'code'     => $httpCode,
-    'body'     => mb_substr((string)$response, 0, 8000),
+    'body'     => str_slice((string)$response, 0, 8000),
   ]);
   if (LOG_ON) {
     $log_line = build_log_entry_jsonl([
@@ -264,6 +264,6 @@ save_api_response([
   'provider' => $provider,
   'model'    => $model,
   'code'     => 200,
-  'body'     => mb_substr((string)$response, 0, 8000),
+  'body'     => str_slice((string)$response, 0, 8000),
 ]);
 send_json(200, ['ok' => true, 'text' => $text, 'usage' => $usage, 'meta' => ['provider' => $provider, 'model' => $model]]);
