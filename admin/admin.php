@@ -300,6 +300,10 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
   </section>
 
   <section class="tab-pane" data-pane="logs">
+    <div class="card" style="margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;padding:14px 18px">
+      <span class="small">Детальний перегляд логів з фільтрацією, статистикою та сирими API-відповідями</span>
+      <a href="/admin/logs" target="_blank" style="background:#1a1714;color:#fff;border:0;border-radius:4px;padding:8px 14px;font-family:'Roboto Mono',monospace;font-size:10px;letter-spacing:.09em;text-transform:uppercase;text-decoration:none;white-space:nowrap">&#128196; Відкрити Log Viewer</a>
+    </div>
     <div class="card">
       <div class="ttl">Останні логи запитів</div>
       <table>

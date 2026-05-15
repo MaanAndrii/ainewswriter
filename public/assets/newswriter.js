@@ -332,7 +332,7 @@ function callAPI(prompt, model, webSearch, systemPromptOverride, expectNews, exp
     try { d = JSON.parse(xhr.responseText); } catch (e) { return reject(new Error('Помилка відповіді проксі')); }
     var raw = d.text || '';
     raw = raw.replace(/<cite[^>]*>([\s\S]*?)<\/cite>/g, '$1').replace(/<cite[^>]*>/g, '').replace(/<\/cite>/g, '');
-    var clean = raw.replace(/```json|```/g, '').trim();
+    var clean = raw.replace(/```[a-z]*/gi, '').replace(/[“”]/g, '"').replace(/[‘’]/g, "'").trim();
     var jsonText = extractFirstJsonObject(clean);
     if (!jsonText) {
       if (attempt < 3) return callAPI(prompt, model, webSearch, systemPromptOverride, expectNews, expectFacebook, attempt + 1, resolve, reject);
