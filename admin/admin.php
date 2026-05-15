@@ -59,7 +59,6 @@ function pp_arr($arr, $key) {
         textarea { min-height: 80px; resize: vertical; }
         .btn-mini { padding: 8px 16px; background: #b5401a; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
         .btn-mini:hover { background: #9a3412; }
-        .btn-mini.danger { background: #b5401a; }
         .status { margin-top: 10px; color: #2a5a30; font-size: 14px; }
         .error { color: #b5401a; }
         .section { margin-bottom: 30px; padding: 20px; background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
@@ -71,25 +70,20 @@ function pp_arr($arr, $key) {
 <body>
     <div class="container">
         <h1>Налаштування промтів</h1>
-
         <div class="section">
             <div class="section-title">Основні параметри</div>
-
             <div class="form-group">
                 <label class="lbl">JSON-правило <span style="color:#A32D2D">*</span></label>
                 <textarea id="pf_json_rule" rows="3"><?= pp_str($pp, 'json_rule') ?></textarea>
             </div>
-
             <div class="form-group">
                 <label class="lbl">Заголовок блоку параметрів <span style="color:#A32D2D">*</span></label>
                 <input type="text" id="pf_requirements_title" value="<?= pp_str($pp, 'requirements_title') ?>">
             </div>
-
             <div class="form-group">
                 <label class="lbl">Заголовок вхідного матеріалу <span style="color:#A32D2D">*</span></label>
                 <input type="text" id="pf_input_title" value="<?= pp_str($pp, 'input_title') ?>">
             </div>
-
             <div class="grid-2">
                 <div class="form-group">
                     <label class="lbl">Поля JSON при увімкненій новині <span style="color:#A32D2D">*</span></label>
@@ -100,7 +94,6 @@ function pp_arr($arr, $key) {
                     <textarea id="pf_news_requirements_on" rows="3"><?= pp_str($pp, 'news_requirements_on') ?></textarea>
                 </div>
             </div>
-
             <div class="grid-2">
                 <div class="form-group">
                     <label class="lbl">Префікс тональності <span style="color:#A32D2D">*</span></label>
@@ -108,10 +101,9 @@ function pp_arr($arr, $key) {
                 </div>
                 <div class="form-group">
                     <label class="lbl">Короткі описи тональностей <span style="color:#A32D2D">*</span> <span class="small">— 4 записи розділені <code>---</code></span></label>
-                    <textarea id="pf_tone_short_rules" rows="4" style="font-family:var(--font-mono, monospace);font-size:12px"><?= pp_arr($pp, 'tone_short_rules') ?></textarea>
+                    <textarea id="pf_tone_short_rules" rows="4" style="font-family: monospace; font-size: 12px;"><?= pp_arr($pp, 'tone_short_rules') ?></textarea>
                 </div>
             </div>
-
             <div class="grid-2">
                 <div class="form-group">
                     <label class="lbl">Префікс глибини рерайту <span style="color:#A32D2D">*</span></label>
@@ -119,15 +111,13 @@ function pp_arr($arr, $key) {
                 </div>
                 <div class="form-group">
                     <label class="lbl">Короткі інструкції глибини <span style="color:#A32D2D">*</span> <span class="small">— 4 записи розділені <code>---</code></span></label>
-                    <textarea id="pf_depth_short_rules" rows="4" style="font-family:var(--font-mono, monospace);font-size:12px"><?= pp_arr($pp, 'depth_short_rules') ?></textarea>
+                    <textarea id="pf_depth_short_rules" rows="4" style="font-family: monospace; font-size: 12px;"><?= pp_arr($pp, 'depth_short_rules') ?></textarea>
                 </div>
             </div>
-
             <div class="form-group">
-                <label class="lbl">Інструкція для джерела <span class="small">— {{source_ref}} замінюється значенням з поля «Джерело новини»; опишіть як органічно вписати джерело в перший абзац</span></label>
+                <label class="lbl">Інструкція для джерела <span class="small">— {{source_ref}} замінюється значенням з поля «Джерело новини»</span></label>
                 <textarea id="pf_source_ref_rule" rows="3"><?= pp_str($pp, 'source_ref_rule') ?></textarea>
             </div>
-
             <div class="grid-2">
                 <div class="form-group">
                     <label class="lbl">Web-пошук увімкнено <span style="color:#A32D2D">*</span></label>
@@ -138,22 +128,18 @@ function pp_arr($arr, $key) {
                     <textarea id="pf_websearch_off" rows="2"><?= pp_str($pp, 'websearch_off') ?></textarea>
                 </div>
             </div>
-
             <div class="form-group">
                 <label class="lbl">Facebook-допис увімкнено <span style="color:#A32D2D">*</span></label>
                 <textarea id="pf_fb_checkbox_on" rows="2"><?= pp_str($pp, 'fb_checkbox_on') ?></textarea>
             </div>
-
             <div class="form-group">
                 <label class="lbl">Стилі для Facebook <span style="color:#A32D2D">*</span> <span class="small">— 4 записи розділені <code>---</code></span></label>
-                <textarea id="pf_fb_style_rules" rows="4" style="font-family:var(--font-mono, monospace);font-size:12px"><?= pp_arr($pp, 'fb_style_rules') ?></textarea>
+                <textarea id="pf_fb_style_rules" rows="4" style="font-family: monospace; font-size: 12px;"><?= pp_arr($pp, 'fb_style_rules') ?></textarea>
             </div>
-
             <div class="form-group">
                 <label class="lbl">Дія для Facebook, якщо вимкнено</label>
                 <input type="text" id="pf_facebook_when_disabled" value="<?= pp_str($pp, 'facebook_when_disabled', 'omit') ?>">
             </div>
-
             <div class="grid-2">
                 <div class="form-group">
                     <label class="small">Мін. символів ліду</label>
@@ -164,14 +150,12 @@ function pp_arr($arr, $key) {
                     <input type="number" id="lim_lead_max" min="50" max="500" value="<?= (int)($pp['lead_max_chars'] ?? 200) ?>">
                 </div>
             </div>
-
             <div class="form-group">
                 <button type="button" class="btn-mini danger" id="save_prompt_fields_btn">Зберегти складові промту</button>
                 <span id="save_fields_status" class="status"><?= $status ?></span>
             </div>
         </div>
     </div>
-
     <script>
         function val(id) { return (document.getElementById(id) && document.getElementById(id).value || '').trim(); }
         function lines(id) {
@@ -224,8 +208,8 @@ function pp_arr($arr, $key) {
                 fb_checkbox_on: val('pf_fb_checkbox_on'),
                 fb_style_rules: lines('pf_fb_style_rules'),
                 facebook_when_disabled: val('pf_facebook_when_disabled') || 'omit',
-                lead_min_chars: val('lim_lead_min'),  // Додано
-                lead_max_chars: val('lim_lead_max')   // Додано
+                lead_min_chars: val('lim_lead_min'),  // Виправлено: зчитування з lim_lead_min
+                lead_max_chars: val('lim_lead_max')   // Виправлено: зчитування з lim_lead_max
             };
         }
 
@@ -255,8 +239,7 @@ function pp_arr($arr, $key) {
                 xhr.onerror = function() {
                     status.textContent = 'Помилка мережі';
                 };
-                // Виправлено: дія змінена на save_prompt_profiles
-                xhr.send(JSON.stringify({ action: 'save_prompt_profiles', profiles: { user: fields } }));
+                xhr.send(JSON.stringify({ action: 'save_prompt_profiles', profiles: { user: fields } }));  // Виправлено: дія save_prompt_profiles
             });
         }
     </script>
