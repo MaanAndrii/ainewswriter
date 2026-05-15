@@ -136,6 +136,27 @@ td { padding:9px 14px; border-bottom:1px solid #f0ece4; vertical-align:middle; w
 .tag-nocache{ background:#f5f2eb; color:#8a8278; }
 .cost-cell  { font-family:'Roboto Mono',monospace; font-weight:600; }
 .empty { text-align:center; padding:40px; color:#8a8278; font-family:'Roboto Mono',monospace; font-size:12px; }
+tbody tr { cursor:pointer; }
+tr.expanded td { background:#fff8f5 !important; }
+.row-detail { display:none; background:#faf5f0; }
+.row-detail.open { display:table-row; }
+.row-detail td { padding:14px 20px; border-bottom:2px solid #e8e2d4; }
+.detail-grid { display:grid; grid-template-columns:120px 1fr; gap:4px 12px; font-size:12px; }
+.detail-key { font-family:'Roboto Mono',monospace; font-size:10px; color:#8a8278; text-transform:uppercase; letter-spacing:.08em; padding-top:2px; }
+.detail-val { font-family:'Roboto Mono',monospace; font-size:11px; word-break:break-all; }
+.api-panel { background:#fff; border:1px solid #e8e2d4; border-radius:4px; padding:20px 24px; margin-top:24px; }
+.api-panel-hdr { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+.api-panel-title { font-family:'Roboto Mono',monospace; font-size:11px; letter-spacing:.12em; text-transform:uppercase; font-weight:600; }
+.api-entry { border:1px solid #e8e2d4; border-radius:3px; margin-bottom:10px; overflow:hidden; }
+.api-entry-hdr { display:flex; gap:12px; align-items:center; padding:10px 14px; cursor:pointer; background:#faf8f3; }
+.api-entry-hdr:hover { background:#f5f0e8; }
+.api-entry-body { display:none; padding:12px 14px; background:#fff; border-top:1px solid #e8e2d4; }
+.api-entry-body.open { display:block; }
+.api-entry-body pre { font-family:'Roboto Mono',monospace; font-size:11px; white-space:pre-wrap; word-break:break-all; max-height:400px; overflow-y:auto; }
+.tag-err { background:#fde8e8; color:#8e2d16; }
+.tag-ok  { background:#eaf3eb; color:#2a5a30; }
+.btn-load { padding:7px 14px; background:#1a1714; color:#fff; border:none; border-radius:3px; font-family:'Roboto Mono',monospace; font-size:10px; letter-spacing:.1em; cursor:pointer; }
+.btn-load:hover { opacity:.85; }
 </style>
 </head>
 <body>
@@ -206,7 +227,7 @@ td { padding:9px 14px; border-bottom:1px solid #f0ece4; vertical-align:middle; w
       </tr>
     </thead>
     <tbody>
-    <?php foreach ($rows as $r): ?>
+    <?php foreach ($rows as $idx => $r): ?>
       <?php
         $model_label = $model_labels[$r['model']] ?? $r['model'];
         $web_tag     = ($r['web'] ?? '') === 'web'
@@ -222,7 +243,7 @@ td { padding:9px 14px; border-bottom:1px solid #f0ece4; vertical-align:middle; w
         $cost = (float)($r['cost'] ?? 0);
         $cost_color = $cost > 0.05 ? 'color:#b5401a' : ($cost > 0.01 ? 'color:#8a6a20' : '');
       ?>
-      <tr>
+      <tr data-idx="<?= $idx ?>" class="log-row">
         <td style="font-family:'Roboto Mono',monospace"><?= (int)($r['v'] ?? 1) ?></td>
         <td><?= htmlspecialchars($r['date']) ?></td>
         <td style="font-family:'Roboto Mono',monospace"><?= htmlspecialchars($r['time']) ?></td>
@@ -237,12 +258,112 @@ td { padding:9px 14px; border-bottom:1px solid #f0ece4; vertical-align:middle; w
         <td><?= $web_tag ?></td>
         <td><?= $cache_tag ?></td>
       </tr>
+      <tr class="row-detail" id="detail-<?= $idx ?>">
+        <td colspan="13">
+          <div class="detail-grid">
+            <div class="detail-key">Модель (id)</div><div class="detail-val"><?= htmlspecialchars($r['model'] ?? '—') ?></div>
+            <div class="detail-key">Провайдер</div><div class="detail-val"><?= htmlspecialchars($r['provider'] ?? '—') ?></div>
+            <div class="detail-key">Дата / час</div><div class="detail-val"><?= htmlspecialchars(($r['date'] ?? '').' '.($r['time'] ?? '')) ?></div>
+            <div class="detail-key">Вхід / вихід</div><div class="detail-val"><?= number_format((int)($r['inp']??0),0,'.','&nbsp;') ?> / <?= number_format((int)($r['out']??0),0,'.','&nbsp;') ?> tok</div>
+            <div class="detail-key">Cache write</div><div class="detail-val"><?= (int)($r['cache_write']??0) > 0 ? number_format((int)$r['cache_write'],0,'.','&nbsp;').' tok' : '—' ?></div>
+            <div class="detail-key">Cache read</div><div class="detail-val"><?= (int)($r['cache_read']??0) > 0 ? number_format((int)$r['cache_read'],0,'.','&nbsp;').' tok' : '—' ?></div>
+            <div class="detail-key">Вартість</div><div class="detail-val"><?= fmtCost((float)($r['cost']??0)) ?></div>
+            <div class="detail-key">Час відповіді</div><div class="detail-val"><?= htmlspecialchars($r['duration'] ?? '—') ?> с</div>
+            <div class="detail-key">Довжина промту</div><div class="detail-val"><?= number_format((int)($r['prompt_len']??0),0,'.','&nbsp;') ?> симв.</div>
+            <?php if (!empty($r['error'])): ?>
+            <div class="detail-key" style="color:#8e2d16">Помилка</div><div class="detail-val" style="color:#8e2d16"><?= htmlspecialchars($r['error']) ?></div>
+            <div class="detail-key">HTTP код</div><div class="detail-val"><?= (int)($r['code']??0) ?></div>
+            <?php endif; ?>
+          </div>
+        </td>
+      </tr>
     <?php endforeach; ?>
     </tbody>
   </table>
   <?php endif; ?>
 
 </div>
+
+<div class="wrap" style="padding-top:0">
+  <div class="api-panel">
+    <div class="api-panel-hdr">
+      <span class="api-panel-title">Останні API відповіді</span>
+      <button class="btn-load" id="btn_load_api">Завантажити</button>
+    </div>
+    <div id="api_responses_list"><span style="font-family:'Roboto Mono',monospace;font-size:11px;color:#8a8278">Натисніть «Завантажити» для перегляду</span></div>
+  </div>
+</div>
+
+<script>
+// ── Розгортання рядків лога ───────────────────────────────────────────────────
+document.querySelectorAll('.log-row').forEach(function(row) {
+  row.addEventListener('click', function() {
+    var idx    = this.getAttribute('data-idx');
+    var detail = document.getElementById('detail-' + idx);
+    if (!detail) return;
+    var isOpen = detail.classList.contains('open');
+    // close all
+    document.querySelectorAll('.row-detail.open').forEach(function(d){ d.classList.remove('open'); });
+    document.querySelectorAll('.log-row.expanded').forEach(function(r){ r.classList.remove('expanded'); });
+    if (!isOpen) {
+      detail.classList.add('open');
+      this.classList.add('expanded');
+    }
+  });
+});
+
+// ── Завантаження API відповідей ───────────────────────────────────────────────
+document.getElementById('btn_load_api').addEventListener('click', function() {
+  var btn = this;
+  btn.disabled = true;
+  btn.textContent = 'Завантаження...';
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', '/api/settings', true);
+  xhr.setRequestHeader('Content-Type', 'application/json');
+  xhr.onload = function() {
+    btn.disabled = false;
+    btn.textContent = 'Оновити';
+    var container = document.getElementById('api_responses_list');
+    try {
+      var d = JSON.parse(xhr.responseText);
+      if (!d.ok || !d.responses || !d.responses.length) {
+        container.innerHTML = '<span style="font-family:'Roboto Mono',monospace;font-size:11px;color:#8a8278">Відповідей ще немає</span>';
+        return;
+      }
+      var html = '';
+      d.responses.forEach(function(r, i) {
+        var isErr  = r.type === 'error';
+        var tagCls = isErr ? 'tag-err' : 'tag-ok';
+        var tagTxt = isErr ? ('Помилка ' + r.code) : ('OK ' + r.code);
+        var body   = '';
+        try { body = JSON.stringify(JSON.parse(r.body), null, 2); } catch(e) { body = r.body || ''; }
+        html += '<div class="api-entry">'
+              + '<div class="api-entry-hdr" data-api="' + i + '">'
+              + '<span class="tag ' + tagCls + '">' + tagTxt + '</span>'
+              + '<span style="font-family:'Roboto Mono',monospace;font-size:11px">' + esc(r.ts || '') + '</span>'
+              + '<span style="font-family:'Roboto Mono',monospace;font-size:11px;color:#8a8278">' + esc(r.provider || '') + ' / ' + esc(r.model || '') + '</span>'
+              + '</div>'
+              + '<div class="api-entry-body" id="api-body-' + i + '"><pre>' + escHtml(body) + '</pre></div>'
+              + '</div>';
+      });
+      container.innerHTML = html;
+      container.querySelectorAll('.api-entry-hdr').forEach(function(hdr) {
+        hdr.addEventListener('click', function() {
+          var body = document.getElementById('api-body-' + this.getAttribute('data-api'));
+          if (body) body.classList.toggle('open');
+        });
+      });
+    } catch(e) {
+      container.innerHTML = '<span style="color:#8e2d16">Помилка: ' + e.message + '</span>';
+    }
+  };
+  xhr.onerror = function() { btn.disabled = false; btn.textContent = 'Оновити'; };
+  xhr.send(JSON.stringify({action:'get_api_responses'}));
+});
+
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+</script>
 </body>
 </html>
 <?php
