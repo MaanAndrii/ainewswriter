@@ -85,6 +85,8 @@ if ($method === 'POST') {
     $profiles['user']['leads_count'] = max(1, (int)($limits['leads_count'] ?? 2));
     $profiles['user']['article_max_chars'] = max(300, (int)($limits['article_max_chars'] ?? 3000));
     $profiles['user']['facebook_max_chars'] = max(50, (int)($limits['facebook_max_chars'] ?? 400));
+    $profiles['user']['lead_min_chars'] = max(50, (int)($limits['lead_min_chars'] ?? 150));
+    $profiles['user']['lead_max_chars'] = max(50, (int)($limits['lead_max_chars'] ?? 180));
     save_settings([
       'models' => $current['models'] ?? [],
       'system_prompt_custom' => (string)($current['system_prompt_custom'] ?? ''),
@@ -238,6 +240,17 @@ if ($method === 'POST') {
       'has_system'      => array_key_exists('system_prompt_default_override', $payload),
       'keys_imported'   => $importedKeys,
     ]], JSON_UNESCAPED_UNICODE);
+    exit;
+  }
+
+  if ($action === 'get_api_responses') {
+    $file = dirname(__DIR__) . '/storage/api_responses.json';
+    $list = [];
+    if (file_exists($file)) {
+      $raw = file_get_contents($file);
+      if ($raw) $list = json_decode($raw, true) ?: [];
+    }
+    echo json_encode(['ok' => true, 'responses' => $list], JSON_UNESCAPED_UNICODE);
     exit;
   }
 
