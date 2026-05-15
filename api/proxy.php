@@ -160,7 +160,8 @@ if ($provider === 'anthropic') {
   send_json(500, ['error' => 'Невідомий провайдер моделі: ' . $provider]);
 }
 
-$payload = json_encode($request, JSON_UNESCAPED_UNICODE);
+$payload = json_encode($request, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+if ($payload === false) send_json(500, ['error' => 'Не вдалось сформувати запит до API (encoding error)']);
 $ch = curl_init($url);
 curl_setopt_array($ch, [
   CURLOPT_RETURNTRANSFER => true,
