@@ -54,8 +54,8 @@ if ($uri === '/api/proxy')    { require $base . '/api/proxy.php';        exit; }
 if ($uri === '/api/settings') { require $base . '/api/settings_api.php'; exit; }
 
 // ── Адмін ─────────────────────────────────────────────────────────────────────
-if ($uri === '/admin')        { require $base . '/admin/admin.php';      exit; }
-if ($uri === '/admin/logs')   { require $base . '/admin/log_viewer.php'; exit; }
+if ($uri === '/admin')        { require $base . '/admin/admin.php'; exit; }
+if ($uri === '/admin/logs')   { header('Location: /admin/admin.php'); exit; }
 
 // ── Головна ───────────────────────────────────────────────────────────────────
 if ($uri === '/') {

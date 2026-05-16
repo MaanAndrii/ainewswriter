@@ -243,6 +243,32 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:8px 10px;
 tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
 .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}.tab-btn{background:#fff;border:1px solid #d8d0be;border-radius:4px;padding:8px 12px;font-family:'Roboto Mono',monospace;font-size:11px;cursor:pointer}.tab-btn.active{background:#1a1714;color:#fff;border-color:#1a1714}.tab-pane{display:none}.tab-pane.active{display:block}
 @media(max-width:980px){.wrap{grid-template-columns:1fr}}
+.btn-icon{background:none;border:1px solid #d8d0be;border-radius:3px;padding:2px 7px;font-size:14px;cursor:pointer;line-height:1.2;color:#1a1714;transition:all .1s;vertical-align:middle}
+.btn-icon:hover{background:#f5f2eb;border-color:#8a8278}
+.btn-icon.danger{color:#8e2d16;border-color:#e8c0b8}.btn-icon.danger:hover{background:#fde8e8;border-color:#c08070}
+.log-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px}
+.log-card{background:#fff;border:1px solid #e8e2d4;border-radius:4px;padding:12px 14px}
+.log-card-lbl{font-family:'Roboto Mono',monospace;font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:#8a8278;margin-bottom:4px}
+.log-card-val{font-size:18px;font-weight:600;color:#1a1714}.log-card-val.red{color:#b5401a}.log-card-val.green{color:#2a5a30}
+.log-filters{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.log-filters input[type=date]{padding:6px 10px;border:1px solid #d8d0be;border-radius:3px;font-family:'Roboto Mono',monospace;font-size:11px;outline:none;background:#fff}
+.log-filters input[type=date]:focus{border-color:#b5401a}
+.log-row{cursor:pointer}.log-row:hover td{background:#fff8f5 !important}.log-row.expanded td{background:#fff8f5 !important}
+.row-detail{display:none;background:#faf5f0}.row-detail.open{display:table-row}
+.row-detail td{padding:12px 14px;border-bottom:2px solid #e8e2d4}
+.detail-grid{display:grid;grid-template-columns:130px 1fr;gap:4px 10px;font-size:12px}
+.detail-key{font-family:'Roboto Mono',monospace;font-size:10px;color:#8a8278;text-transform:uppercase;letter-spacing:.08em;padding-top:2px}
+.detail-val{font-family:'Roboto Mono',monospace;font-size:11px;word-break:break-all}
+.log-tag{display:inline-block;padding:2px 6px;border-radius:3px;font-family:'Roboto Mono',monospace;font-size:9px;font-weight:500}
+.tag-web{background:#e8f0fd;color:#3a5a9a}.tag-noweb{background:#f5f2eb;color:#8a8278}
+.tag-hit{background:#eaf3eb;color:#2a5a30}.tag-write{background:#fff8e8;color:#8a6a20}.tag-nocache{background:#f5f2eb;color:#8a8278}
+.tag-err{background:#fde8e8;color:#8e2d16}.tag-ok{background:#eaf3eb;color:#2a5a30}
+.api-entry{border:1px solid #e8e2d4;border-radius:3px;margin-bottom:8px;overflow:hidden}
+.api-entry-hdr{display:flex;gap:10px;align-items:center;padding:9px 12px;cursor:pointer;background:#faf8f3}
+.api-entry-hdr:hover{background:#f5f0e8}
+.api-entry-body{display:none;padding:10px 12px;background:#fff;border-top:1px solid #e8e2d4}
+.api-entry-body.open{display:block}
+.api-entry-body pre{font-family:'Roboto Mono',monospace;font-size:10px;white-space:pre-wrap;word-break:break-all;max-height:300px;overflow-y:auto}
 .site-footer{background:#1a1714;color:#6a6460;font-family:'Roboto Mono',monospace;font-size:10px;letter-spacing:.12em;text-align:center;padding:10px 24px;border-top:2px solid #b5401a}.site-footer a{color:#6a6460;text-decoration:none}.site-footer a:hover{color:#f5f2eb}
 </style>
 </head>
@@ -414,43 +440,24 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
   </section>
 
   <section class="tab-pane" data-pane="logs">
-    <div class="card" style="margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;padding:14px 18px">
-      <span class="small">Детальний перегляд логів з фільтрацією, статистикою та сирими API-відповідями</span>
-      <a href="/admin/logs" target="_blank" style="background:#1a1714;color:#fff;border:0;border-radius:4px;padding:8px 14px;font-family:'Roboto Mono',monospace;font-size:10px;letter-spacing:.09em;text-transform:uppercase;text-decoration:none;white-space:nowrap">&#128196; Відкрити Log Viewer</a>
+    <div id="log-cards" class="log-cards"></div>
+    <div class="log-filters">
+      <input type="date" id="log-date">
+      <button class="btn-mini" id="log-filter-btn" style="padding:7px 14px">Фільтрувати</button>
+      <button class="btn-mini muted" id="log-clear-btn">Скинути</button>
+      <button class="btn-mini" id="log-reload-btn" style="margin-left:auto">&#8635; Оновити</button>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden;margin-bottom:14px">
+      <div id="log-table-wrap" style="overflow-x:auto">
+        <div style="padding:28px;text-align:center;font-family:Roboto Mono,monospace;font-size:11px;color:#8a8278">Перейдіть на вкладку «Логи» для завантаження</div>
+      </div>
     </div>
     <div class="card">
-      <div class="ttl">Останні логи запитів</div>
-      <table>
-        <tr><th>Час</th><th>Модель</th><th>Провайдер</th><th>Inp</th><th>Out</th><th>Cost</th><th>Статус</th></tr>
-        <?php
-        $logRows = [];
-        if (file_exists(LOG_FILE)) {
-          $lines = @file(LOG_FILE, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-          if (is_array($lines)) {
-            $lines = array_reverse($lines);
-            foreach ($lines as $line) {
-              $r = parse_log_entry($line);
-              if (!$r) continue;
-              $logRows[] = $r;
-              if (count($logRows) >= 100) break;
-            }
-          }
-        }
-        ?>
-        <?php if (!$logRows): ?>
-        <tr><td colspan="7">Логи поки відсутні.</td></tr>
-        <?php else: foreach ($logRows as $r): ?>
-        <tr>
-          <td><?= htmlspecialchars(($r['date'] ?? '') . ' ' . ($r['time'] ?? '')) ?></td>
-          <td style="font-family:'Roboto Mono',monospace"><?= htmlspecialchars($r['model'] ?? '') ?></td>
-          <td><?= htmlspecialchars($r['provider'] ?? '') ?></td>
-          <td><?= (int)($r['inp'] ?? 0) ?></td>
-          <td><?= (int)($r['out'] ?? 0) ?></td>
-          <td>$<?= number_format((float)($r['cost'] ?? 0), 4, '.', '') ?></td>
-          <td><?= htmlspecialchars($r['cache_status'] ?? '-') ?></td>
-        </tr>
-        <?php endforeach; endif; ?>
-      </table>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <span class="ttl" style="margin-bottom:0">Останні API відповіді (сирий формат)</span>
+        <button class="btn-mini" id="btn_load_api">Завантажити</button>
+      </div>
+      <div id="api_responses_list" style="font-family:'Roboto Mono',monospace;font-size:11px;color:#8a8278">Натисніть «Завантажити» для перегляду</div>
     </div>
   </section>
 
@@ -667,7 +674,7 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
         + '<td>'+Number(m.inp).toFixed(2)+'</td>'
         + '<td>'+Number(m.out).toFixed(2)+'</td>'
         + '<td>'+(m.web_search ? 'так' : 'ні')+'</td>'
-        + '<td><button type="button" class="btn-mini" data-edit="'+i+'">Ред.</button> <button type="button" class="btn-mini danger" data-del="'+i+'">Вид.</button></td>'
+        + '<td style="white-space:nowrap"><button type="button" class="btn-icon" title="Редагувати" data-edit="'+i+'">✏</button> <button type="button" class="btn-icon danger" title="Видалити" data-del="'+i+'">✕</button></td>'
         + '</tr>';
     }
     tbody.innerHTML = html;
@@ -990,8 +997,149 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
       var tab = this.getAttribute('data-tab');
       for (var i=0;i<tabBtns.length;i++) tabBtns[i].classList.toggle('active', tabBtns[i]===this);
       for (var j=0;j<panes.length;j++) panes[j].classList.toggle('active', panes[j].getAttribute('data-pane')===tab);
+      if (tab === 'logs') loadLogs(document.getElementById('log-date') ? document.getElementById('log-date').value : '');
     });
   }
+
+  // ── Logs tab ────────────────────────────────────────────────────────────────
+  function escL(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function numFmtL(n){ return String(parseInt(n)||0).replace(/\B(?=(\d{3})+(?!\d))/g,' '); }
+  function fmtCostL(v){ v=parseFloat(v)||0; if(v<0.0001) return '< $0.0001'; return '$'+v.toFixed(4); }
+  function logCardHtml(lbl,val,cls){ return '<div class="log-card"><div class="log-card-lbl">'+lbl+'</div><div class="log-card-val '+cls+'">'+val+'</div></div>'; }
+
+  function loadLogs(dateFilter) {
+    var wrap  = document.getElementById('log-table-wrap');
+    var cards = document.getElementById('log-cards');
+    if (!wrap) return;
+    wrap.innerHTML  = '<div style="padding:24px;text-align:center;font-family:Roboto Mono,monospace;font-size:11px;color:#8a8278">Завантаження…</div>';
+    cards.innerHTML = '';
+    apiPost({action:'get_logs', date: dateFilter||''}, function(err, d) {
+      if (err) { wrap.innerHTML='<div style="padding:20px;color:#8e2d16;font-size:12px">Помилка: '+escL(err.message)+'</div>'; return; }
+      var s = d.summary || {};
+      cards.innerHTML =
+        logCardHtml('Запитів', s.cnt||0, '') +
+        logCardHtml('Вартість', fmtCostL(s.total_cost), 'red') +
+        logCardHtml('Вхід токенів', numFmtL(s.total_inp), '') +
+        logCardHtml('Вихід токенів', numFmtL(s.total_out), '') +
+        logCardHtml('Cache hits', numFmtL(s.total_cache_r), 'green');
+      var rows = d.rows || [];
+      if (!rows.length) {
+        wrap.innerHTML = '<div style="padding:28px;text-align:center;font-family:Roboto Mono,monospace;font-size:11px;color:#8a8278">Записів не знайдено</div>';
+        return;
+      }
+      var thStyle = 'style="padding:9px 11px;font-family:Roboto Mono,monospace;font-size:9px;letter-spacing:.12em;text-align:left;white-space:nowrap;background:#1a1714;color:#f5f2eb"';
+      var html = '<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>'
+        + '<th '+thStyle+'>Дата/час</th><th '+thStyle+'>Модель</th><th '+thStyle+'>Вхід</th>'
+        + '<th '+thStyle+'>Вихід</th><th '+thStyle+'>Cache</th><th '+thStyle+'>Вартість</th>'
+        + '<th '+thStyle+'>Тривалість</th><th '+thStyle+'>Пошук</th><th '+thStyle+'>Кеш</th>'
+        + '</tr></thead><tbody id="log-tbody"></tbody></table>';
+      wrap.innerHTML = html;
+      var tbody = document.getElementById('log-tbody');
+      var tbHtml = '';
+      rows.forEach(function(r, idx) {
+        var bg   = idx%2===0 ? '' : 'background:#faf8f3';
+        var dt   = escL((r.date||'')+' '+(r.time||''));
+        var mod  = escL(r.model||'');
+        var inp  = numFmtL(r.inp||r.input_tokens||0);
+        var out  = numFmtL(r.out||r.output_tokens||0);
+        var cw   = parseInt(r.cache_write)||0;
+        var cr   = parseInt(r.cache_read)||0;
+        var cost = fmtCostL(r.cost);
+        var dur  = escL(r.duration||'—');
+        var isWeb = r.web==='web'||r.web===1||r.web==='1';
+        var webTag = isWeb ? '<span class="log-tag tag-web">веб</span>' : '<span class="log-tag tag-noweb">без</span>';
+        var cs = r.cache_status||'';
+        var cTag = cs==='cache-hit' ? '<span class="log-tag tag-hit">hit</span>'
+                 : cs==='cache-write' ? '<span class="log-tag tag-write">write</span>'
+                 : '<span class="log-tag tag-nocache">—</span>';
+        var costColor = parseFloat(r.cost)>0.05 ? 'color:#b5401a' : parseFloat(r.cost)>0.01 ? 'color:#8a6a20' : '';
+        var cacheCell = (cw>0 ? '<span style="color:#8a6a20">w:'+numFmtL(cw)+'</span> ' : '') + (cr>0 ? '<span style="color:#2a5a30">r:'+numFmtL(cr)+'</span>' : (cw===0?'—':''));
+        var td = 'style="padding:8px 11px;border-bottom:1px solid #f0ece4"';
+        tbHtml += '<tr class="log-row" data-idx="'+idx+'" style="'+bg+'">'
+          + '<td '+td+' style="padding:8px 11px;border-bottom:1px solid #f0ece4;white-space:nowrap;font-family:Roboto Mono,monospace">'+dt+'</td>'
+          + '<td '+td+' style="padding:8px 11px;border-bottom:1px solid #f0ece4;font-family:Roboto Mono,monospace;font-size:11px">'+mod+'</td>'
+          + '<td '+td+' style="padding:8px 11px;border-bottom:1px solid #f0ece4;font-family:Roboto Mono,monospace">'+inp+'</td>'
+          + '<td '+td+' style="padding:8px 11px;border-bottom:1px solid #f0ece4;font-family:Roboto Mono,monospace">'+out+'</td>'
+          + '<td '+td+' style="padding:8px 11px;border-bottom:1px solid #f0ece4;font-family:Roboto Mono,monospace;font-size:10px">'+cacheCell+'</td>'
+          + '<td '+td+' style="padding:8px 11px;border-bottom:1px solid #f0ece4;font-family:Roboto Mono,monospace;font-weight:600;'+costColor+'">'+cost+'</td>'
+          + '<td '+td+' style="padding:8px 11px;border-bottom:1px solid #f0ece4;font-family:Roboto Mono,monospace;color:#8a8278">'+dur+'</td>'
+          + '<td '+td+' style="padding:8px 11px;border-bottom:1px solid #f0ece4">'+webTag+'</td>'
+          + '<td '+td+' style="padding:8px 11px;border-bottom:1px solid #f0ece4">'+cTag+'</td>'
+          + '</tr>'
+          + '<tr class="row-detail" id="ld-'+idx+'">'
+          + '<td colspan="9"><div class="detail-grid">'
+          + '<div class="detail-key">Модель (id)</div><div class="detail-val">'+escL(r.model||'—')+'</div>'
+          + '<div class="detail-key">Провайдер</div><div class="detail-val">'+escL(r.provider||'—')+'</div>'
+          + '<div class="detail-key">Вхід / Вихід</div><div class="detail-val">'+numFmtL(parseInt(r.inp||0))+' / '+numFmtL(parseInt(r.out||0))+' tok</div>'
+          + (cw>0 ? '<div class="detail-key">Cache write</div><div class="detail-val">'+numFmtL(cw)+' tok</div>' : '')
+          + (cr>0 ? '<div class="detail-key">Cache read</div><div class="detail-val">'+numFmtL(cr)+' tok</div>' : '')
+          + '<div class="detail-key">Вартість</div><div class="detail-val">'+cost+'</div>'
+          + '<div class="detail-key">Тривалість</div><div class="detail-val">'+escL(r.duration||'—')+' с</div>'
+          + '<div class="detail-key">Довжина промту</div><div class="detail-val">'+numFmtL(parseInt(r.prompt_len||0))+' симв.</div>'
+          + (r.error ? '<div class="detail-key" style="color:#8e2d16">Помилка</div><div class="detail-val" style="color:#8e2d16">'+escL(r.error)+'</div>' : '')
+          + '</div></td></tr>';
+      });
+      tbody.innerHTML = tbHtml;
+      tbody.querySelectorAll('.log-row').forEach(function(row) {
+        row.addEventListener('click', function() {
+          var idx = this.getAttribute('data-idx');
+          var det = document.getElementById('ld-'+idx);
+          if (!det) return;
+          var wasOpen = det.classList.contains('open');
+          tbody.querySelectorAll('.row-detail.open').forEach(function(d){ d.classList.remove('open'); });
+          tbody.querySelectorAll('.log-row.expanded').forEach(function(r){ r.classList.remove('expanded'); });
+          if (!wasOpen) { det.classList.add('open'); row.classList.add('expanded'); }
+        });
+      });
+    });
+  }
+
+  (function() {
+    var logDate   = document.getElementById('log-date');
+    var filterBtn = document.getElementById('log-filter-btn');
+    var clearBtn  = document.getElementById('log-clear-btn');
+    var reloadBtn = document.getElementById('log-reload-btn');
+    if (filterBtn) filterBtn.addEventListener('click', function(){ loadLogs(logDate ? logDate.value : ''); });
+    if (clearBtn)  clearBtn.addEventListener('click',  function(){ if(logDate) logDate.value=''; loadLogs(''); });
+    if (reloadBtn) reloadBtn.addEventListener('click', function(){ loadLogs(logDate ? logDate.value : ''); });
+
+    var btnLoadApi = document.getElementById('btn_load_api');
+    if (btnLoadApi) {
+      btnLoadApi.addEventListener('click', function() {
+        var btn = this;
+        btn.disabled = true; btn.textContent = 'Завантаження…';
+        apiPost({action:'get_api_responses'}, function(err, d) {
+          btn.disabled = false; btn.textContent = 'Оновити';
+          var container = document.getElementById('api_responses_list');
+          if (err || !d.responses || !d.responses.length) {
+            container.innerHTML = '<span style="color:#8a8278">Відповідей ще немає</span>';
+            return;
+          }
+          var html = '';
+          d.responses.forEach(function(r, i) {
+            var isErr = r.type==='error';
+            var body = '';
+            try { body = JSON.stringify(JSON.parse(r.body), null, 2); } catch(e) { body = r.body||''; }
+            html += '<div class="api-entry">'
+              + '<div class="api-entry-hdr" data-api="'+i+'">'
+              + '<span class="log-tag '+(isErr?'tag-err':'tag-ok')+'">'+(isErr?'Помилка '+r.code:'OK '+r.code)+'</span>'
+              + '<span style="font-family:Roboto Mono,monospace;font-size:11px">'+escL(r.ts||'')+'</span>'
+              + '<span style="font-family:Roboto Mono,monospace;font-size:11px;color:#8a8278">'+escL((r.provider||'')+' / '+(r.model||''))+'</span>'
+              + '</div>'
+              + '<div class="api-entry-body" id="api-body-'+i+'"><pre>'+escL(body)+'</pre></div>'
+              + '</div>';
+          });
+          container.innerHTML = html;
+          container.querySelectorAll('.api-entry-hdr').forEach(function(hdr) {
+            hdr.addEventListener('click', function() {
+              var b = document.getElementById('api-body-'+this.getAttribute('data-api'));
+              if (b) b.classList.toggle('open');
+            });
+          });
+        });
+      });
+    }
+  })();
 
   if (!Array.isArray(models)) models = [];
   models = dedupeModels(models);
