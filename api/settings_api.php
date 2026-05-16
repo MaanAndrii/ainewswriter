@@ -296,26 +296,7 @@ if ($method === 'POST') {
           'total_out'    => (int)($s['to2'] ?? 0),
           'total_cache_r'=> (int)($s['tr2'] ?? 0),
         ];
-      } catch (Exception $e) { /* fall through */ }
-    } else {
-      $logFile = APP_ROOT . '/storage/requests.log';
-      if (file_exists($logFile)) {
-        $lines = file($logFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-        foreach (array_reverse($lines) as $line) {
-          $entry = parse_log_entry($line);
-          if (!$entry) continue;
-          if ($filterDate !== '' && ($entry['date'] ?? '') !== $filterDate) continue;
-          $rows[] = $entry;
-          if (count($rows) >= 500) break;
-        }
-      }
-      $summary = [
-        'cnt'          => count($rows),
-        'total_cost'   => array_sum(array_column($rows, 'cost')),
-        'total_inp'    => array_sum(array_column($rows, 'inp')),
-        'total_out'    => array_sum(array_column($rows, 'out')),
-        'total_cache_r'=> array_sum(array_column($rows, 'cache_read')),
-      ];
+      } catch (Exception $e) { /* SQLite error — return empty */ }
     }
     echo json_encode(['ok' => true, 'rows' => $rows, 'summary' => $summary], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
     exit;
