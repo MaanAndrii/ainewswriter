@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../core/app_settings.php';
+require_once __DIR__ . '/../version.php';
 
 define('LOG_FILE', __DIR__ . '/../storage/requests.log');
 
@@ -44,6 +45,79 @@ button { width:100%; padding:11px; background:#b5401a; color:#fff; border:none; 
 $settings = load_settings();
 $msg = '';
 $err = '';
+
+// ── Системна інформація ──────────────────────────────────────────────────────
+function collect_system_info() {
+  $info = [];
+
+  // Версія
+  $info['version'] = 'V ' . APP_VERSION;
+
+  // Git
+  $root = APP_ROOT;
+  $gitHash    = trim((string)@shell_exec("git -C " . escapeshellarg($root) . " log -1 --format='%h' 2>/dev/null"));
+  $gitDate    = trim((string)@shell_exec("git -C " . escapeshellarg($root) . " log -1 --format='%ci' 2>/dev/null"));
+  $gitSubject = trim((string)@shell_exec("git -C " . escapeshellarg($root) . " log -1 --format='%s' 2>/dev/null"));
+  $gitBranch  = trim((string)@shell_exec("git -C " . escapeshellarg($root) . " rev-parse --abbrev-ref HEAD 2>/dev/null"));
+  $info['git'] = [
+    'hash'    => $gitHash ?: '—',
+    'date'    => $gitDate ? date('d.m.Y H:i', strtotime($gitDate)) : '—',
+    'subject' => $gitSubject ?: '—',
+    'branch'  => $gitBranch ?: '—',
+  ];
+
+  // PHP
+  $info['php'] = [
+    'version'   => PHP_VERSION,
+    'sapi'      => PHP_SAPI,
+    'timezone'  => date_default_timezone_get(),
+    'ext_curl'      => extension_loaded('curl'),
+    'ext_sqlite'    => extension_loaded('pdo_sqlite'),
+    'ext_mbstring'  => extension_loaded('mbstring'),
+    'ext_opcache'   => extension_loaded('Zend OPcache') || extension_loaded('opcache'),
+    'opcache_on'    => function_exists('opcache_get_status') && !empty(@opcache_get_status()['opcache_enabled']),
+  ];
+
+  // SQLite БД
+  $dbFile = SQLITE_DB_FILE;
+  $db = get_sqlite_db();
+  $info['sqlite'] = [
+    'available'    => $db !== null,
+    'size'         => file_exists($dbFile) ? filesize($dbFile) : 0,
+    'requests'     => 0,
+    'generations'  => 0,
+  ];
+  if ($db) {
+    try {
+      $info['sqlite']['requests']    = (int)$db->query('SELECT COUNT(*) FROM requests')->fetchColumn();
+      $info['sqlite']['generations'] = (int)$db->query('SELECT COUNT(*) FROM generations')->fetchColumn();
+    } catch (Exception $e) {}
+  }
+
+  // Файли сховища
+  $logFile = APP_ROOT . '/storage/requests.log';
+  $info['storage'] = [
+    'log_size'  => file_exists($logFile) ? filesize($logFile) : 0,
+    'log1_size' => file_exists($logFile . '.1') ? filesize($logFile . '.1') : 0,
+    'dir_writable' => is_writable(APP_ROOT . '/storage'),
+  ];
+
+  // API-ключі (лише наявність)
+  $keys = get_runtime_keys();
+  $info['keys'] = [
+    'anthropic' => !empty(trim((string)($keys['anthropic'] ?? ''))),
+    'xai'       => !empty(trim((string)($keys['xai'] ?? ''))),
+    'gemini'    => !empty(trim((string)($keys['gemini'] ?? ''))),
+    'mistral'   => !empty(trim((string)($keys['mistral'] ?? ''))),
+  ];
+
+  // Моделі
+  $info['models_count'] = count($settings['models'] ?? []);
+
+  return $info;
+}
+
+$sysinfo = collect_system_info();
 
 $defaultPrompt = get_default_system_prompt();
 $defaultOverride = $settings['system_prompt_default_override'] ?? '';
@@ -181,6 +255,7 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
     <button type="button" class="tab-btn" data-tab="security">Безпека</button>
     <button type="button" class="tab-btn" data-tab="logs">Логи</button>
     <button type="button" class="tab-btn" data-tab="io">Імпорт / Експорт</button>
+    <button type="button" class="tab-btn" data-tab="system">Система</button>
   </div>
 
   <section class="tab-pane active" data-pane="ai">
@@ -453,6 +528,87 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
       <div class="small" id="import_status" style="margin-top:8px"></div>
     </div>
   </section>
+
+  <section class="tab-pane" data-pane="system">
+    <?php
+    $si = $sysinfo;
+    function fmt_bytes($b) {
+      if ($b <= 0) return '0 Б';
+      if ($b < 1024) return $b . ' Б';
+      if ($b < 1048576) return round($b/1024, 1) . ' КБ';
+      return round($b/1048576, 2) . ' МБ';
+    }
+    function yn($v, $yes='✓ так', $no='✗ ні') { return $v ? "<span style='color:#2a5a30'>$yes</span>" : "<span style='color:#b5401a'>$no</span>"; }
+    ?>
+
+    <div class="card" style="display:flex;align-items:center;justify-content:space-between;padding:18px 20px;margin-bottom:14px">
+      <div>
+        <div style="font-size:28px;font-family:'Roboto Mono',monospace;font-weight:700;color:#1a1714;letter-spacing:-.02em"><?= htmlspecialchars($si['version']) ?></div>
+        <div style="font-size:11px;color:#8a8278;font-family:'Roboto Mono',monospace;margin-top:4px">AI Newswriter</div>
+      </div>
+      <div style="text-align:right;font-size:12px;color:#8a8278;font-family:'Roboto Mono',monospace;line-height:1.8">
+        <div>Гілка: <strong style="color:#1a1714"><?= htmlspecialchars($si['git']['branch']) ?></strong></div>
+        <div>Коміт: <strong style="color:#1a1714"><?= htmlspecialchars($si['git']['hash']) ?></strong></div>
+        <div>Дата: <strong style="color:#1a1714"><?= htmlspecialchars($si['git']['date']) ?></strong></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:14px">
+      <div class="ttl">Останній коміт</div>
+      <div style="font-size:13px;color:#3a3530;font-family:'Roboto Mono',monospace;padding:4px 0"><?= htmlspecialchars($si['git']['subject']) ?></div>
+    </div>
+
+    <div class="card" style="margin-bottom:14px">
+      <div class="ttl">PHP і розширення</div>
+      <table style="width:100%;font-size:13px;border-collapse:collapse">
+        <tr><td style="padding:5px 0;color:#8a8278;width:55%">PHP версія</td><td><strong><?= htmlspecialchars($si['php']['version']) ?></strong> (<?= htmlspecialchars($si['php']['sapi']) ?>)</td></tr>
+        <tr><td style="padding:5px 0;color:#8a8278">Часовий пояс</td><td><strong><?= htmlspecialchars($si['php']['timezone']) ?></strong></td></tr>
+        <tr><td style="padding:5px 0;color:#8a8278">php-curl</td><td><?= yn($si['php']['ext_curl']) ?></td></tr>
+        <tr><td style="padding:5px 0;color:#8a8278">php-sqlite3 (PDO)</td><td><?= yn($si['php']['ext_sqlite']) ?></td></tr>
+        <tr><td style="padding:5px 0;color:#8a8278">php-mbstring</td><td><?= yn($si['php']['ext_mbstring'], '✓ так', '— fallback на substr') ?></td></tr>
+        <tr><td style="padding:5px 0;color:#8a8278">OPCache</td><td><?= yn($si['php']['opcache_on'], '✓ активний', '✗ вимкнено') ?></td></tr>
+      </table>
+    </div>
+
+    <div class="card" style="margin-bottom:14px">
+      <div class="ttl">База даних SQLite</div>
+      <table style="width:100%;font-size:13px;border-collapse:collapse">
+        <tr><td style="padding:5px 0;color:#8a8278;width:55%">Доступність</td><td><?= yn($si['sqlite']['available'], '✓ працює', '✗ недоступна (fallback на JSONL)') ?></td></tr>
+        <tr><td style="padding:5px 0;color:#8a8278">Розмір файлу</td><td><?= fmt_bytes($si['sqlite']['size']) ?></td></tr>
+        <tr><td style="padding:5px 0;color:#8a8278">Записів у логах</td><td><?= number_format($si['sqlite']['requests'], 0, '.', ' ') ?></td></tr>
+        <tr><td style="padding:5px 0;color:#8a8278">Збережених генерацій</td><td><?= number_format($si['sqlite']['generations'], 0, '.', ' ') ?></td></tr>
+      </table>
+    </div>
+
+    <div class="card" style="margin-bottom:14px">
+      <div class="ttl">Сховище</div>
+      <table style="width:100%;font-size:13px;border-collapse:collapse">
+        <tr><td style="padding:5px 0;color:#8a8278;width:55%">Папка storage/</td><td><?= yn($si['storage']['dir_writable'], '✓ доступна для запису', '✗ немає прав запису') ?></td></tr>
+        <tr><td style="padding:5px 0;color:#8a8278">requests.log</td><td><?= $si['storage']['log_size'] > 0 ? fmt_bytes($si['storage']['log_size']) : '<span style="color:#8a8278">відсутній</span>' ?></td></tr>
+        <tr><td style="padding:5px 0;color:#8a8278">requests.log.1</td><td><?= $si['storage']['log1_size'] > 0 ? fmt_bytes($si['storage']['log1_size']) : '<span style="color:#8a8278">—</span>' ?></td></tr>
+      </table>
+    </div>
+
+    <div class="card" style="margin-bottom:14px">
+      <div class="ttl">API-ключі</div>
+      <table style="width:100%;font-size:13px;border-collapse:collapse">
+        <tr><td style="padding:5px 0;color:#8a8278;width:55%">Anthropic (Claude)</td><td><?= yn($si['keys']['anthropic'], '✓ задано', '✗ не задано') ?></td></tr>
+        <tr><td style="padding:5px 0;color:#8a8278">xAI (Grok)</td><td><?= yn($si['keys']['xai'], '✓ задано', '✗ не задано') ?></td></tr>
+        <tr><td style="padding:5px 0;color:#8a8278">Google Gemini</td><td><?= yn($si['keys']['gemini'], '✓ задано', '✗ не задано') ?></td></tr>
+        <tr><td style="padding:5px 0;color:#8a8278">Mistral</td><td><?= yn($si['keys']['mistral'], '✓ задано', '✗ не задано') ?></td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="ttl">Моделі та налаштування</div>
+      <table style="width:100%;font-size:13px;border-collapse:collapse">
+        <tr><td style="padding:5px 0;color:#8a8278;width:55%">Активних моделей</td><td><?= $si['models_count'] ?></td></tr>
+        <tr><td style="padding:5px 0;color:#8a8278">settings_store.php</td><td><?= yn(file_exists(APP_ROOT . '/settings_store.php'), '✓ є (локальні налаштування)', '— немає (дефолти з prompts.json)') ?></td></tr>
+        <tr><td style="padding:5px 0;color:#8a8278">.env.local</td><td><?= yn(file_exists(APP_ROOT . '/.env.local'), '✓ є', '✗ немає') ?></td></tr>
+      </table>
+    </div>
+  </section>
+
 </div>
 <script>
 (function(){
