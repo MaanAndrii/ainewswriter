@@ -343,6 +343,11 @@ if ($streamMode) {
       'model' => $model, 'provider' => $provider,
       'error' => $apiMsg, 'code' => $httpCodeFinal,
     ]);
+    save_api_response([
+      'ts' => date('c'), 'type' => 'error', 'provider' => $provider,
+      'model' => $model, 'code' => $httpCodeFinal,
+      'body' => str_slice($accChunks, 0, 8000),
+    ]);
 
     echo 'data: ' . json_encode(['error' => $apiMsg], JSON_UNESCAPED_UNICODE) . "\n\n";
     echo "data: [DONE]\n\n";
@@ -409,6 +414,16 @@ if ($streamMode) {
       'web_search_used' => $web_search_used_stream ? 1 : 0,
     ]);
   }
+
+  // Save raw streamed response for API panel
+  save_api_response([
+    'ts'       => date('c'),
+    'type'     => 'success',
+    'provider' => $provider,
+    'model'    => $model,
+    'code'     => 200,
+    'body'     => str_slice($accText, 0, 8000),
+  ]);
 
   exit;
 }
