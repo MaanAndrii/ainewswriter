@@ -1,4 +1,4 @@
-const CACHE = 'newswriter-v2';
+const CACHE = 'newswriter-v3';
 const STATIC = [
   '/public/assets/newswriter.css',
   '/public/assets/newswriter.js',
