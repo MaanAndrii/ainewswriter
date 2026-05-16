@@ -49,20 +49,66 @@ if (empty($_SESSION['log_auth'])) {
   exit;
 }
 
-// Читаємо лог
+$filter_date = $_GET['date'] ?? '';
+
+// Читаємо лог: спочатку SQLite, якщо недоступно — JSONL
 $rows = [];
-if (file_exists(LOG_FILE)) {
-  $lines = file(LOG_FILE, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-  foreach (array_reverse($lines) as $line) {
-    $entry = parse_log_entry($line);
-    if ($entry) $rows[] = $entry;
+$db = get_sqlite_db();
+
+if ($db) {
+  try {
+    $whereSql = '';
+    $params   = [];
+    if ($filter_date !== '') {
+      $whereSql = ' WHERE date = ?';
+      $params[] = $filter_date;
+    }
+    $stmt = $db->prepare(
+      "SELECT date, time, model, provider, input_tokens as inp, output_tokens as out,
+              cache_write, cache_read, cost, duration, prompt_len,
+              web_search as web, cache_status, error, 2 as v
+       FROM requests" . $whereSql . " ORDER BY id DESC LIMIT 500"
+    );
+    $stmt->execute($params);
+    $dbRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($dbRows as $r) {
+      $rows[] = [
+        'v'            => 2,
+        'date'         => (string)($r['date'] ?? ''),
+        'time'         => (string)($r['time'] ?? ''),
+        'model'        => (string)($r['model'] ?? ''),
+        'provider'     => (string)($r['provider'] ?? ''),
+        'inp'          => (int)($r['inp'] ?? 0),
+        'out'          => (int)($r['out'] ?? 0),
+        'cache_write'  => (int)($r['cache_write'] ?? 0),
+        'cache_read'   => (int)($r['cache_read'] ?? 0),
+        'cost'         => (float)($r['cost'] ?? 0),
+        'duration'     => (string)($r['duration'] ?? ''),
+        'prompt_len'   => (int)($r['prompt_len'] ?? 0),
+        'web'          => (int)($r['web'] ?? 0) ? 'web' : 'no-web',
+        'cache_status' => (string)($r['cache_status'] ?? 'no-cache'),
+        'error'        => $r['error'] ?? null,
+      ];
+    }
+  } catch (Exception $e) {
+    // Fall through to JSONL
+    $rows = [];
+    $db   = null;
   }
 }
 
-// Фільтр по даті
-$filter_date = $_GET['date'] ?? '';
-if ($filter_date) {
-  $rows = array_filter($rows, fn($r) => ($r['date'] ?? '') === $filter_date);
+if (!$db) {
+  // JSONL fallback
+  if (file_exists(LOG_FILE)) {
+    $lines = file(LOG_FILE, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    foreach (array_reverse($lines) as $line) {
+      $entry = parse_log_entry($line);
+      if ($entry) $rows[] = $entry;
+    }
+  }
+  if ($filter_date !== '') {
+    $rows = array_values(array_filter($rows, fn($r) => ($r['date'] ?? '') === $filter_date));
+  }
 }
 
 // Підсумки

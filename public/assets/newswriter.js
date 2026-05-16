@@ -260,6 +260,116 @@ function buildPrompt(source, sourceRef, extra, fbCheck, fbStyle, tone, makeNews,
     + extraBlock + regenBlock + '\n'
     + (profile.input_title || 'ВХІДНИЙ МАТЕРІАЛ:') + '\n' + source;
 }
+// ── History ──
+function showHistoryPanel() {
+  var modal = document.getElementById('historyModal');
+  if (modal) { modal.style.display = 'flex'; loadHistory(1); }
+}
+function closeHistoryModal() {
+  var m = document.getElementById('historyModal');
+  if (m) m.style.display = 'none';
+}
+function loadHistory(page) {
+  var listEl  = document.getElementById('historyList');
+  var pagerEl = document.getElementById('historyPager');
+  if (!listEl) return;
+  listEl.innerHTML = '<div style="color:#8a8278;font-family:\'Roboto Mono\',monospace;font-size:11px">Завантаження…</div>';
+
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', '/api/settings', true);
+  xhr.setRequestHeader('Content-Type', 'application/json');
+  xhr.onload = function() {
+    var d = {};
+    try { d = JSON.parse(xhr.responseText); } catch(e) {}
+    if (!d.ok) {
+      listEl.innerHTML = '<div style="color:#b5401a;font-size:12px">' + esc(d.error || 'Помилка') + '</div>';
+      return;
+    }
+    if (!d.items || !d.items.length) {
+      listEl.innerHTML = '<div style="color:#8a8278;font-family:\'Roboto Mono\',monospace;font-size:11px">Історія порожня</div>';
+      if (pagerEl) pagerEl.innerHTML = '';
+      return;
+    }
+    var html = '';
+    for (var i = 0; i < d.items.length; i++) {
+      var item = d.items[i];
+      var dt = item.created_at ? item.created_at.replace('T', ' ').replace(/\+.*$/, '') : '';
+      var src = item.source_ref ? ' · ' + esc(item.source_ref) : '';
+      var cost = item.cost ? ' · $' + Number(item.cost).toFixed(4) : '';
+      var preview = item.input_preview || item.output_preview || '';
+      html += '<div class="history-item" data-id="' + item.id + '" onclick="loadGenerationById(' + item.id + ')">'
+        + '<div class="history-item-meta">'
+        + '<span class="history-item-date">' + esc(dt) + '</span>'
+        + '<span class="history-item-model">' + esc(item.model || '') + '</span>'
+        + esc(src) + esc(cost)
+        + '</div>'
+        + (preview ? '<div class="history-item-preview">' + esc(preview.substring(0, 120)) + (preview.length > 120 ? '…' : '') + '</div>' : '')
+        + '</div>';
+    }
+    listEl.innerHTML = html;
+
+    // Pager
+    if (pagerEl) {
+      var total = d.total || 0;
+      var limit = 20;
+      var pages = Math.ceil(total / limit);
+      var cur   = d.page || 1;
+      var pHtml = '<span>Сторінка ' + cur + ' з ' + pages + ' (' + total + ' записів)</span>';
+      if (cur > 1) pHtml += ' <button class="btn-sm" style="margin-top:0" onclick="loadHistory(' + (cur-1) + ')">&#8592; Назад</button>';
+      if (cur < pages) pHtml += ' <button class="btn-sm" style="margin-top:0" onclick="loadHistory(' + (cur+1) + ')">Далі &#8594;</button>';
+      pagerEl.innerHTML = pHtml;
+    }
+  };
+  xhr.onerror = function() {
+    listEl.innerHTML = '<div style="color:#b5401a;font-size:12px">Помилка мережі</div>';
+  };
+  xhr.send(JSON.stringify({action: 'get_history', page: page}));
+}
+function loadGenerationById(id) {
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', '/api/settings', true);
+  xhr.setRequestHeader('Content-Type', 'application/json');
+  xhr.onload = function() {
+    var d = {};
+    try { d = JSON.parse(xhr.responseText); } catch(e) {}
+    if (!d.ok || !d.item) return;
+    var item = d.item;
+    // Populate input fields
+    var srcEl = document.getElementById('source');
+    var refEl = document.getElementById('sourceRef');
+    if (srcEl && item.input_text) srcEl.value = item.input_text;
+    if (refEl && item.source_ref) refEl.value = item.source_ref;
+    // Display raw output JSON in output area
+    var output = document.getElementById('output');
+    if (output && item.output_json) {
+      var raw = item.output_json;
+      // Try to parse and render, otherwise show raw
+      try {
+        var clean = raw.replace(/```[a-z]*/gi, '').replace(/[""]/g, '"').replace(/['']/g, "'").trim();
+        var jsonText = extractFirstJsonObject(clean);
+        if (jsonText) {
+          var safeJsonText = jsonText.replace(/"(?:[^"\\]|\\.)*"/g, function(m) {
+            return m.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t');
+          });
+          var parsed = JSON.parse(safeJsonText);
+          parsed._model = item.model || '';
+          if (item.input_tokens || item.output_tokens) {
+            parsed._usage = {input_tokens: item.input_tokens || 0, output_tokens: item.output_tokens || 0};
+          }
+          if (parsed._usage) showCost(parsed._usage, parsed._model);
+          renderResults(parsed, item.input_text || '', true, !!parsed.facebook, 2);
+        } else {
+          output.innerHTML = '<div class="art-block"><div class="art-text">' + esc(raw) + '</div></div>';
+        }
+      } catch(e) {
+        output.innerHTML = '<div class="art-block"><div class="art-text">' + esc(raw) + '</div></div>';
+      }
+    }
+    closeHistoryModal();
+  };
+  xhr.send(JSON.stringify({action: 'get_generation', id: id}));
+}
+
 // ── API call via XHR ──
 function hasMeaningfulContent(parsed, expectNews, expectFacebook) {
   if (!parsed || typeof parsed !== 'object') return false;
@@ -314,51 +424,132 @@ function extractFirstJsonObject(text) {
 function callAPI(prompt, model, webSearch, systemPromptOverride, expectNews, expectFacebook, attempt, resolve, reject) {
   attempt = attempt || 1;
   var extra = attempt > 1 ? '\n\nКРИТИЧНО: поверни ВИКЛЮЧНО валідний JSON, починай з {' : '';
-  var body  = JSON.stringify({ prompt: prompt + extra, model: model, webSearch: webSearch ? 1 : 0, systemPromptOverride: systemPromptOverride || '' });
-  var xhr   = new XMLHttpRequest();
-  xhr.open('POST', PROXY_URL, true);
-  xhr.setRequestHeader('Content-Type', 'application/json');
-  xhr.timeout = 120000;
-  xhr.onload = function () {
-    if (xhr.status !== 200) {
-      var d = {};
-      try { d = JSON.parse(xhr.responseText); } catch (e) {}
-      var msg = d.error || ('HTTP ' + xhr.status);
-      if (xhr.status === 401) msg = 'Невірний API-ключ. Перевір proxy.php';
-      if (xhr.status === 429) msg = 'Перевищено ліміт запитів. Зачекай хвилину.';
-      return reject(new Error(msg));
-    }
-    var d = {};
-    try { d = JSON.parse(xhr.responseText); } catch (e) { return reject(new Error('Помилка відповіді проксі')); }
-    var raw = d.text || '';
-    raw = raw.replace(/<cite[^>]*>([\s\S]*?)<\/cite>/g, '$1').replace(/<cite[^>]*>/g, '').replace(/<\/cite>/g, '');
-    var clean = raw.replace(/```[a-z]*/gi, '').replace(/[“”]/g, '"').replace(/[‘’]/g, "'").trim();
-    var jsonText = extractFirstJsonObject(clean);
-    if (!jsonText) {
-      if (attempt < 3) return callAPI(prompt, model, webSearch, systemPromptOverride, expectNews, expectFacebook, attempt + 1, resolve, reject);
-      return reject(new Error('Модель не повернула JSON. Спробуй ще раз.'));
-    }
-    try {
-      var safeJsonText = jsonText.replace(/"(?:[^"\\]|\\.)*"/g, function(m) {
-        return m.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t');
+  var body = JSON.stringify({
+    prompt: prompt + extra,
+    model: model,
+    webSearch: webSearch ? 1 : 0,
+    systemPromptOverride: systemPromptOverride || '',
+    source: getVal('source'),
+    sourceRef: getVal('sourceRef'),
+    stream: 1
+  });
+
+  var accText = '';
+  var metaReceived = null;
+
+  // Show streaming preview in output area
+  var output = document.getElementById('output');
+  var streamBox = document.createElement('div');
+  streamBox.className = 'stream-preview';
+  var cursor = document.createElement('div');
+  cursor.className = 'stream-cursor';
+  streamBox.appendChild(cursor);
+  output.innerHTML = '';
+  output.appendChild(streamBox);
+
+  fetch(PROXY_URL, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: body
+  }).then(function(response) {
+    if (!response.ok) {
+      return response.json().then(function(err) {
+        throw new Error(err.error || 'HTTP ' + response.status);
+      }).catch(function() {
+        throw new Error('HTTP ' + response.status);
       });
-      var parsed = JSON.parse(safeJsonText);
-      if (!hasMeaningfulContent(parsed, expectNews, expectFacebook)) {
-        if (attempt < 3) return callAPI(prompt, model, webSearch, systemPromptOverride, expectNews, expectFacebook, attempt + 1, resolve, reject);
-        return reject(new Error('Модель повернула порожній JSON без тексту. Спробуй іншу модель або увімкни web-пошук.'));
-      }
-      parsed._usage = d.usage || null;
-      parsed._model = model;
-      parsed._webSearchUsed = !!(d.meta && d.meta.web_search_used);
-      resolve(parsed);
-    } catch (e) {
-      if (attempt < 3) return callAPI(prompt, model, webSearch, systemPromptOverride, expectNews, expectFacebook, attempt + 1, resolve, reject);
-      reject(new Error('Помилка розбору відповіді. Спробуй ще раз.'));
     }
-  };
-  xhr.onerror   = function () { reject(new Error('Помилка мережі')); };
-  xhr.ontimeout = function () { reject(new Error('Перевищено час очікування (120с)')); };
-  xhr.send(body);
+
+    var reader = response.body.getReader();
+    var decoder = new TextDecoder();
+    var lineBuf = '';
+
+    function read() {
+      return reader.read().then(function(result) {
+        if (result.done) {
+          onComplete();
+          return;
+        }
+
+        lineBuf += decoder.decode(result.value, {stream: true});
+        var lines = lineBuf.split('\n');
+        lineBuf = lines.pop();
+
+        for (var li = 0; li < lines.length; li++) {
+          var line = lines[li].trim();
+          if (!line || line.indexOf('data: ') !== 0) continue;
+          var payload = line.substring(6);
+          if (payload === '[DONE]') continue;
+          try {
+            var ev = JSON.parse(payload);
+            if (ev.error) { reader.cancel(); reject(new Error(ev.error)); return; }
+            if (ev.meta) { metaReceived = ev; continue; }
+            if (ev.delta != null) {
+              accText += ev.delta;
+              // Update streaming preview - show last 600 chars
+              var preview = accText.length > 600 ? '…' + accText.slice(-600) : accText;
+              streamBox.textContent = preview;
+              var newCursor = document.createElement('div');
+              newCursor.className = 'stream-cursor';
+              streamBox.appendChild(newCursor);
+            }
+          } catch(e) {
+            if (e.message && e.message !== 'Unexpected end of JSON input') {
+              // Ignore JSON parse errors for incomplete chunks
+            }
+          }
+        }
+
+        return read();
+      });
+    }
+
+    function onComplete() {
+      output.innerHTML = '';
+
+      if (!accText.trim()) {
+        reject(new Error('Порожня відповідь від API'));
+        return;
+      }
+
+      var raw = accText;
+      raw = raw.replace(/<cite[^>]*>([\s\S]*?)<\/cite>/g, '$1').replace(/<cite[^>]*>/g, '').replace(/<\/cite>/g, '');
+      var clean = raw.replace(/```[a-z]*/gi, '').replace(/[""]/g, '"').replace(/['']/g, "'").trim();
+      var jsonText = extractFirstJsonObject(clean);
+
+      if (!jsonText) {
+        if (attempt < 3) return callAPI(prompt, model, webSearch, systemPromptOverride, expectNews, expectFacebook, attempt + 1, resolve, reject);
+        return reject(new Error('Модель не повернула JSON. Спробуй ще раз.'));
+      }
+
+      try {
+        var safeJsonText = jsonText.replace(/"(?:[^"\\]|\\.)*"/g, function(m) {
+          return m.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t');
+        });
+        var parsed = JSON.parse(safeJsonText);
+
+        if (!hasMeaningfulContent(parsed, expectNews, expectFacebook)) {
+          if (attempt < 3) return callAPI(prompt, model, webSearch, systemPromptOverride, expectNews, expectFacebook, attempt + 1, resolve, reject);
+          return reject(new Error('Модель повернула порожній JSON без тексту. Спробуй іншу модель або увімкни web-пошук.'));
+        }
+
+        if (metaReceived) {
+          parsed._usage = metaReceived.usage || null;
+          parsed._webSearchUsed = !!metaReceived.web_search_used;
+        }
+        parsed._model = model;
+        resolve(parsed);
+      } catch(e) {
+        if (attempt < 3) return callAPI(prompt, model, webSearch, systemPromptOverride, expectNews, expectFacebook, attempt + 1, resolve, reject);
+        reject(new Error('Помилка розбору відповіді. Спробуй ще раз.'));
+      }
+    }
+
+    return read();
+  }).catch(function(err) {
+    output.innerHTML = '';
+    reject(new Error(err.message || 'Помилка мережі'));
+  });
 }
 function closePromptModal(){
   var m=document.getElementById('promptModal');

@@ -264,6 +264,58 @@ if ($method === 'POST') {
     exit;
   }
 
+  if ($action === 'get_history') {
+    $db = get_sqlite_db();
+    if (!$db) {
+      http_response_code(503);
+      echo json_encode(['ok' => false, 'error' => 'SQLite недоступний']);
+      exit;
+    }
+    $page   = max(1, (int)($data['page'] ?? 1));
+    $limit  = 20;
+    $offset = ($page - 1) * $limit;
+    try {
+      $rows  = $db->query(
+        "SELECT id, created_at, model, provider, source_ref,
+                substr(input_text, 1, 200) as input_preview,
+                substr(output_json, 1, 500) as output_preview,
+                cost, input_tokens, output_tokens, web_search_used
+         FROM generations ORDER BY id DESC LIMIT $limit OFFSET $offset"
+      )->fetchAll(PDO::FETCH_ASSOC);
+      $total = (int)$db->query("SELECT COUNT(*) FROM generations")->fetchColumn();
+      echo json_encode(['ok' => true, 'items' => $rows, 'total' => $total, 'page' => $page], JSON_UNESCAPED_UNICODE);
+    } catch (Exception $e) {
+      http_response_code(500);
+      echo json_encode(['ok' => false, 'error' => $e->getMessage()]);
+    }
+    exit;
+  }
+
+  if ($action === 'get_generation') {
+    $db = get_sqlite_db();
+    if (!$db) {
+      http_response_code(503);
+      echo json_encode(['ok' => false, 'error' => 'SQLite недоступний']);
+      exit;
+    }
+    $id = (int)($data['id'] ?? 0);
+    if ($id <= 0) {
+      http_response_code(400);
+      echo json_encode(['ok' => false, 'error' => 'Invalid id']);
+      exit;
+    }
+    try {
+      $stmt = $db->prepare("SELECT * FROM generations WHERE id = ?");
+      $stmt->execute([$id]);
+      $row = $stmt->fetch(PDO::FETCH_ASSOC);
+      echo json_encode(['ok' => true, 'item' => $row ?: null], JSON_UNESCAPED_UNICODE);
+    } catch (Exception $e) {
+      http_response_code(500);
+      echo json_encode(['ok' => false, 'error' => $e->getMessage()]);
+    }
+    exit;
+  }
+
   http_response_code(400);
   echo json_encode(['ok' => false, 'error' => 'Unknown action']);
   exit;

@@ -103,7 +103,45 @@ function stats_from_log($file) {
   return $out;
 }
 
-$stats = stats_from_log(LOG_FILE);
+function stats_from_sqlite() {
+  $db = get_sqlite_db();
+  if (!$db) return null;
+
+  try {
+    $out = [
+      'total_requests' => 0,
+      'total_cost' => 0.0,
+      'total_inp' => 0,
+      'total_out' => 0,
+      'by_model' => [],
+      'by_day' => [],
+    ];
+
+    $row = $db->query("SELECT COUNT(*), SUM(cost), SUM(input_tokens), SUM(output_tokens) FROM requests WHERE error IS NULL")->fetch(PDO::FETCH_NUM);
+    if ($row) {
+      $out['total_requests'] = (int)$row[0];
+      $out['total_cost']     = (float)$row[1];
+      $out['total_inp']      = (int)$row[2];
+      $out['total_out']      = (int)$row[3];
+    }
+
+    $modelRows = $db->query("SELECT model, COUNT(*), SUM(cost) FROM requests WHERE error IS NULL GROUP BY model ORDER BY SUM(cost) DESC")->fetchAll(PDO::FETCH_NUM);
+    foreach ($modelRows as $r) {
+      $out['by_model'][$r[0]] = ['req' => (int)$r[1], 'cost' => (float)$r[2], 'inp' => 0, 'out' => 0];
+    }
+
+    $dayRows = $db->query("SELECT date, COUNT(*), SUM(cost) FROM requests WHERE error IS NULL GROUP BY date ORDER BY date DESC LIMIT 14")->fetchAll(PDO::FETCH_NUM);
+    foreach ($dayRows as $r) {
+      $out['by_day'][$r[0]] = ['req' => (int)$r[1], 'cost' => (float)$r[2]];
+    }
+
+    return $out;
+  } catch (Exception $e) {
+    return null;
+  }
+}
+
+$stats = stats_from_sqlite() ?? stats_from_log(LOG_FILE);
 $modelsJsonPretty = json_encode($settings['models'], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 $promptsFile = dirname(__DIR__) . '/prompts.json';
 $promptsJsonPretty = file_exists($promptsFile) ? file_get_contents($promptsFile) : '{}';

@@ -30,6 +30,25 @@ if (preg_match('~^/public/assets/([a-zA-Z0-9._-]+)$~', $uri, $m)) {
     exit;
 }
 
+// ── PWA ───────────────────────────────────────────────────────────────────────
+if ($uri === '/manifest.json') {
+    $file = $base . '/public/manifest.json';
+    if (!is_file($file)) { http_response_code(404); echo '404 Not Found'; exit; }
+    header('Content-Type: application/manifest+json');
+    header('Cache-Control: public, max-age=86400');
+    readfile($file);
+    exit;
+}
+if ($uri === '/sw.js') {
+    $file = $base . '/public/sw.js';
+    if (!is_file($file)) { http_response_code(404); echo '404 Not Found'; exit; }
+    header('Content-Type: application/javascript');
+    header('Service-Worker-Allowed: /');
+    header('Cache-Control: no-cache');
+    readfile($file);
+    exit;
+}
+
 // ── API ───────────────────────────────────────────────────────────────────────
 if ($uri === '/api/proxy')    { require $base . '/api/proxy.php';        exit; }
 if ($uri === '/api/settings') { require $base . '/api/settings_api.php'; exit; }

@@ -97,6 +97,63 @@ input[type=range] { width:100%; accent-color:var(--red); cursor:pointer; }
  .modal pre{white-space:pre-wrap;font-family:'Roboto Mono',monospace;font-size:12px;line-height:1.6;background:#faf8f3;border:1px solid var(--bdl);padding:12px;border-radius:3px;}
  .modal-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
  .modal-h b{font-family:'Roboto Mono',monospace;font-size:11px;letter-spacing:.1em;}
+.stream-preview {
+  font-family: monospace;
+  font-size: 11px;
+  color: #999;
+  padding: 16px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 300px;
+  overflow: hidden;
+  background: #1a1714;
+  border-radius: 6px;
+  border: 1px solid #333;
+}
+
+.stream-cursor::after {
+  content: '▋';
+  animation: blink 1s step-end infinite;
+  color: #c8a96e;
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+.history-item {
+  background: #fff;
+  border: 1px solid var(--bdl);
+  border-radius: 4px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.history-item:hover {
+  border-color: var(--red);
+  background: #fff8f5;
+}
+.history-item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 4px;
+  font-family: 'Roboto Mono', monospace;
+  font-size: 10px;
+  color: var(--ink3);
+}
+.history-item-date { color: var(--ink2); }
+.history-item-model { color: var(--red); font-weight: 600; }
+.history-item-preview {
+  font-size: 12px;
+  color: var(--ink2);
+  line-height: 1.5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 @media(max-width:860px){
   .layout { grid-template-columns:1fr; }
   .panel-l { border-right:none; border-bottom:1px solid var(--bd); }
