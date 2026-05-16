@@ -156,6 +156,7 @@ if ($provider === 'anthropic') {
   if ($system_prompt !== '') $messages[] = ['role' => 'system', 'content' => $system_prompt];
   $messages[] = ['role' => 'user', 'content' => $prompt];
   $request = ['model' => $model, 'messages' => $messages, 'max_tokens' => 4000, 'temperature' => 0.4, 'stream' => $streamMode];
+  if ($streamMode) $request['stream_options'] = ['include_usage' => true];
   $url = 'https://api.x.ai/v1/chat/completions';
   $headers = ['Content-Type: application/json', 'Authorization: Bearer ' . $key];
 } elseif ($provider === 'mistral') {
@@ -280,8 +281,8 @@ if ($streamMode) {
           // Usage may appear in any chunk
           if (isset($ev['usage'])) {
             $u = $ev['usage'];
-            if (!empty($u['prompt_tokens']))     $usage['input_tokens']  = (int)$u['prompt_tokens'];
-            if (!empty($u['completion_tokens'])) $usage['output_tokens'] = (int)$u['completion_tokens'];
+            if (isset($u['prompt_tokens']))     $usage['input_tokens']  = (int)$u['prompt_tokens'];
+            if (isset($u['completion_tokens'])) $usage['output_tokens'] = (int)$u['completion_tokens'];
           }
         } elseif ($provider === 'gemini') {
           // Gemini streaming: each chunk is a full cumulative text object.

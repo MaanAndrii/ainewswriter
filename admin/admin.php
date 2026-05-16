@@ -243,6 +243,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:8px 10px;
 tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
 .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}.tab-btn{background:#fff;border:1px solid #d8d0be;border-radius:4px;padding:8px 12px;font-family:'Roboto Mono',monospace;font-size:11px;cursor:pointer}.tab-btn.active{background:#1a1714;color:#fff;border-color:#1a1714}.tab-pane{display:none}.tab-pane.active{display:block}
 @media(max-width:980px){.wrap{grid-template-columns:1fr}}
+.site-footer{background:#1a1714;color:#6a6460;font-family:'Roboto Mono',monospace;font-size:10px;letter-spacing:.12em;text-align:center;padding:10px 24px;border-top:2px solid #b5401a}.site-footer a{color:#6a6460;text-decoration:none}.site-footer a:hover{color:#f5f2eb}
 </style>
 </head>
 <body>
@@ -1119,6 +1120,11 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
 
 })();
 </script>
+
+<footer class="site-footer" style="margin-top:32px">
+  AI Newswriter v<?= APP_VERSION ?> &nbsp;&middot;&nbsp; Адмін-панель &nbsp;&middot;&nbsp; <a href="/">Редактор</a>
+</footer>
+
 </body>
 </html>
 <?php

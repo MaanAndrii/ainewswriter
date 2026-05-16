@@ -154,6 +154,19 @@ input[type=range] { width:100%; accent-color:var(--red); cursor:pointer; }
   text-overflow: ellipsis;
 }
 
+.site-footer {
+  background: var(--ink);
+  color: var(--ink3);
+  font-family: 'Roboto Mono', monospace;
+  font-size: 10px;
+  letter-spacing: .12em;
+  text-align: center;
+  padding: 10px 24px;
+  border-top: 2px solid var(--red);
+}
+.site-footer a { color: var(--ink3); text-decoration: none; }
+.site-footer a:hover { color: #f5f2eb; }
+
 @media(max-width:860px){
   .layout { grid-template-columns:1fr; }
   .panel-l { border-right:none; border-bottom:1px solid var(--bd); }

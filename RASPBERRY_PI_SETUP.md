@@ -22,7 +22,7 @@
 
 ```bash
 sudo apt update
-sudo apt install -y nginx php-fpm php-cli php-curl git
+sudo apt install -y nginx php-fpm php-cli php-curl php-mbstring git
 ```
 
 Перевірка сервісів:
