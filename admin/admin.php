@@ -23,6 +23,7 @@ if (isset($_GET['logout'])) {
 
 if (empty($_SESSION['admin_auth'])) {
 ?><!DOCTYPE html><html lang="uk"><head><meta charset="UTF-8"><title>Адмін — вхід</title>
+<link rel="stylesheet" href="/public/assets/fonts/fonts.css">
 <style>
 body { background:#f5f2eb; font-family:'Roboto',sans-serif; display:flex; align-items:center; justify-content:center; min-height:100vh; }
 .box { background:#fff; border:1px solid #d8d0be; border-radius:6px; padding:32px 40px; width:340px; }
@@ -177,6 +178,7 @@ $promptsJsonPretty = file_exists($promptsFile) ? file_get_contents($promptsFile)
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Адмін-панель</title>
+<link rel="stylesheet" href="/public/assets/fonts/fonts.css">
 <style>
 *{box-sizing:border-box} body{margin:0;background:#f5f2eb;color:#1a1714;font-family:'Roboto',sans-serif}
 .hdr{background:#1a1714;color:#f5f2eb;padding:14px 28px;border-bottom:3px solid #b5401a;display:flex;justify-content:space-between;align-items:center}

@@ -16,14 +16,14 @@ $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $base   = __DIR__;
 
 // ── Статичні файли (/public/assets/*) ────────────────────────────────────────
-if (preg_match('~^/public/assets/([a-zA-Z0-9._-]+)$~', $uri, $m)) {
+if (preg_match('~^/public/assets/([a-zA-Z0-9._/-]+)$~', $uri, $m)) {
     $file = $base . '/public/assets/' . $m[1];
     if (!is_file($file)) { http_response_code(404); echo '404 Not Found'; exit; }
     $ext  = strtolower(pathinfo($file, PATHINFO_EXTENSION));
     $mime = ['css' => 'text/css', 'js' => 'application/javascript',
              'png' => 'image/png', 'jpg' => 'image/jpeg',
              'ico' => 'image/x-icon', 'svg' => 'image/svg+xml',
-             'woff2' => 'font/woff2', 'woff' => 'font/woff'][$ext] ?? 'application/octet-stream';
+             'ttf' => 'font/ttf', 'woff2' => 'font/woff2', 'woff' => 'font/woff'][$ext] ?? 'application/octet-stream';
     header('Content-Type: ' . $mime);
     header('Cache-Control: public, max-age=604800');
     readfile($file);
