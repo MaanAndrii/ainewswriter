@@ -12,7 +12,21 @@ define('MAX_SETTINGS_FILE_SIZE', 1024 * 1024); // 1MB safety cap
 define('PROMPTS_FILE', APP_ROOT . '/prompts.json');
 define('SQLITE_DB_FILE', APP_ROOT . '/storage/requests.db');
 
-date_default_timezone_set('UTC');
+$_tz = getenv('APP_TIMEZONE') ?: '';
+if ($_tz === '') {
+  // Read from .env.local before full env loading
+  $_envFile = getenv('APP_ENV_FILE') ?: (dirname(__DIR__) . '/.env.local');
+  if (is_readable($_envFile)) {
+    foreach (file($_envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $_line) {
+      if (str_starts_with(trim($_line), 'APP_TIMEZONE=')) {
+        $_tz = trim(substr(trim($_line), strlen('APP_TIMEZONE=')));
+        break;
+      }
+    }
+  }
+}
+date_default_timezone_set(($_tz !== '' && @timezone_open($_tz)) ? $_tz : 'Europe/Kyiv');
+unset($_tz, $_envFile, $_line);
 
 /**
  * Завантаження промтів з JSON-файлу
