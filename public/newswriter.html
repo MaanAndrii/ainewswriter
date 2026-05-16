@@ -6,6 +6,8 @@
 <title>Редактор новин</title>
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/newswriter.css">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1a1714">
 </head>
 <body>
 
@@ -94,6 +96,7 @@
       <span id="btnProcessText">&#9654; Обробити матеріал</span>
     </button>
     <button class="btn-ghost" onclick="showPromptPreview()">Тест: показати промпт</button>
+    <button class="btn-ghost" onclick="showHistoryPanel()">&#9776; Історія</button>
     <button class="btn-ghost" onclick="resetAll()">&#10005; Нове завдання</button>
   </aside>
 
@@ -117,6 +120,22 @@
   </div>
 </div>
 
+<div class="modal-backdrop" id="historyModal" onclick="if(event.target===this)closeHistoryModal()">
+  <div class="modal" style="max-width:720px">
+    <div class="modal-h">
+      <b>Історія генерацій</b>
+      <button class="btn-sm" onclick="closeHistoryModal()">Закрити</button>
+    </div>
+    <div id="historyList" style="display:flex;flex-direction:column;gap:8px;margin-top:10px"></div>
+    <div id="historyPager" style="margin-top:12px;display:flex;gap:8px;align-items:center;font-family:'Roboto Mono',monospace;font-size:11px;color:#8a8278"></div>
+  </div>
+</div>
+
 <script src="assets/newswriter.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(function(){});
+}
+</script>
 </body>
 </html>

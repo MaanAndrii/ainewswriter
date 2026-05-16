@@ -160,6 +160,40 @@ request_terminate_timeout = 300
 sudo systemctl restart php8.4-fpm
 ```
 
+## 5a) OPCache та стиснення
+
+### OPCache
+
+Скопіюйте файл `opcache.ini` з репозиторію у конфігурацію PHP:
+
+```bash
+sudo cp /var/www/ainewswriter/opcache.ini /etc/php/8.4/fpm/conf.d/99-ainewswriter.ini
+sudo systemctl restart php8.4-fpm || sudo systemctl restart php8.3-fpm || sudo systemctl restart php-fpm
+```
+
+Перевірка, що OPCache активний:
+
+```bash
+php -r "echo opcache_get_status() ? 'OPCache OK' : 'OPCache вимкнено';"
+```
+
+### Gzip у nginx
+
+Додайте до конфігу nginx (всередині блоку `server {}`), після рядку `listen 80 default_server;`:
+
+```nginx
+gzip on;
+gzip_types text/html text/css application/javascript application/json;
+gzip_min_length 1024;
+```
+
+Після змін перевірте і перезапустіть nginx:
+
+```bash
+sudo nginx -t
+sudo systemctl restart nginx
+```
+
 ## 6) Налаштувати локальні змінні (.env.local)
 
 ```bash

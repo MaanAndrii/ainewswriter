@@ -1,6 +1,7 @@
 <?php
 /**
  * proxy.php — проксі для Anthropic + xAI (Grok) + Mistral + Gemini API
+ * Підтримує звичайний режим і SSE-стрімінг (stream=1 у тілі запиту).
  */
 
 define('TIMEOUT', 120);
@@ -91,6 +92,17 @@ function send_json($code, $payload) {
   exit;
 }
 
+/**
+ * Логує запит у SQLite (якщо доступно) + у JSONL як резерв.
+ */
+function log_request($logPayload) {
+  sqlite_log_request($logPayload);
+  if (LOG_ON) {
+    $log_line = build_log_entry_jsonl($logPayload);
+    write_log_entry($log_line);
+  }
+}
+
 apply_cors_headers();
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
@@ -108,6 +120,10 @@ $prompt = trim((string)$data['prompt']);
 if (str_length($prompt) > MAX_CHARS) {
   send_json(400, ['error' => 'Текст занадто довгий (' . str_length($prompt) . ' символів, ліміт ' . MAX_CHARS . ')']);
 }
+
+$source     = str_slice((string)($data['source'] ?? ''), 0, 5000);
+$sourceRef  = str_slice((string)($data['sourceRef'] ?? ''), 0, 200);
+$streamMode = !empty($data['stream']);
 
 $settings = load_settings();
 $modelsMap = settings_model_map($settings);
@@ -130,6 +146,7 @@ if ($provider === 'anthropic') {
   $request = ['model' => $model, 'max_tokens' => 4000, 'messages' => [['role' => 'user', 'content' => $prompt]]];
   if ($system_prompt !== '') $request['system'] = [['type' => 'text', 'text' => $system_prompt, 'cache_control' => ['type' => 'ephemeral']]];
   if ($use_web_search) $request['tools'] = [['type' => 'web_search_20250305', 'name' => 'web_search']];
+  if ($streamMode) $request['stream'] = true;
   $url = 'https://api.anthropic.com/v1/messages';
   $headers = ['Content-Type: application/json', 'x-api-key: ' . $key, 'anthropic-version: 2023-06-01', 'anthropic-beta: prompt-caching-2024-07-31'];
 } elseif ($provider === 'xai') {
@@ -138,7 +155,7 @@ if ($provider === 'anthropic') {
   $messages = [];
   if ($system_prompt !== '') $messages[] = ['role' => 'system', 'content' => $system_prompt];
   $messages[] = ['role' => 'user', 'content' => $prompt];
-  $request = ['model' => $model, 'messages' => $messages, 'max_tokens' => 4000, 'temperature' => 0.4, 'stream' => false];
+  $request = ['model' => $model, 'messages' => $messages, 'max_tokens' => 4000, 'temperature' => 0.4, 'stream' => $streamMode];
   $url = 'https://api.x.ai/v1/chat/completions';
   $headers = ['Content-Type: application/json', 'Authorization: Bearer ' . $key];
 } elseif ($provider === 'mistral') {
@@ -148,6 +165,7 @@ if ($provider === 'anthropic') {
   if ($system_prompt !== '') $messages[] = ['role' => 'system', 'content' => $system_prompt];
   $messages[] = ['role' => 'user', 'content' => $prompt];
   $request = ['model' => $model, 'messages' => $messages, 'max_tokens' => 4000, 'temperature' => 0.4];
+  if ($streamMode) $request['stream'] = true;
   $url = 'https://api.mistral.ai/v1/chat/completions';
   $headers = ['Content-Type: application/json', 'Authorization: Bearer ' . $key];
 } elseif ($provider === 'gemini') {
@@ -160,7 +178,9 @@ if ($provider === 'anthropic') {
     'generationConfig' => ['temperature' => 0.4, 'maxOutputTokens' => 4000],
   ];
   if ($use_web_search) $request['tools'] = [['google_search' => (object)[]]];
-  $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . rawurlencode($model) . ':generateContent?key=' . rawurlencode($key);
+  // Gemini streaming uses streamGenerateContent endpoint
+  $geminiEndpoint = $streamMode ? ':streamGenerateContent?alt=sse&key=' : ':generateContent?key=';
+  $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . rawurlencode($model) . $geminiEndpoint . rawurlencode($key);
   $headers = ['Content-Type: application/json'];
 } else {
   send_json(500, ['error' => 'Невідомий провайдер моделі: ' . $provider]);
@@ -168,6 +188,231 @@ if ($provider === 'anthropic') {
 
 $payload = json_encode($request, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
 if ($payload === false) send_json(500, ['error' => 'Не вдалось сформувати запит до API (encoding error)']);
+
+// ── SSE Streaming mode ──────────────────────────────────────────────────────
+if ($streamMode) {
+  // Disable output buffering
+  if (ob_get_level()) ob_end_clean();
+  @ini_set('output_buffering', 'off');
+  @ini_set('zlib.output_compression', false);
+
+  header('Content-Type: text/event-stream');
+  header('Cache-Control: no-cache');
+  header('X-Accel-Buffering: no');
+  header('Connection: keep-alive');
+
+  $accText        = '';
+  $accChunks      = ''; // raw SSE buffer for error body
+  $usage          = ['input_tokens' => 0, 'output_tokens' => 0, 'cache_creation_input_tokens' => 0, 'cache_read_input_tokens' => 0];
+  $streamError    = null;
+  $web_search_used_stream = false;
+  $geminiPrevLen  = 0; // byte offset for Gemini delta tracking
+
+  $ch = curl_init($url);
+  curl_setopt_array($ch, [
+    CURLOPT_RETURNTRANSFER => false,
+    CURLOPT_POST => true,
+    CURLOPT_POSTFIELDS => $payload,
+    CURLOPT_HTTPHEADER => $headers,
+    CURLOPT_TIMEOUT => TIMEOUT,
+    CURLOPT_WRITEFUNCTION => function($ch, $chunk) use (&$accText, &$accChunks, &$usage, &$streamError, &$web_search_used_stream, &$geminiPrevLen, $provider) {
+      $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+      // Buffer error body for non-200 responses
+      if ($httpCode !== 0 && $httpCode !== 200) {
+        $accChunks .= $chunk;
+        return strlen($chunk);
+      }
+
+      $accChunks .= $chunk;
+      // Process complete SSE lines
+      while (($pos = strpos($accChunks, "\n")) !== false) {
+        $line = substr($accChunks, 0, $pos);
+        $accChunks = substr($accChunks, $pos + 1);
+        $line = rtrim($line, "\r");
+
+        if (!str_starts_with($line, 'data: ')) continue;
+        $dataStr = substr($line, 6);
+        if ($dataStr === '[DONE]') continue;
+        if (trim($dataStr) === '') continue;
+
+        $ev = json_decode($dataStr, true);
+        if (!is_array($ev)) continue;
+
+        // Detect error in stream payload
+        if (isset($ev['error'])) {
+          $streamError = (string)($ev['error']['message'] ?? (is_string($ev['error']) ? $ev['error'] : 'Stream error'));
+          return strlen($chunk);
+        }
+
+        if ($provider === 'anthropic') {
+          $type = $ev['type'] ?? '';
+          if ($type === 'message_start') {
+            $u = $ev['message']['usage'] ?? [];
+            $usage['input_tokens']                = (int)($u['input_tokens'] ?? 0);
+            $usage['cache_creation_input_tokens'] = (int)($u['cache_creation_input_tokens'] ?? 0);
+            $usage['cache_read_input_tokens']     = (int)($u['cache_read_input_tokens'] ?? 0);
+          } elseif ($type === 'content_block_delta') {
+            $delta = ($ev['delta']['type'] ?? '') === 'text_delta' ? ($ev['delta']['text'] ?? '') : '';
+            if ($delta !== '') {
+              $accText .= $delta;
+              echo 'data: ' . json_encode(['delta' => $delta], JSON_UNESCAPED_UNICODE) . "\n\n";
+              flush();
+            }
+          } elseif ($type === 'message_delta') {
+            $u = $ev['usage'] ?? [];
+            $usage['output_tokens'] = (int)($u['output_tokens'] ?? $usage['output_tokens']);
+          } elseif ($type === 'content_block_start') {
+            // Check for tool_use blocks (web search)
+            if (($ev['content_block']['type'] ?? '') === 'tool_use') {
+              $web_search_used_stream = true;
+            }
+          }
+        } elseif ($provider === 'xai' || $provider === 'mistral') {
+          // OpenAI-compatible format
+          $choices = $ev['choices'] ?? [];
+          if (!empty($choices[0]['delta']['content'])) {
+            $delta = (string)$choices[0]['delta']['content'];
+            $accText .= $delta;
+            echo 'data: ' . json_encode(['delta' => $delta], JSON_UNESCAPED_UNICODE) . "\n\n";
+            flush();
+          }
+          // Usage may appear in any chunk
+          if (isset($ev['usage'])) {
+            $u = $ev['usage'];
+            if (!empty($u['prompt_tokens']))     $usage['input_tokens']  = (int)$u['prompt_tokens'];
+            if (!empty($u['completion_tokens'])) $usage['output_tokens'] = (int)$u['completion_tokens'];
+          }
+        } elseif ($provider === 'gemini') {
+          // Gemini streaming: each chunk is a full cumulative text object.
+          // Track byte offset and emit only new bytes as delta.
+          $fullText = $ev['candidates'][0]['content']['parts'][0]['text'] ?? '';
+          if ($fullText !== '') {
+            $delta = substr($fullText, $geminiPrevLen);
+            if ($delta !== '') {
+              $geminiPrevLen += strlen($delta);
+              $accText .= $delta;
+              echo 'data: ' . json_encode(['delta' => $delta], JSON_UNESCAPED_UNICODE) . "\n\n";
+              flush();
+            }
+          }
+          // Detect Gemini web search usage
+          if (!empty($ev['candidates'][0]['groundingMetadata'])) {
+            $web_search_used_stream = true;
+          }
+          if (isset($ev['usageMetadata'])) {
+            $usage['input_tokens']  = (int)($ev['usageMetadata']['promptTokenCount'] ?? 0);
+            $usage['output_tokens'] = (int)($ev['usageMetadata']['candidatesTokenCount'] ?? 0);
+          }
+        }
+      }
+
+      return strlen($chunk);
+    },
+  ]);
+
+  $timeStart = microtime(true);
+  curl_exec($ch);
+  $httpCodeFinal = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+  $timeEnd = microtime(true);
+  $curlErr = curl_error($ch);
+  curl_close($ch);
+
+  if ($curlErr) {
+    echo 'data: ' . json_encode(['error' => 'cURL: ' . $curlErr], JSON_UNESCAPED_UNICODE) . "\n\n";
+    echo "data: [DONE]\n\n";
+    flush();
+    exit;
+  }
+
+  if ($httpCodeFinal !== 200) {
+    $apiMsg = '';
+    if ($accChunks !== '') {
+      $errResult = json_decode($accChunks, true);
+      if (is_array($errResult)) {
+        $apiMsg = (string)($errResult['error']['message'] ?? $errResult['message'] ?? $errResult['detail'] ?? '');
+      }
+      if ($apiMsg === '') $apiMsg = trim($accChunks);
+      if (str_length($apiMsg) > 500) $apiMsg = str_slice($apiMsg, 0, 500) . '...';
+    }
+    if ($apiMsg === '') $apiMsg = 'Помилка API (HTTP ' . $httpCodeFinal . ')';
+
+    log_request([
+      'date' => date('Y-m-d'), 'time' => date('H:i:s'),
+      'model' => $model, 'provider' => $provider,
+      'error' => $apiMsg, 'code' => $httpCodeFinal,
+    ]);
+
+    echo 'data: ' . json_encode(['error' => $apiMsg], JSON_UNESCAPED_UNICODE) . "\n\n";
+    echo "data: [DONE]\n\n";
+    flush();
+    exit;
+  }
+
+  if ($streamError !== null) {
+    echo 'data: ' . json_encode(['error' => $streamError], JSON_UNESCAPED_UNICODE) . "\n\n";
+    echo "data: [DONE]\n\n";
+    flush();
+
+    log_request([
+      'date' => date('Y-m-d'), 'time' => date('H:i:s'),
+      'model' => $model, 'provider' => $provider,
+      'error' => $streamError,
+    ]);
+    exit;
+  }
+
+  // Emit meta event with usage info
+  $durationSec  = max(0, $timeEnd - $timeStart);
+  $cost         = calc_request_cost($usage, $modelMeta);
+  $cache_status = ((int)($usage['cache_read_input_tokens'] ?? 0) > 0) ? 'cache-hit'
+    : (((int)($usage['cache_creation_input_tokens'] ?? 0) > 0) ? 'cache-write' : 'no-cache');
+
+  echo 'data: ' . json_encode([
+    'meta' => true,
+    'usage' => $usage,
+    'web_search_used' => $web_search_used_stream,
+    'cost' => $cost,
+  ], JSON_UNESCAPED_UNICODE) . "\n\n";
+  echo "data: [DONE]\n\n";
+  flush();
+
+  // Log to SQLite + JSONL
+  log_request([
+    'date' => date('Y-m-d'),
+    'time' => date('H:i:s'),
+    'model' => $model,
+    'provider' => $provider,
+    'inp' => (int)($usage['input_tokens'] ?? 0),
+    'out' => (int)($usage['output_tokens'] ?? 0),
+    'cache_write' => (int)($usage['cache_creation_input_tokens'] ?? 0),
+    'cache_read' => (int)($usage['cache_read_input_tokens'] ?? 0),
+    'cost' => $cost,
+    'duration' => number_format($durationSec, 2, '.', ''),
+    'prompt_len' => str_length($prompt),
+    'web' => $web_search_used_stream,
+    'cache_status' => $cache_status,
+  ]);
+
+  // Save generation to SQLite
+  if (trim($accText) !== '') {
+    save_generation_to_db([
+      'model' => $model,
+      'provider' => $provider,
+      'source_ref' => $sourceRef,
+      'input_text' => $source,
+      'output_json' => $accText,
+      'cost' => $cost,
+      'input_tokens' => (int)($usage['input_tokens'] ?? 0),
+      'output_tokens' => (int)($usage['output_tokens'] ?? 0),
+      'web_search_used' => $web_search_used_stream ? 1 : 0,
+    ]);
+  }
+
+  exit;
+}
+
+// ── Non-streaming mode ──────────────────────────────────────────────────────
 $ch = curl_init($url);
 curl_setopt_array($ch, [
   CURLOPT_RETURNTRANSFER => true,
@@ -207,17 +452,15 @@ if ($httpCode !== 200) {
     'code'     => $httpCode,
     'body'     => str_slice((string)$response, 0, 8000),
   ]);
-  if (LOG_ON) {
-    $log_line = build_log_entry_jsonl([
-      'date' => date('Y-m-d'),
-      'time' => date('H:i:s'),
-      'model' => $model,
-      'error' => $apiMessage,
-      'code' => $httpCode,
-      'provider' => $provider,
-    ]);
-    write_log_entry($log_line);
-  }
+
+  log_request([
+    'date' => date('Y-m-d'),
+    'time' => date('H:i:s'),
+    'model' => $model,
+    'error' => $apiMessage,
+    'code' => $httpCode,
+    'provider' => $provider,
+  ]);
 
   send_json($httpCode ?: 500, ['error' => $apiMessage, 'type' => $apiType, 'code' => $httpCode, 'provider' => $provider, 'model' => $model]);
 }
@@ -253,25 +496,39 @@ if ($provider === 'anthropic') {
 
 if (trim($text) === '') send_json(500, ['error' => 'Порожня відповідь від API']);
 
-if (LOG_ON) {
-  $durationSec = max(0, $timeEnd - $timeStart);
-  $cost = calc_request_cost($usage, $modelMeta);
-  $log_line = build_log_entry_jsonl([
-    'date' => date('Y-m-d'),
-    'time' => date('H:i:s'),
-    'model' => $model,
-    'inp' => (int)($usage['input_tokens'] ?? 0),
-    'out' => (int)($usage['output_tokens'] ?? 0),
-    'cache_write' => (int)($usage['cache_creation_input_tokens'] ?? 0),
-    'cache_read' => (int)($usage['cache_read_input_tokens'] ?? 0),
-    'cost' => $cost,
-    'duration' => number_format($durationSec, 2, '.', ''),
-    'prompt_len' => str_length($prompt),
-    'web' => $web_search_used,
-    'cache_status' => ((int)($usage['cache_read_input_tokens'] ?? 0) > 0) ? 'cache-hit' : (((int)($usage['cache_creation_input_tokens'] ?? 0) > 0) ? 'cache-write' : 'no-cache'),
-  ]);
-  write_log_entry($log_line);
-}
+$durationSec  = max(0, $timeEnd - $timeStart);
+$cost         = calc_request_cost($usage, $modelMeta);
+$cache_status = ((int)($usage['cache_read_input_tokens'] ?? 0) > 0) ? 'cache-hit'
+  : (((int)($usage['cache_creation_input_tokens'] ?? 0) > 0) ? 'cache-write' : 'no-cache');
+
+log_request([
+  'date' => date('Y-m-d'),
+  'time' => date('H:i:s'),
+  'model' => $model,
+  'provider' => $provider,
+  'inp' => (int)($usage['input_tokens'] ?? 0),
+  'out' => (int)($usage['output_tokens'] ?? 0),
+  'cache_write' => (int)($usage['cache_creation_input_tokens'] ?? 0),
+  'cache_read' => (int)($usage['cache_read_input_tokens'] ?? 0),
+  'cost' => $cost,
+  'duration' => number_format($durationSec, 2, '.', ''),
+  'prompt_len' => str_length($prompt),
+  'web' => $web_search_used,
+  'cache_status' => $cache_status,
+]);
+
+// Save generation to SQLite
+save_generation_to_db([
+  'model' => $model,
+  'provider' => $provider,
+  'source_ref' => $sourceRef,
+  'input_text' => $source,
+  'output_json' => $text,
+  'cost' => $cost,
+  'input_tokens' => (int)($usage['input_tokens'] ?? 0),
+  'output_tokens' => (int)($usage['output_tokens'] ?? 0),
+  'web_search_used' => $web_search_used ? 1 : 0,
+]);
 
 save_api_response([
   'ts'       => date('c'),

@@ -10,6 +10,7 @@ define('DEFAULT_ENV_FILE', APP_ROOT . '/.env.local');
 define('MAX_ENV_FILE_SIZE', 1024 * 1024); // 1MB safety cap
 define('MAX_SETTINGS_FILE_SIZE', 1024 * 1024); // 1MB safety cap
 define('PROMPTS_FILE', APP_ROOT . '/prompts.json');
+define('SQLITE_DB_FILE', APP_ROOT . '/storage/requests.db');
 
 date_default_timezone_set('UTC');
 
@@ -417,5 +418,147 @@ function settings_model_map($settings) {
     $map[$model['id']] = $model;
   }
   return $map;
+}
+
+/**
+ * Ініціалізація SQLite бази даних та повернення PDO-з'єднання (singleton).
+ * Повертає null якщо PDO sqlite недоступний або виникла помилка.
+ */
+function get_sqlite_db() {
+  static $pdo = null;
+  static $failed = false;
+
+  if ($failed) return null;
+  if ($pdo !== null) return $pdo;
+
+  if (!extension_loaded('pdo_sqlite')) {
+    $failed = true;
+    return null;
+  }
+
+  $dbFile = SQLITE_DB_FILE;
+  $dbDir  = dirname($dbFile);
+  if (!is_dir($dbDir)) {
+    if (!@mkdir($dbDir, 0775, true)) {
+      $failed = true;
+      return null;
+    }
+  }
+  if (!is_writable($dbDir)) {
+    $failed = true;
+    return null;
+  }
+
+  try {
+    $pdo = new PDO('sqlite:' . $dbFile);
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $pdo->exec('PRAGMA journal_mode=WAL');
+    $pdo->exec('PRAGMA synchronous=NORMAL');
+
+    $pdo->exec('CREATE TABLE IF NOT EXISTS requests (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        created_at TEXT NOT NULL,
+        date TEXT NOT NULL,
+        time TEXT NOT NULL,
+        model TEXT NOT NULL,
+        provider TEXT NOT NULL,
+        input_tokens INTEGER DEFAULT 0,
+        output_tokens INTEGER DEFAULT 0,
+        cache_write INTEGER DEFAULT 0,
+        cache_read INTEGER DEFAULT 0,
+        cost REAL DEFAULT 0,
+        duration REAL DEFAULT 0,
+        prompt_len INTEGER DEFAULT 0,
+        web_search INTEGER DEFAULT 0,
+        cache_status TEXT DEFAULT \'no-cache\',
+        error TEXT DEFAULT NULL
+    )');
+
+    $pdo->exec('CREATE TABLE IF NOT EXISTS generations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        created_at TEXT NOT NULL,
+        model TEXT NOT NULL,
+        provider TEXT NOT NULL,
+        source_ref TEXT DEFAULT \'\',
+        input_text TEXT DEFAULT \'\',
+        output_json TEXT DEFAULT \'\',
+        cost REAL DEFAULT 0,
+        input_tokens INTEGER DEFAULT 0,
+        output_tokens INTEGER DEFAULT 0,
+        web_search_used INTEGER DEFAULT 0
+    )');
+  } catch (Exception $e) {
+    error_log('SQLite init error: ' . $e->getMessage());
+    $pdo    = null;
+    $failed = true;
+    return null;
+  }
+
+  return $pdo;
+}
+
+/**
+ * Запис рядка запиту до SQLite
+ */
+function sqlite_log_request($payload) {
+  $db = get_sqlite_db();
+  if (!$db) return false;
+  try {
+    $stmt = $db->prepare(
+      'INSERT INTO requests (created_at,date,time,model,provider,input_tokens,output_tokens,cache_write,cache_read,cost,duration,prompt_len,web_search,cache_status,error)
+       VALUES (:created_at,:date,:time,:model,:provider,:input_tokens,:output_tokens,:cache_write,:cache_read,:cost,:duration,:prompt_len,:web_search,:cache_status,:error)'
+    );
+    $stmt->execute([
+      ':created_at'    => date('c'),
+      ':date'          => (string)($payload['date'] ?? date('Y-m-d')),
+      ':time'          => (string)($payload['time'] ?? date('H:i:s')),
+      ':model'         => (string)($payload['model'] ?? ''),
+      ':provider'      => (string)($payload['provider'] ?? ''),
+      ':input_tokens'  => (int)($payload['inp'] ?? 0),
+      ':output_tokens' => (int)($payload['out'] ?? 0),
+      ':cache_write'   => (int)($payload['cache_write'] ?? 0),
+      ':cache_read'    => (int)($payload['cache_read'] ?? 0),
+      ':cost'          => (float)($payload['cost'] ?? 0),
+      ':duration'      => (float)($payload['duration'] ?? 0),
+      ':prompt_len'    => (int)($payload['prompt_len'] ?? 0),
+      ':web_search'    => !empty($payload['web']) ? 1 : 0,
+      ':cache_status'  => (string)($payload['cache_status'] ?? 'no-cache'),
+      ':error'         => isset($payload['error']) ? (string)$payload['error'] : null,
+    ]);
+    return true;
+  } catch (Exception $e) {
+    error_log('SQLite log_request error: ' . $e->getMessage());
+    return false;
+  }
+}
+
+/**
+ * Збереження результату генерації до SQLite
+ */
+function save_generation_to_db($payload) {
+  $db = get_sqlite_db();
+  if (!$db) return false;
+  try {
+    $stmt = $db->prepare(
+      'INSERT INTO generations (created_at,model,provider,source_ref,input_text,output_json,cost,input_tokens,output_tokens,web_search_used)
+       VALUES (:created_at,:model,:provider,:source_ref,:input_text,:output_json,:cost,:input_tokens,:output_tokens,:web_search_used)'
+    );
+    $stmt->execute([
+      ':created_at'      => date('c'),
+      ':model'           => (string)($payload['model'] ?? ''),
+      ':provider'        => (string)($payload['provider'] ?? ''),
+      ':source_ref'      => (string)($payload['source_ref'] ?? ''),
+      ':input_text'      => (string)($payload['input_text'] ?? ''),
+      ':output_json'     => (string)($payload['output_json'] ?? ''),
+      ':cost'            => (float)($payload['cost'] ?? 0),
+      ':input_tokens'    => (int)($payload['input_tokens'] ?? 0),
+      ':output_tokens'   => (int)($payload['output_tokens'] ?? 0),
+      ':web_search_used' => (int)($payload['web_search_used'] ?? 0),
+    ]);
+    return true;
+  } catch (Exception $e) {
+    error_log('SQLite save_generation error: ' . $e->getMessage());
+    return false;
+  }
 }
 ?>
