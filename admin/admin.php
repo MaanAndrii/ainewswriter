@@ -112,7 +112,8 @@ function collect_system_info() {
   ];
 
   // Моделі
-  $info['models_count'] = count($settings['models'] ?? []);
+  $si_settings = load_settings();
+  $info['models_count'] = count($si_settings['models'] ?? []);
 
   return $info;
 }
