@@ -1,0 +1,6 @@
+.env.local
+settings_store.php
+storage/
+.claude/
+*.log
+*.log.1
