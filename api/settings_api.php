@@ -115,8 +115,28 @@ if ($method === 'POST') {
     exit;
   }
 
-  if ($action === 'restore_default_prompts') {
+  if ($action === 'save_as_default_prompts') {
     $current = load_settings();
+    $systemPrompt = trim((string)(
+      $current['system_prompt_default_override'] !== ''
+        ? $current['system_prompt_default_override']
+        : ($current['system_prompt_custom'] ?? get_default_system_prompt())
+    ));
+    $profiles = $current['prompt_profiles']['user'] ?? get_default_prompt_profiles()['user'] ?? [];
+    $newDefaults = [
+      'system_prompts' => ['default' => $systemPrompt],
+      'user_prompt_profiles' => ['default' => $profiles],
+    ];
+    if (save_prompts_to_json($newDefaults)) {
+      echo json_encode(['ok' => true], JSON_UNESCAPED_UNICODE);
+    } else {
+      http_response_code(500);
+      echo json_encode(['ok' => false, 'error' => 'Не вдалося записати prompts.json — перевірте права на файл']);
+    }
+    exit;
+  }
+
+  if ($action === 'restore_default_prompts') {    $current = load_settings();
     $defaults = load_prompts_from_json();
     $systemDefault = trim((string)($defaults['system_prompts']['default'] ?? get_default_system_prompt()));
     $profilesDefault = $defaults['user_prompt_profiles']['default'] ?? get_default_prompt_profiles();

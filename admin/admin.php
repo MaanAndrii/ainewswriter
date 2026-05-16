@@ -301,8 +301,9 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
       <div class="ttl">System prompt</div>
       <textarea id="system_default_override" class="big" style="min-height:180px"><?= htmlspecialchars($defaultOverride !== '' ? $defaultOverride : $defaultPrompt) ?></textarea>
       <div class="small" style="margin-top:4px">Базові інструкції для моделі — роль редактора, мовні вимоги, формат відповіді.</div>
-      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;flex-wrap:wrap">
         <button type="button" class="btn-mini muted" id="restore_prompts_defaults_btn">Відновити за замовчуванням</button>
+        <button type="button" class="btn-mini" id="save_as_default_btn" title="Зберегти поточний промт та параметри як нові значення за замовчуванням (prompts.json)">&#9733; Зберегти як за замовчуванням</button>
         <button type="button" class="btn-mini danger" id="save_system_default_btn">Зберегти system prompt</button>
       </div>
       <div class="small" id="save_system_status" style="text-align:right;margin-top:4px"></div>
@@ -817,6 +818,25 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
         }
         document.getElementById('save_system_status').textContent = 'Відновлено за замовчуванням ✔';
         document.getElementById('save_fields_status').textContent = 'Відновлено за замовчуванням ✔';
+      });
+    });
+  }
+
+  // Зберегти як за замовчуванням (записує поточний стан у prompts.json)
+  var saveAsDefaultBtn = document.getElementById('save_as_default_btn');
+  if (saveAsDefaultBtn) {
+    saveAsDefaultBtn.addEventListener('click', function() {
+      if (!confirm('Зберегти поточний system prompt та всі параметри user-промту як нові значення за замовчуванням?\n\nПісля цього кнопка «Відновити за замовчуванням» відновлюватиме саме ці значення.')) return;
+      var status = document.getElementById('save_system_status');
+      saveAsDefaultBtn.disabled = true;
+      status.textContent = 'Збереження…';
+      apiPost({action: 'save_as_default_prompts'}, function(err) {
+        saveAsDefaultBtn.disabled = false;
+        if (err) {
+          status.innerHTML = '<span style="color:#A32D2D">Помилка: ' + err.message + '</span>';
+          return;
+        }
+        status.textContent = '★ Збережено як за замовчуванням ✔';
       });
     });
   }
