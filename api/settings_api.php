@@ -264,6 +264,63 @@ if ($method === 'POST') {
     exit;
   }
 
+  if ($action === 'get_logs') {
+    $filterDate = isset($data['date']) && $data['date'] !== '' ? (string)$data['date'] : '';
+    $rows    = [];
+    $summary = ['cnt' => 0, 'total_cost' => 0.0, 'total_inp' => 0, 'total_out' => 0, 'total_cache_r' => 0];
+    $db = get_sqlite_db();
+    if ($db) {
+      try {
+        $where  = $filterDate !== '' ? ' WHERE date = ?' : '';
+        $params = $filterDate !== '' ? [$filterDate] : [];
+        $stmt = $db->prepare(
+          "SELECT date, time, model, provider,
+                  input_tokens as inp, output_tokens as out,
+                  cache_write, cache_read, cost, duration, prompt_len,
+                  web_search as web, cache_status, error
+           FROM requests$where ORDER BY id DESC LIMIT 500"
+        );
+        $stmt->execute($params);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $sum  = $db->prepare(
+          "SELECT COUNT(*) as cnt, SUM(cost) as tc, SUM(input_tokens) as ti,
+                  SUM(output_tokens) as to2, SUM(cache_read) as tr2
+           FROM requests$where"
+        );
+        $sum->execute($params);
+        $s = $sum->fetch(PDO::FETCH_ASSOC);
+        $summary = [
+          'cnt'          => (int)($s['cnt']  ?? 0),
+          'total_cost'   => (float)($s['tc']  ?? 0),
+          'total_inp'    => (int)($s['ti']  ?? 0),
+          'total_out'    => (int)($s['to2'] ?? 0),
+          'total_cache_r'=> (int)($s['tr2'] ?? 0),
+        ];
+      } catch (Exception $e) { /* fall through */ }
+    } else {
+      $logFile = APP_ROOT . '/storage/requests.log';
+      if (file_exists($logFile)) {
+        $lines = file($logFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        foreach (array_reverse($lines) as $line) {
+          $entry = parse_log_entry($line);
+          if (!$entry) continue;
+          if ($filterDate !== '' && ($entry['date'] ?? '') !== $filterDate) continue;
+          $rows[] = $entry;
+          if (count($rows) >= 500) break;
+        }
+      }
+      $summary = [
+        'cnt'          => count($rows),
+        'total_cost'   => array_sum(array_column($rows, 'cost')),
+        'total_inp'    => array_sum(array_column($rows, 'inp')),
+        'total_out'    => array_sum(array_column($rows, 'out')),
+        'total_cache_r'=> array_sum(array_column($rows, 'cache_read')),
+      ];
+    }
+    echo json_encode(['ok' => true, 'rows' => $rows, 'summary' => $summary], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+    exit;
+  }
+
   if ($action === 'get_history') {
     $db = get_sqlite_db();
     if (!$db) {
