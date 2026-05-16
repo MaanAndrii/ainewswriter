@@ -364,67 +364,6 @@ function save_env_values($pairs) {
   @chmod($path, 0600);
 }
 
-function parse_log_entry($line) {
-  $line = trim((string)$line);
-  if ($line === '') return null;
-
-  if (str_starts_with($line, '{')) {
-    $obj = json_decode($line, true);
-    if (!is_array($obj)) return null;
-    return [
-      'v' => (int)($obj['v'] ?? 2),
-      'date' => (string)($obj['date'] ?? ''),
-      'time' => (string)($obj['time'] ?? ''),
-      'model' => (string)($obj['model'] ?? ''),
-      'inp' => (int)($obj['inp'] ?? 0),
-      'out' => (int)($obj['out'] ?? 0),
-      'cache_write' => (int)($obj['cache_write'] ?? 0),
-      'cache_read' => (int)($obj['cache_read'] ?? 0),
-      'cost' => (float)($obj['cost'] ?? 0),
-      'duration' => (string)($obj['duration'] ?? ''),
-      'prompt_len' => (int)($obj['prompt_len'] ?? 0),
-      'web' => !empty($obj['web']) ? 'web' : 'no-web',
-      'cache_status' => (string)($obj['cache_status'] ?? 'no-cache'),
-    ];
-  }
-
-  $r = str_getcsv($line);
-  if (count($r) < 12) return null;
-  return [
-    'v' => 1,
-    'date' => (string)($r[0] ?? ''),
-    'time' => (string)($r[1] ?? ''),
-    'model' => (string)($r[2] ?? ''),
-    'inp' => (int)($r[3] ?? 0),
-    'out' => (int)($r[4] ?? 0),
-    'cache_write' => (int)($r[5] ?? 0),
-    'cache_read' => (int)($r[6] ?? 0),
-    'cost' => (float)($r[7] ?? 0),
-    'duration' => (string)($r[8] ?? ''),
-    'prompt_len' => (int)($r[9] ?? 0),
-    'web' => (string)($r[10] ?? 'no-web'),
-    'cache_status' => (string)($r[11] ?? 'no-cache'),
-  ];
-}
-
-function build_log_entry_jsonl($payload) {
-  $entry = [
-    'v' => 2,
-    'date' => (string)($payload['date'] ?? date('Y-m-d')),
-    'time' => (string)($payload['time'] ?? date('H:i:s')),
-    'model' => (string)($payload['model'] ?? ''),
-    'inp' => (int)($payload['inp'] ?? 0),
-    'out' => (int)($payload['out'] ?? 0),
-    'cache_write' => (int)($payload['cache_write'] ?? 0),
-    'cache_read' => (int)($payload['cache_read'] ?? 0),
-    'cost' => (float)($payload['cost'] ?? 0),
-    'duration' => (string)($payload['duration'] ?? ''),
-    'prompt_len' => (int)($payload['prompt_len'] ?? 0),
-    'web' => !empty($payload['web']),
-    'cache_status' => (string)($payload['cache_status'] ?? 'no-cache'),
-  ];
-  return json_encode($entry, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n";
-}
 
 function settings_model_map($settings) {
   $map = [];

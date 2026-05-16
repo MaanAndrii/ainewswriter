@@ -2,7 +2,6 @@
 require_once __DIR__ . '/../core/app_settings.php';
 require_once __DIR__ . '/../version.php';
 
-define('LOG_FILE', __DIR__ . '/../storage/requests.log');
 
 session_start();
 
@@ -95,10 +94,7 @@ function collect_system_info() {
   }
 
   // Файли сховища
-  $logFile = APP_ROOT . '/storage/requests.log';
   $info['storage'] = [
-    'log_size'  => file_exists($logFile) ? filesize($logFile) : 0,
-    'log1_size' => file_exists($logFile . '.1') ? filesize($logFile . '.1') : 0,
     'dir_writable' => is_writable(APP_ROOT . '/storage'),
   ];
 
@@ -132,51 +128,6 @@ function mask_val($value) {
   return substr($value, 0, 5) . str_repeat('*', max(0, $len - 10)) . substr($value, -5);
 }
 
-function stats_from_log($file) {
-  $out = [
-    'total_requests' => 0,
-    'total_cost' => 0.0,
-    'total_inp' => 0,
-    'total_out' => 0,
-    'by_model' => [],
-    'by_day' => [],
-  ];
-
-  if (!file_exists($file)) return $out;
-  $lines = file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-  foreach ($lines as $line) {
-    $r = parse_log_entry($line);
-    if (!$r) continue;
-
-    $date = $r['date'];
-    $model = $r['model'];
-    $inp = (int)$r['inp'];
-    $outTok = (int)$r['out'];
-    $cost = (float)$r['cost'];
-
-    $out['total_requests']++;
-    $out['total_cost'] += $cost;
-    $out['total_inp'] += $inp;
-    $out['total_out'] += $outTok;
-
-    if (!isset($out['by_model'][$model])) {
-      $out['by_model'][$model] = ['req' => 0, 'cost' => 0.0, 'inp' => 0, 'out' => 0];
-    }
-    $out['by_model'][$model]['req']++;
-    $out['by_model'][$model]['cost'] += $cost;
-    $out['by_model'][$model]['inp'] += $inp;
-    $out['by_model'][$model]['out'] += $outTok;
-
-    if (!isset($out['by_day'][$date])) {
-      $out['by_day'][$date] = ['req' => 0, 'cost' => 0.0];
-    }
-    $out['by_day'][$date]['req']++;
-    $out['by_day'][$date]['cost'] += $cost;
-  }
-
-  krsort($out['by_day']);
-  return $out;
-}
 
 function stats_from_sqlite() {
   $db = get_sqlite_db();
@@ -216,7 +167,7 @@ function stats_from_sqlite() {
   }
 }
 
-$stats = stats_from_sqlite() ?? stats_from_log(LOG_FILE);
+$stats = stats_from_sqlite() ?? ['total_requests' => 0, 'total_cost' => 0.0, 'total_inp' => 0, 'total_out' => 0, 'by_model' => [], 'by_day' => []];
 $modelsJsonPretty = json_encode($settings['models'], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 $promptsFile = dirname(__DIR__) . '/prompts.json';
 $promptsJsonPretty = file_exists($promptsFile) ? file_get_contents($promptsFile) : '{}';
@@ -593,8 +544,6 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
       <div class="ttl">Сховище</div>
       <table style="width:100%;font-size:13px;border-collapse:collapse">
         <tr><td style="padding:5px 0;color:#8a8278;width:55%">Папка storage/</td><td><?= yn($si['storage']['dir_writable'], '✓ доступна для запису', '✗ немає прав запису') ?></td></tr>
-        <tr><td style="padding:5px 0;color:#8a8278">requests.log</td><td><?= $si['storage']['log_size'] > 0 ? fmt_bytes($si['storage']['log_size']) : '<span style="color:#8a8278">відсутній</span>' ?></td></tr>
-        <tr><td style="padding:5px 0;color:#8a8278">requests.log.1</td><td><?= $si['storage']['log1_size'] > 0 ? fmt_bytes($si['storage']['log1_size']) : '<span style="color:#8a8278">—</span>' ?></td></tr>
       </table>
     </div>
 

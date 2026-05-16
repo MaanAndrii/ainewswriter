@@ -6,9 +6,6 @@
 
 define('TIMEOUT', 120);
 define('MAX_CHARS', 30000);
-define('LOG_FILE', __DIR__ . '/../storage/requests.log');
-define('LOG_ON', true);
-define('LOG_MAX_BYTES', 5 * 1024 * 1024);
 
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
@@ -32,18 +29,6 @@ function str_slice($value, $start, $length = null) {
   return $length === null ? substr($value, $start) : substr($value, $start, $length);
 }
 
-function rotate_log_if_needed($path, $maxBytes) {
-  if (!file_exists($path)) return;
-  clearstatcache(true, $path);
-  $size = filesize($path);
-  if ($size === false || $size < $maxBytes) return;
-
-  $rotated = $path . '.1';
-  if (file_exists($rotated)) @unlink($rotated);
-  @rename($path, $rotated);
-}
-
-
 function calc_request_cost($usage, $modelMeta) {
   $inp = (int)($usage['input_tokens'] ?? 0);
   $out = (int)($usage['output_tokens'] ?? 0);
@@ -52,33 +37,19 @@ function calc_request_cost($usage, $modelMeta) {
   return ($inp * $inpPrice + $out * $outPrice) / 1000000;
 }
 
-
 function save_api_response($entry) {
-  $file = dirname(LOG_FILE) . '/api_responses.json';
-  $max  = 5;
+  $file = APP_ROOT . '/storage/api_responses.json';
   $list = [];
   if (file_exists($file)) {
     $raw = file_get_contents($file);
     if ($raw) $list = json_decode($raw, true) ?: [];
   }
   array_unshift($list, $entry);
-  if (count($list) > $max) $list = array_slice($list, 0, $max);
+  if (count($list) > 5) $list = array_slice($list, 0, 5);
   $encoded = json_encode($list, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT | JSON_INVALID_UTF8_SUBSTITUTE);
   if ($encoded !== false) {
     file_put_contents($file, $encoded, LOCK_EX);
   }
-}
-
-function write_log_entry($line) {
-  $dir = dirname(LOG_FILE);
-  if (!is_dir($dir)) {
-    @mkdir($dir, 0775, true);
-  }
-  if (!is_writable($dir)) {
-    return false;
-  }
-  rotate_log_if_needed(LOG_FILE, LOG_MAX_BYTES);
-  return file_put_contents(LOG_FILE, $line, FILE_APPEND | LOCK_EX) !== false;
 }
 
 function send_json($code, $payload) {
@@ -92,15 +63,8 @@ function send_json($code, $payload) {
   exit;
 }
 
-/**
- * Логує запит у SQLite (якщо доступно) + у JSONL як резерв.
- */
 function log_request($logPayload) {
   sqlite_log_request($logPayload);
-  if (LOG_ON) {
-    $log_line = build_log_entry_jsonl($logPayload);
-    write_log_entry($log_line);
-  }
 }
 
 apply_cors_headers();
