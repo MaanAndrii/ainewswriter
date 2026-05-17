@@ -149,13 +149,18 @@ document.getElementById('modelSelect').addEventListener('change', function () {
   var webSearchEl = document.getElementById('webSearch');
   if (!webSearchEl) return;
   var meta = MODEL_META[model] || {};
-  if (meta.web_search === false) {
+  var provider = meta.provider || '';
+  var supportsSearch = provider === 'anthropic' || provider === 'gemini';
+  var cbRow = webSearchEl.closest('.cb-row');
+  if (!supportsSearch || meta.web_search === false) {
     webSearchEl.checked = false;
     webSearchEl.disabled = true;
-    webSearchEl.closest('.cb-row').title = 'Для цієї моделі веб-пошук вимкнено у налаштуваннях.';
+    cbRow.style.display = supportsSearch ? '' : 'none';
   } else {
     webSearchEl.disabled = false;
-    webSearchEl.closest('.cb-row').title = '';
+    webSearchEl.checked = false;
+    cbRow.style.display = '';
+    cbRow.title = '';
   }
 });
 function loadModelSettings() {
