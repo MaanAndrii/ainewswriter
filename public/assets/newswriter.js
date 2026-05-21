@@ -266,9 +266,13 @@ function loadHistory(page) {
   xhr.setRequestHeader('Content-Type', 'application/json');
   xhr.onload = function() {
     var d = {};
-    try { d = JSON.parse(xhr.responseText); } catch(e) {}
+    try { d = JSON.parse(xhr.responseText); } catch(e) {
+      listEl.innerHTML = '<div style="color:#b5401a;font-size:12px">Помилка розбору відповіді (HTTP ' + xhr.status + ')</div>';
+      console.error('History parse error:', xhr.status, xhr.responseText.substring(0, 300));
+      return;
+    }
     if (!d.ok) {
-      listEl.innerHTML = '<div style="color:#b5401a;font-size:12px">' + esc(d.error || 'Помилка') + '</div>';
+      listEl.innerHTML = '<div style="color:#b5401a;font-size:12px">' + esc(d.error || 'Помилка (ok=false)') + '</div>';
       return;
     }
     if (!d.items || !d.items.length) {

@@ -341,7 +341,7 @@ if ($method === 'POST') {
          FROM generations ORDER BY id DESC LIMIT $limit OFFSET $offset"
       )->fetchAll(PDO::FETCH_ASSOC);
       $total = (int)$db->query("SELECT COUNT(*) FROM generations")->fetchColumn();
-      echo json_encode(['ok' => true, 'items' => $rows, 'total' => $total, 'page' => $page], JSON_UNESCAPED_UNICODE);
+      echo json_encode(['ok' => true, 'items' => $rows, 'total' => $total, 'page' => $page], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
     } catch (Exception $e) {
       http_response_code(500);
       echo json_encode(['ok' => false, 'error' => $e->getMessage()]);
