@@ -440,6 +440,15 @@ function get_sqlite_db() {
         output_tokens INTEGER DEFAULT 0,
         web_search_used INTEGER DEFAULT 0
     )');
+
+    // Migrations: add columns that may be missing in older DB files
+    $existingCols = array_column(
+      $pdo->query("PRAGMA table_info(generations)")->fetchAll(PDO::FETCH_ASSOC),
+      'name'
+    );
+    if (!in_array('web_search_used', $existingCols, true)) {
+      $pdo->exec('ALTER TABLE generations ADD COLUMN web_search_used INTEGER DEFAULT 0');
+    }
   } catch (Exception $e) {
     error_log('SQLite init error: ' . $e->getMessage());
     $pdo    = null;
