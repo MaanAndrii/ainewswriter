@@ -161,7 +161,7 @@ function loadModelSettings() {
       var m = d.models[i];
       MODEL_PRICES[m.id] = { inp: Number(m.inp || 3), out: Number(m.out || 15), label: m.label || m.id };
       MODEL_META[m.id] = { provider: m.provider || '' };
-      if (m.enabled === false) continue;
+      if (m.enabled === false || m.enabled === 0 || m.enabled === 'false') continue;
       var opt = document.createElement('option');
       opt.value = m.id;
       opt.textContent = m.label || m.id;

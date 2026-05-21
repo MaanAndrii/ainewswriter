@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../core/app_settings.php';
 
 header('Content-Type: application/json; charset=utf-8');
+header('Cache-Control: no-store, no-cache, must-revalidate');
 apply_cors_headers();
 
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';

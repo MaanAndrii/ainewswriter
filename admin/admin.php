@@ -589,7 +589,7 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
       inp: Number(document.getElementById('m_inp').value || 0),
       out: Number(document.getElementById('m_out').value || 0),
       web_search: ['anthropic', 'gemini'].indexOf(document.getElementById('m_provider').value) !== -1,
-      enabled: true
+      enabled: editIndex >= 0 && models[editIndex] ? (models[editIndex].enabled !== false) : true
     };
   }
   function clearForm(){
