@@ -350,7 +350,7 @@ function loadGenerationById(id) {
       var raw = item.output_json;
       // Try to parse and render, otherwise show raw
       try {
-        var clean = raw.replace(/```[a-z]*/gi, '').replace(/[""]/g, '"').replace(/['']/g, "'").trim();
+        var clean = stripMarkdownWrapper(raw);
         var jsonText = extractFirstJsonObject(clean);
         if (jsonText) {
           var safeJsonText = jsonText.replace(/"(?:[^"\\]|\\.)*"/g, function(m) {
@@ -392,6 +392,17 @@ function hasMeaningfulContent(parsed, expectNews, expectFacebook) {
   if (expectFacebook && (parsed.facebook || '').trim() !== '') return true;
   return false;
 }
+function stripMarkdownWrapper(text) {
+  // Remove markdown code fences including variants like **```json, *```json, ```json, ```
+  var s = text
+    .replace(/\*{0,3}`{3}[a-zA-Z]*/g, '')  // opening: **```json  *```json  ```json
+    .replace(/`{3}\*{0,3}/g, '')             // closing: ```  ```**
+    .replace(/[""]/g, '"')
+    .replace(/['']/g, "'")
+    .trim();
+  return s;
+}
+
 function extractFirstJsonObject(text) {
   if (!text) return null;
   var inString = false;
@@ -519,7 +530,7 @@ function callAPI(prompt, model, webSearch, systemPromptOverride, expectNews, exp
 
       var raw = accText;
       raw = raw.replace(/<cite[^>]*>([\s\S]*?)<\/cite>/g, '$1').replace(/<cite[^>]*>/g, '').replace(/<\/cite>/g, '');
-      var clean = raw.replace(/```[a-z]*/gi, '').replace(/[""]/g, '"').replace(/['']/g, "'").trim();
+      var clean = stripMarkdownWrapper(raw);
       var jsonText = extractFirstJsonObject(clean);
 
       if (!jsonText) {
