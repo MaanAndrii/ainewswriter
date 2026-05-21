@@ -1,6 +1,6 @@
 <?php
 /**
- * proxy.php — проксі для Anthropic + xAI (Grok) + Mistral + Gemini API
+ * proxy.php — проксі для Anthropic + xAI (Grok) + Mistral + Gemini + OpenAI + DeepSeek API
  * Підтримує звичайний режим і SSE-стрімінг (stream=1 у тілі запиту).
  */
 
@@ -102,7 +102,7 @@ if (!$modelMeta) send_json(500, ['error' => 'Немає доступних мо�
 
 $provider = (string)$modelMeta['provider'];
 $use_web_search = in_array($provider, ['anthropic', 'gemini'], true);
-$keys = $settings['keys'] ?? ['anthropic' => '', 'xai' => '', 'gemini' => '', 'mistral' => ''];
+$keys = $settings['keys'] ?? ['anthropic' => '', 'xai' => '', 'gemini' => '', 'mistral' => '', 'openai' => '', 'deepseek' => ''];
 
 if ($provider === 'anthropic') {
   $key = trim((string)($keys['anthropic'] ?? ''));
@@ -113,25 +113,28 @@ if ($provider === 'anthropic') {
   if ($streamMode) $request['stream'] = true;
   $url = 'https://api.anthropic.com/v1/messages';
   $headers = ['Content-Type: application/json', 'x-api-key: ' . $key, 'anthropic-version: 2023-06-01', 'anthropic-beta: prompt-caching-2024-07-31'];
-} elseif ($provider === 'xai') {
-  $key = trim((string)($keys['xai'] ?? ''));
-  if ($key === '') send_json(500, ['error' => 'xAI API-ключ не задано. Додайте XAI_API_KEY у env']);
-  $messages = [];
-  if ($system_prompt !== '') $messages[] = ['role' => 'system', 'content' => $system_prompt];
-  $messages[] = ['role' => 'user', 'content' => $prompt];
-  $request = ['model' => $model, 'messages' => $messages, 'max_tokens' => 4000, 'temperature' => 0.4, 'stream' => $streamMode];
-  if ($streamMode) $request['stream_options'] = ['include_usage' => true];
-  $url = 'https://api.x.ai/v1/chat/completions';
-  $headers = ['Content-Type: application/json', 'Authorization: Bearer ' . $key];
-} elseif ($provider === 'mistral') {
-  $key = trim((string)($keys['mistral'] ?? ''));
-  if ($key === '') send_json(500, ['error' => 'Mistral API-ключ не задано. Додайте MISTRAL_API_KEY у env']);
+} elseif (in_array($provider, ['xai', 'mistral', 'openai', 'deepseek'], true)) {
+  $oaiUrls = [
+    'xai'      => 'https://api.x.ai/v1/chat/completions',
+    'mistral'  => 'https://api.mistral.ai/v1/chat/completions',
+    'openai'   => 'https://api.openai.com/v1/chat/completions',
+    'deepseek' => 'https://api.deepseek.com/v1/chat/completions',
+  ];
+  $oaiEnvNames = [
+    'xai' => 'XAI_API_KEY', 'mistral' => 'MISTRAL_API_KEY',
+    'openai' => 'OPENAI_API_KEY', 'deepseek' => 'DEEPSEEK_API_KEY',
+  ];
+  $key = trim((string)($keys[$provider] ?? ''));
+  if ($key === '') send_json(500, ['error' => ucfirst($provider) . ' API-ключ не задано. Додайте ' . ($oaiEnvNames[$provider] ?? '') . ' у env']);
   $messages = [];
   if ($system_prompt !== '') $messages[] = ['role' => 'system', 'content' => $system_prompt];
   $messages[] = ['role' => 'user', 'content' => $prompt];
   $request = ['model' => $model, 'messages' => $messages, 'max_tokens' => 4000, 'temperature' => 0.4];
-  if ($streamMode) $request['stream'] = true;
-  $url = 'https://api.mistral.ai/v1/chat/completions';
+  if ($streamMode) {
+    $request['stream'] = true;
+    if (in_array($provider, ['xai', 'openai', 'deepseek'], true)) $request['stream_options'] = ['include_usage' => true];
+  }
+  $url = $oaiUrls[$provider];
   $headers = ['Content-Type: application/json', 'Authorization: Bearer ' . $key];
 } elseif ($provider === 'gemini') {
   $key = trim((string)($keys['gemini'] ?? ''));
@@ -233,7 +236,7 @@ if ($streamMode) {
               $web_search_used_stream = true;
             }
           }
-        } elseif ($provider === 'xai' || $provider === 'mistral') {
+        } elseif (in_array($provider, ['xai', 'mistral', 'openai', 'deepseek'], true)) {
           // OpenAI-compatible format
           $choices = $ev['choices'] ?? [];
           if (!empty($choices[0]['delta']['content'])) {
@@ -455,16 +458,11 @@ if ($provider === 'anthropic') {
     if (($block['type'] ?? '') === 'tool_result') $web_search_used = true;
   }
   $usage = $result['usage'] ?? [];
-} elseif ($provider === 'xai') {
+} elseif (in_array($provider, ['xai', 'mistral', 'openai', 'deepseek'], true)) {
   $content = $result['choices'][0]['message']['content'] ?? '';
-  $text = is_array($content) ? '' : (string)$content;
-  $u = $result['usage'] ?? [];
-  $usage = ['input_tokens' => (int)($u['prompt_tokens'] ?? 0), 'output_tokens' => (int)($u['completion_tokens'] ?? 0), 'cache_creation_input_tokens' => 0, 'cache_read_input_tokens' => 0];
-  $citations = $result['citations'] ?? $result['choices'][0]['citations'] ?? [];
-  $web_search_used = !empty($citations);
-} elseif ($provider === 'mistral') {
-  $content = $result['choices'][0]['message']['content'] ?? '';
-  $text = is_array($content) ? '' : (string)$content;
+  $text = is_array($content) ? implode('', array_column($content, 'text')) : (string)$content;
+  // Strip DeepSeek-R1 think tags if present
+  if ($provider === 'deepseek') $text = preg_replace('/<think>.*?<\/think>/s', '', $text);
   $u = $result['usage'] ?? [];
   $usage = ['input_tokens' => (int)($u['prompt_tokens'] ?? 0), 'output_tokens' => (int)($u['completion_tokens'] ?? 0), 'cache_creation_input_tokens' => 0, 'cache_read_input_tokens' => 0];
 } else {
