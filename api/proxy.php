@@ -101,7 +101,7 @@ $modelMeta = $modelsMap[$model] ?? null;
 if (!$modelMeta) send_json(500, ['error' => 'Немає доступних моделей у налаштуваннях']);
 
 $provider = (string)$modelMeta['provider'];
-$use_web_search = in_array($provider, ['anthropic', 'gemini'], true) && !empty($modelMeta['web_search']);
+$use_web_search = in_array($provider, ['anthropic', 'gemini'], true);
 $keys = $settings['keys'] ?? ['anthropic' => '', 'xai' => '', 'gemini' => '', 'mistral' => ''];
 
 if ($provider === 'anthropic') {

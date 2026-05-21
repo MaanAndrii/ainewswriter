@@ -91,7 +91,7 @@ function get_fallback_prompts() {
         ],
         'default_settings' => [
             'models' => [
-                ['id' => 'claude-sonnet-4-6', 'label' => 'Sonnet 4.6', 'provider' => 'anthropic', 'inp' => 3.0, 'out' => 15.0, 'web_search' => true]
+                ['id' => 'claude-sonnet-4-6', 'label' => 'Sonnet 4.6', 'provider' => 'anthropic', 'inp' => 3.0, 'out' => 15.0]
             ],
             'cors_allowed_origins' => ['http://localhost']
         ]
@@ -152,8 +152,8 @@ function get_default_prompt_profiles() {
 function get_default_models() {
     $prompts = load_prompts_from_json();
     return $prompts['default_settings']['models'] ?? [
-        ['id' => 'claude-haiku-4-5-20251001', 'label' => 'Haiku 4.5 — швидко / дешево', 'provider' => 'anthropic', 'inp' => 1.00, 'out' => 5.00, 'web_search' => true],
-        ['id' => 'claude-sonnet-4-6', 'label' => 'Sonnet 4.6 — баланс / рекомендовано', 'provider' => 'anthropic', 'inp' => 3.00, 'out' => 15.00, 'web_search' => true],
+        ['id' => 'claude-haiku-4-5-20251001', 'label' => 'Haiku 4.5 — швидко / дешево', 'provider' => 'anthropic', 'inp' => 1.00, 'out' => 5.00],
+        ['id' => 'claude-sonnet-4-6', 'label' => 'Sonnet 4.6 — баланс / рекомендовано', 'provider' => 'anthropic', 'inp' => 3.00, 'out' => 15.00],
     ];
 }
 
@@ -288,7 +288,6 @@ function normalize_settings($settings) {
       'provider' => in_array(($m['provider'] ?? ''), ['anthropic', 'xai', 'gemini', 'mistral'], true) ? $m['provider'] : 'anthropic',
       'inp' => (float)($m['inp'] ?? 3.0),
       'out' => (float)($m['out'] ?? 15.0),
-      'web_search' => !empty($m['web_search']),
     ];
   }
   if ($models && !$normModels) $normModels = $defaults['models'];
