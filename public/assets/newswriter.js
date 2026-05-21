@@ -67,7 +67,7 @@ function getDepth()   { return parseInt(document.getElementById('depthSlider').v
 function getTone()    { var el = document.querySelector('input[name="tone"]:checked'); return el ? el.value : 'neutral'; }
 function getFbStyle() { var el = document.getElementById('fbStyleSlider'); return el ? parseInt(el.value, 10) : 1; }
 function getModel()      { var el = document.getElementById('modelSelect'); return el ? el.value : 'claude-haiku-4-5-20251001'; }
-function getWebSearch()  { var el = document.getElementById('webSearch'); return el ? el.checked : false; }
+function getWebSearch()  { var meta = MODEL_META[getModel()] || {}; return !!(meta.web_search); }
 // ── Cost ──
 function calcCost(inputTok, outputTok, model) {
   var p = MODEL_PRICES[model] || { inp: 3.0, out: 15.0 };
@@ -143,25 +143,6 @@ syncActionButtons();
 document.getElementById('makeNews').addEventListener('change', syncActionButtons);
 document.getElementById('source').addEventListener('keydown', function (e) {
   if (e.ctrlKey && e.key === 'Enter') runProcess(null);
-});
-document.getElementById('modelSelect').addEventListener('change', function () {
-  var model = getModel();
-  var webSearchEl = document.getElementById('webSearch');
-  if (!webSearchEl) return;
-  var meta = MODEL_META[model] || {};
-  var provider = meta.provider || '';
-  var supportsSearch = provider === 'anthropic' || provider === 'gemini';
-  var cbRow = webSearchEl.closest('.cb-row');
-  if (!supportsSearch || meta.web_search === false) {
-    webSearchEl.checked = false;
-    webSearchEl.disabled = true;
-    cbRow.style.display = supportsSearch ? '' : 'none';
-  } else {
-    webSearchEl.disabled = false;
-    webSearchEl.checked = false;
-    cbRow.style.display = '';
-    cbRow.title = '';
-  }
 });
 function loadModelSettings() {
   var xhr = new XMLHttpRequest();
@@ -677,7 +658,6 @@ function resetAll() {
   document.getElementById('fbStyleHint').textContent = FB_STYLE_HINTS[1];
   syncFbStyleUI();
   syncActionButtons();
-  document.getElementById('webSearch').checked  = false;
   document.getElementById('depthSlider').value = 2;
   document.getElementById('depthLabel').textContent = DEPTH_LABELS[2];
   document.getElementById('depthHint').textContent  = DEPTH_HINTS[2];
