@@ -67,7 +67,7 @@ function getDepth()   { return parseInt(document.getElementById('depthSlider').v
 function getTone()    { var el = document.querySelector('input[name="tone"]:checked'); return el ? el.value : 'neutral'; }
 function getFbStyle() { var el = document.getElementById('fbStyleSlider'); return el ? parseInt(el.value, 10) : 1; }
 function getModel()      { var el = document.getElementById('modelSelect'); return el ? el.value : 'claude-haiku-4-5-20251001'; }
-function getWebSearch()  { var meta = MODEL_META[getModel()] || {}; return !!(meta.web_search); }
+function getWebSearch()  { var meta = MODEL_META[getModel()] || {}; return meta.provider === 'anthropic' || meta.provider === 'gemini'; }
 // ── Cost ──
 function calcCost(inputTok, outputTok, model) {
   var p = MODEL_PRICES[model] || { inp: 3.0, out: 15.0 };

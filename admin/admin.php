@@ -263,14 +263,14 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
           <div><label class="small">Out $/1M</label><input type="number" id="m_out" step="0.01" value="15.00"></div>
         </div>
         <div class="row" style="margin-top:8px">
-          <div><label class="small"><input type="checkbox" id="m_web_search" checked> Дозволити web_search</label></div>
+          <div></div>
           <div style="display:flex;gap:8px;justify-content:flex-end">
             <button type="button" class="btn-mini muted" id="m_cancel" style="display:none">Скасувати редагування</button>
             <button type="button" class="btn-mini" id="m_add">Додати модель</button>
           </div>
         </div>
         <table id="models_table" style="margin-top:10px">
-          <tr><th>Порядок</th><th>ID</th><th>Назва</th><th>Provider</th><th>Inp</th><th>Out</th><th title="Авто веб-пошук">🔍</th><th>Дії</th></tr>
+          <tr><th>Порядок</th><th>ID</th><th>Назва</th><th>Provider</th><th>Inp</th><th>Out</th><th>Дії</th></tr>
           <tbody></tbody>
         </table>
         <div class="small" id="models_status" style="margin-top:6px"></div>
@@ -586,7 +586,7 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
       provider: document.getElementById('m_provider').value,
       inp: Number(document.getElementById('m_inp').value || 0),
       out: Number(document.getElementById('m_out').value || 0),
-      web_search: !!document.getElementById('m_web_search').checked
+      web_search: ['anthropic', 'gemini'].indexOf(document.getElementById('m_provider').value) !== -1
     };
   }
   function clearForm(){
@@ -595,7 +595,7 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
     document.getElementById('m_provider').value = 'anthropic';
     document.getElementById('m_inp').value = '3.00';
     document.getElementById('m_out').value = '15.00';
-    document.getElementById('m_web_search').checked = true;
+    // web_search auto-set by provider
     editIndex = -1;
     document.getElementById('m_add').textContent = 'Додати модель';
     document.getElementById('m_cancel').style.display = 'none';
@@ -626,7 +626,6 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
         + '<td>'+esc(m.provider)+'</td>'
         + '<td>'+Number(m.inp).toFixed(2)+'</td>'
         + '<td>'+Number(m.out).toFixed(2)+'</td>'
-        + '<td style="text-align:center" title="'+(m.web_search ? 'Авто-пошук увімкнено' : 'Без пошуку')+'">'+(m.web_search ? '🔍' : '—')+'</td>'
         + '<td style="white-space:nowrap"><button type="button" class="btn-icon" title="Редагувати" data-edit="'+i+'">✏</button> <button type="button" class="btn-icon danger" title="Видалити" data-del="'+i+'">✕</button></td>'
         + '</tr>';
     }
@@ -890,7 +889,7 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
     document.getElementById('m_provider').value = m.provider || 'anthropic';
     document.getElementById('m_inp').value = Number(m.inp || 0).toFixed(2);
     document.getElementById('m_out').value = Number(m.out || 0).toFixed(2);
-    document.getElementById('m_web_search').checked = !!m.web_search;
+    // web_search auto-set by provider on save
     document.getElementById('m_add').textContent = 'Зберегти зміни';
     document.getElementById('m_cancel').style.display = 'inline-block';
   }
