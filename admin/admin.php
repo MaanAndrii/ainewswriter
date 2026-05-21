@@ -250,6 +250,8 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
           <tr><td>xai</td><td><input type="password" id="k_xai" data-mask="<?= htmlspecialchars(mask_val($runtimeKeys['xai'] ?? '')) ?>" placeholder="<?= htmlspecialchars(mask_val($runtimeKeys['xai'] ?? '')) ?>"></td><td><button type="button" class="btn-mini" data-save-key="xai">Зберегти</button></td></tr>
           <tr><td>gemini</td><td><input type="password" id="k_gemini" data-mask="<?= htmlspecialchars(mask_val($runtimeKeys['gemini'] ?? '')) ?>" placeholder="<?= htmlspecialchars(mask_val($runtimeKeys['gemini'] ?? '')) ?>"></td><td><button type="button" class="btn-mini" data-save-key="gemini">Зберегти</button></td></tr>
           <tr><td>mistral</td><td><input type="password" id="k_mistral" data-mask="<?= htmlspecialchars(mask_val($runtimeKeys['mistral'] ?? '')) ?>" placeholder="<?= htmlspecialchars(mask_val($runtimeKeys['mistral'] ?? '')) ?>"></td><td><button type="button" class="btn-mini" data-save-key="mistral">Зберегти</button></td></tr>
+          <tr><td>openai</td><td><input type="password" id="k_openai" data-mask="<?= htmlspecialchars(mask_val($runtimeKeys['openai'] ?? '')) ?>" placeholder="<?= htmlspecialchars(mask_val($runtimeKeys['openai'] ?? '')) ?>"></td><td><button type="button" class="btn-mini" data-save-key="openai">Зберегти</button></td></tr>
+          <tr><td>deepseek</td><td><input type="password" id="k_deepseek" data-mask="<?= htmlspecialchars(mask_val($runtimeKeys['deepseek'] ?? '')) ?>" placeholder="<?= htmlspecialchars(mask_val($runtimeKeys['deepseek'] ?? '')) ?>"></td><td><button type="button" class="btn-mini" data-save-key="deepseek">Зберегти</button></td></tr>
         </table>
         <div class="small" id="keys_status" style="margin-top:6px"></div>
         <div class="small" style="margin-bottom:10px">Ключі записуються у файл env: <code><?= htmlspecialchars(get_env_file_path()) ?></code>. Збереження ключа відбувається одразу по кнопці в таблиці.</div>
@@ -258,7 +260,7 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
         <div class="model-grid">
           <div><label class="small">ID</label><input type="text" id="m_id" placeholder="claude-sonnet-4-6"></div>
           <div><label class="small">Назва</label><input type="text" id="m_label" placeholder="Sonnet 4.6"></div>
-          <div><label class="small">Provider</label><select id="m_provider"><option value="anthropic">anthropic</option><option value="xai">xai</option><option value="gemini">gemini</option><option value="mistral">mistral</option></select></div>
+          <div><label class="small">Provider</label><select id="m_provider"><option value="anthropic">anthropic</option><option value="xai">xai</option><option value="gemini">gemini</option><option value="mistral">mistral</option><option value="openai">openai</option><option value="deepseek">deepseek</option></select></div>
           <div><label class="small">Inp $/1M</label><input type="number" id="m_inp" step="0.01" value="3.00"></div>
           <div><label class="small">Out $/1M</label><input type="number" id="m_out" step="0.01" value="15.00"></div>
         </div>
@@ -270,7 +272,7 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
           </div>
         </div>
         <table id="models_table" style="margin-top:10px">
-          <tr><th>Порядок</th><th>ID</th><th>Назва</th><th>Provider</th><th>Inp</th><th>Out</th><th>Дії</th></tr>
+          <tr><th>Порядок</th><th>ID</th><th>Назва</th><th>Provider</th><th>Inp</th><th>Out</th><th>Вкл</th><th>Дії</th></tr>
           <tbody></tbody>
         </table>
         <div class="small" id="models_status" style="margin-top:6px"></div>
@@ -586,7 +588,8 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
       provider: document.getElementById('m_provider').value,
       inp: Number(document.getElementById('m_inp').value || 0),
       out: Number(document.getElementById('m_out').value || 0),
-      web_search: ['anthropic', 'gemini'].indexOf(document.getElementById('m_provider').value) !== -1
+      web_search: ['anthropic', 'gemini'].indexOf(document.getElementById('m_provider').value) !== -1,
+      enabled: true
     };
   }
   function clearForm(){
@@ -619,13 +622,15 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
     var html = '';
     for (var i=0;i<models.length;i++){
       var m = models[i];
-      html += '<tr draggable="true" data-row="'+i+'">'
+      var enabled = (m.enabled !== false);
+      html += '<tr draggable="true" data-row="'+i+'" style="opacity:'+(enabled?'1':'0.45')+'">'
         + '<td style="font-family:Roboto Mono,monospace;cursor:grab" class="drag-handle">☰</td>'
         + '<td style="font-family:Roboto Mono,monospace">'+esc(m.id)+'</td>'
         + '<td>'+esc(m.label)+'</td>'
         + '<td>'+esc(m.provider)+'</td>'
         + '<td>'+Number(m.inp).toFixed(2)+'</td>'
         + '<td>'+Number(m.out).toFixed(2)+'</td>'
+        + '<td style="text-align:center"><input type="checkbox" '+(enabled?'checked':'')+' data-toggle="'+i+'" title="Вмикати/вимикати модель"></td>'
         + '<td style="white-space:nowrap"><button type="button" class="btn-icon" title="Редагувати" data-edit="'+i+'">✏</button> <button type="button" class="btn-icon danger" title="Видалити" data-del="'+i+'">✕</button></td>'
         + '</tr>';
     }
@@ -909,10 +914,19 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
   // Прибрано обробку кліків на стрілки вверх/вниз
   tbody.addEventListener('click', function(e){
     var edit = e.target.getAttribute('data-edit');
-    var del = e.target.getAttribute('data-del');
+    var del  = e.target.getAttribute('data-del');
+    var tog  = e.target.getAttribute('data-toggle');
     if (edit !== null) startEdit(Number(edit));
     if (del !== null) {
       if (confirm('Видалити модель?')) { models.splice(Number(del),1); clearForm(); render(); saveModelsNow(); }
+    }
+    if (tog !== null) {
+      var idx = parseInt(tog, 10);
+      if (!isNaN(idx) && models[idx]) {
+        models[idx].enabled = e.target.checked;
+        render();
+        saveModelsNow();
+      }
     }
   });
 
