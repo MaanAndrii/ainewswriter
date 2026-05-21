@@ -67,7 +67,7 @@ function getDepth()   { return parseInt(document.getElementById('depthSlider').v
 function getTone()    { var el = document.querySelector('input[name="tone"]:checked'); return el ? el.value : 'neutral'; }
 function getFbStyle() { var el = document.getElementById('fbStyleSlider'); return el ? parseInt(el.value, 10) : 1; }
 function getModel()      { var el = document.getElementById('modelSelect'); return el ? el.value : 'claude-haiku-4-5-20251001'; }
-function getWebSearch()  { var el = document.getElementById('webSearch'); return el ? el.checked : false; }
+function getWebSearch()  { var meta = MODEL_META[getModel()] || {}; return !!(meta.web_search); }
 // ── Cost ──
 function calcCost(inputTok, outputTok, model) {
   var p = MODEL_PRICES[model] || { inp: 3.0, out: 15.0 };
@@ -143,25 +143,6 @@ syncActionButtons();
 document.getElementById('makeNews').addEventListener('change', syncActionButtons);
 document.getElementById('source').addEventListener('keydown', function (e) {
   if (e.ctrlKey && e.key === 'Enter') runProcess(null);
-});
-document.getElementById('modelSelect').addEventListener('change', function () {
-  var model = getModel();
-  var webSearchEl = document.getElementById('webSearch');
-  if (!webSearchEl) return;
-  var meta = MODEL_META[model] || {};
-  var provider = meta.provider || '';
-  var supportsSearch = provider === 'anthropic' || provider === 'gemini';
-  var cbRow = webSearchEl.closest('.cb-row');
-  if (!supportsSearch || meta.web_search === false) {
-    webSearchEl.checked = false;
-    webSearchEl.disabled = true;
-    cbRow.style.display = supportsSearch ? '' : 'none';
-  } else {
-    webSearchEl.disabled = false;
-    webSearchEl.checked = false;
-    cbRow.style.display = '';
-    cbRow.title = '';
-  }
 });
 function loadModelSettings() {
   var xhr = new XMLHttpRequest();
@@ -350,7 +331,7 @@ function loadGenerationById(id) {
       var raw = item.output_json;
       // Try to parse and render, otherwise show raw
       try {
-        var clean = raw.replace(/```[a-z]*/gi, '').replace(/[""]/g, '"').replace(/['']/g, "'").trim();
+        var clean = stripMarkdownWrapper(raw);
         var jsonText = extractFirstJsonObject(clean);
         if (jsonText) {
           var safeJsonText = jsonText.replace(/"(?:[^"\\]|\\.)*"/g, function(m) {
@@ -392,6 +373,17 @@ function hasMeaningfulContent(parsed, expectNews, expectFacebook) {
   if (expectFacebook && (parsed.facebook || '').trim() !== '') return true;
   return false;
 }
+function stripMarkdownWrapper(text) {
+  // Remove markdown code fences including variants like **```json, *```json, ```json, ```
+  var s = text
+    .replace(/\*{0,3}`{3}[a-zA-Z]*/g, '')  // opening: **```json  *```json  ```json
+    .replace(/`{3}\*{0,3}/g, '')             // closing: ```  ```**
+    .replace(/[""]/g, '"')
+    .replace(/['']/g, "'")
+    .trim();
+  return s;
+}
+
 function extractFirstJsonObject(text) {
   if (!text) return null;
   var inString = false;
@@ -519,7 +511,7 @@ function callAPI(prompt, model, webSearch, systemPromptOverride, expectNews, exp
 
       var raw = accText;
       raw = raw.replace(/<cite[^>]*>([\s\S]*?)<\/cite>/g, '$1').replace(/<cite[^>]*>/g, '').replace(/<\/cite>/g, '');
-      var clean = raw.replace(/```[a-z]*/gi, '').replace(/[""]/g, '"').replace(/['']/g, "'").trim();
+      var clean = stripMarkdownWrapper(raw);
       var jsonText = extractFirstJsonObject(clean);
 
       if (!jsonText) {
@@ -666,7 +658,6 @@ function resetAll() {
   document.getElementById('fbStyleHint').textContent = FB_STYLE_HINTS[1];
   syncFbStyleUI();
   syncActionButtons();
-  document.getElementById('webSearch').checked  = false;
   document.getElementById('depthSlider').value = 2;
   document.getElementById('depthLabel').textContent = DEPTH_LABELS[2];
   document.getElementById('depthHint').textContent  = DEPTH_HINTS[2];
