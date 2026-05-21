@@ -902,7 +902,7 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
   document.getElementById('m_add').addEventListener('click', function(){
     var m = readForm();
     if (!m.id || !m.label) { alert('Заповніть ID і назву моделі'); return; }
-    if (m.provider !== 'anthropic' && m.provider !== 'xai' && m.provider !== 'gemini' && m.provider !== 'mistral') { alert('Provider має бути anthropic, xai, gemini або mistral'); return; }
+    if (!['anthropic','xai','gemini','mistral','openai','deepseek'].includes(m.provider)) { alert('Provider має бути anthropic, xai, gemini, mistral, openai або deepseek'); return; }
     if (editIndex >= 0) models[editIndex] = m; else models.push(m);
     models = dedupeModels(models);
     clearForm();
