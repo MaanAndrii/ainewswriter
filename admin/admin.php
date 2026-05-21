@@ -270,7 +270,7 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
           </div>
         </div>
         <table id="models_table" style="margin-top:10px">
-          <tr><th>Порядок</th><th>ID</th><th>Назва</th><th>Provider</th><th>Inp</th><th>Out</th><th>Web</th><th>Дії</th></tr>
+          <tr><th>Порядок</th><th>ID</th><th>Назва</th><th>Provider</th><th>Inp</th><th>Out</th><th title="Авто веб-пошук">🔍</th><th>Дії</th></tr>
           <tbody></tbody>
         </table>
         <div class="small" id="models_status" style="margin-top:6px"></div>
@@ -626,7 +626,7 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
         + '<td>'+esc(m.provider)+'</td>'
         + '<td>'+Number(m.inp).toFixed(2)+'</td>'
         + '<td>'+Number(m.out).toFixed(2)+'</td>'
-        + '<td>'+(m.web_search ? 'так' : 'ні')+'</td>'
+        + '<td style="text-align:center" title="'+(m.web_search ? 'Авто-пошук увімкнено' : 'Без пошуку')+'">'+(m.web_search ? '🔍' : '—')+'</td>'
         + '<td style="white-space:nowrap"><button type="button" class="btn-icon" title="Редагувати" data-edit="'+i+'">✏</button> <button type="button" class="btn-icon danger" title="Видалити" data-del="'+i+'">✕</button></td>'
         + '</tr>';
     }
