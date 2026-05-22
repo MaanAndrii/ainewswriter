@@ -182,12 +182,6 @@ $promptsJsonPretty = file_exists($promptsFile) ? file_get_contents($promptsFile)
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Адмін-панель</title>
 <link rel="stylesheet" href="/public/assets/fonts/fonts.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.19/lib/codemirror.min.css">
-<style>
-.CodeMirror{border:1px solid #d8d0be;border-radius:4px;font-family:'Roboto Mono',monospace;font-size:12px;line-height:1.6;background:#fff;min-height:180px}
-.CodeMirror-scroll{min-height:180px}
-.cm-big .CodeMirror,.cm-big .CodeMirror-scroll{min-height:250px}
-</style>
 <style>
 *{box-sizing:border-box} body{margin:0;background:#f5f2eb;color:#1a1714;font-family:'Roboto',sans-serif}
 .hdr{background:#1a1714;color:#f5f2eb;padding:14px 28px;border-bottom:3px solid #b5401a;display:flex;justify-content:space-between;align-items:center}
@@ -321,10 +315,34 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
       <div class="small" style="margin-top:4px">Базові інструкції для моделі — роль редактора, мовні вимоги, формат відповіді.</div>
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;flex-wrap:wrap">
         <button type="button" class="btn-mini muted" id="restore_prompts_defaults_btn">Відновити за замовчуванням</button>
+        <button type="button" class="btn-mini muted" id="test_prompt_open_btn">&#9654; Тест промту</button>
         <button type="button" class="btn-mini" id="save_as_default_btn" title="Зберегти поточний промт та параметри як нові значення за замовчуванням (prompts.json)">&#9733; Зберегти як за замовчуванням</button>
         <button type="button" class="btn-mini danger" id="save_system_default_btn">Зберегти system prompt</button>
       </div>
       <div class="small" id="save_system_status" style="text-align:right;margin-top:4px"></div>
+
+      <!-- Панель тестування промту -->
+      <div id="test_prompt_panel" style="display:none;margin-top:16px;border-top:1px solid #e8e2d4;padding-top:14px">
+        <div class="ttl">Тест промту</div>
+        <div class="small" style="margin-bottom:8px">Введіть тестовий вхідний матеріал — система зібере повний промт з поточних (незбережених) полів форми і надішле запит до AI.</div>
+        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:8px">
+          <div style="flex:1;min-width:200px">
+            <label class="lbl" style="margin-top:0">Модель для тесту</label>
+            <select id="test_model_select" style="width:100%"></select>
+          </div>
+        </div>
+        <label class="lbl">Тестовий вхідний матеріал</label>
+        <textarea id="test_input_text" rows="5" placeholder="Вставте тут текст новини для тестування…"></textarea>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+          <button type="button" class="btn-mini muted" id="test_prompt_close_btn">Закрити</button>
+          <button type="button" class="btn-mini danger" id="test_prompt_run_btn">&#9654; Запустити тест</button>
+        </div>
+        <div id="test_prompt_result" style="margin-top:12px;display:none">
+          <div class="ttl" style="margin-bottom:6px">Відповідь AI</div>
+          <div id="test_prompt_status" class="small" style="margin-bottom:6px"></div>
+          <pre id="test_prompt_output" style="background:#faf8f3;border:1px solid #e8e2d4;border-radius:4px;padding:12px;font-family:'Roboto Mono',monospace;font-size:11px;white-space:pre-wrap;word-break:break-all;max-height:400px;overflow-y:auto"></pre>
+        </div>
+      </div>
     </div>
 
     <div class="card" style="margin-top:14px">
@@ -595,7 +613,6 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
   </section>
 
 </div>
-<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.19/lib/codemirror.min.js"></script>
 <script>
 var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
 (function(){
@@ -744,32 +761,11 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
     };
   }
 
-  // Ініціалізація CodeMirror для системного промту
-  var syspromptEditor = null;
-  var syspromptTextarea = document.getElementById('system_default_override');
-  if (syspromptTextarea && typeof CodeMirror !== 'undefined') {
-    syspromptEditor = CodeMirror.fromTextArea(syspromptTextarea, {
-      lineNumbers: true,
-      lineWrapping: true,
-      mode: 'text',
-      indentWithTabs: false,
-      extraKeys: {}
-    });
-    syspromptEditor.getWrapperElement().classList.add('cm-big');
-  }
-  function getSyspromptValue() {
-    return syspromptEditor ? syspromptEditor.getValue() : (syspromptTextarea ? syspromptTextarea.value : '');
-  }
-  function setSyspromptValue(val) {
-    if (syspromptEditor) syspromptEditor.setValue(val || '');
-    else if (syspromptTextarea) syspromptTextarea.value = val || '';
-  }
-
   // Зберегти system prompt
   var saveSystemBtn = document.getElementById('save_system_default_btn');
   if (saveSystemBtn) {
     saveSystemBtn.addEventListener('click', function(){
-      var text = getSyspromptValue().trim();
+      var text = (document.getElementById('system_default_override').value || '').trim();
       var status = document.getElementById('save_system_status');
       if (!text) { status.textContent = 'System prompt не може бути порожнім'; return; }
       if (!confirm('Зберегти system prompt?')) return;
@@ -833,7 +829,7 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
       if (!confirm('Скинути system prompt та всі складові user-промту до значень за замовчуванням?')) return;
       apiPost({action:'restore_default_prompts'}, function(err, d){
         if (err) { alert('Не вдалося відновити: ' + err.message); return; }
-        if (d && d.prompt_system) setSyspromptValue(d.prompt_system);
+        if (d && d.prompt_system) document.getElementById('system_default_override').value = d.prompt_system;
         if (d && d.prompt_profiles && d.prompt_profiles.user) {
           var p = d.prompt_profiles.user;
           function setVal(id, v) { var el = document.getElementById(id); if (el) el.value = v || ''; }
@@ -882,6 +878,108 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
           return;
         }
         status.textContent = '★ Збережено як за замовчуванням ✔';
+      });
+    });
+  }
+
+  // ── Тестування промту ───────────────────────────────────────────────────────
+  function fillTestModelSelect() {
+    var sel = document.getElementById('test_model_select');
+    if (!sel) return;
+    sel.innerHTML = '';
+    (models || []).filter(function(m){ return m.enabled !== false; }).forEach(function(m){
+      var opt = document.createElement('option');
+      opt.value = m.id;
+      opt.textContent = (m.label || m.id) + ' (' + (m.provider || '') + ')';
+      sel.appendChild(opt);
+    });
+  }
+
+  function buildTestUserPrompt(sampleText) {
+    function val(id) { var el = document.getElementById(id); return el ? (el.value || '').trim() : ''; }
+    function lines(id) { return val(id).split(/\n?---\n?/).map(function(s){ return s.trim(); }).filter(Boolean); }
+    var jsonRule  = val('pf_json_rule')  || 'Поверни ВИКЛЮЧНО валідний JSON-об\'єкт UTF-8 без тексту поза JSON.';
+    var reqTitle  = val('pf_requirements_title') || 'ПАРАМЕТРИ ЦЬОГО ЗАПУСКУ:';
+    var newsReq   = val('pf_news_requirements_on')
+      .replace('{{headlines_count}}', '2')
+      .replace('{{leads_count}}', '1')
+      .replace('{{lead_min_chars}}', '120')
+      .replace('{{lead_max_chars}}', '160')
+      .replace('{{article_max_chars}}', '800');
+    var toneKeys  = ['neutral','intriguing','emotional','seo'];
+    var toneVals  = lines('pf_tone_short_rules');
+    var toneShort = toneVals[0] || 'рівний нейтральний тон';
+    var tonePrefix= (val('pf_tone_prefix') || 'Тональність: {{tone_short}}.').replace('{{tone_short}}', toneShort).replace('{{tone_label}}', 'Нейтральний');
+    var depthVals = lines('pf_depth_short_rules');
+    var depthShort= depthVals[1] || 'помірний рерайт';
+    var depthPfx  = (val('pf_depth_prefix') || 'Глибина: {{depth_short}}.').replace('{{depth_short}}', depthShort).replace('{{depth_text}}', 'Помірний');
+    var inputTitle= val('pf_input_title') || 'ВХІДНИЙ МАТЕРІАЛ:';
+    var fields    = val('pf_news_fields_on') || '"headlines":[{"text":"..."}],"leads":[{"text":"..."}],"article":"..."';
+
+    var parts = [jsonRule, '', reqTitle];
+    if (newsReq) parts.push(newsReq);
+    parts.push('Поля JSON: {' + fields + '}');
+    parts.push(tonePrefix);
+    parts.push(depthPfx);
+    parts.push('', inputTitle, sampleText);
+    return parts.join('\n');
+  }
+
+  var testOpenBtn  = document.getElementById('test_prompt_open_btn');
+  var testCloseBtn = document.getElementById('test_prompt_close_btn');
+  var testRunBtn   = document.getElementById('test_prompt_run_btn');
+  var testPanel    = document.getElementById('test_prompt_panel');
+
+  if (testOpenBtn && testPanel) {
+    testOpenBtn.addEventListener('click', function(){
+      testPanel.style.display = testPanel.style.display === 'none' ? '' : 'none';
+      if (testPanel.style.display !== 'none') fillTestModelSelect();
+    });
+  }
+  if (testCloseBtn && testPanel) {
+    testCloseBtn.addEventListener('click', function(){ testPanel.style.display = 'none'; });
+  }
+  if (testRunBtn) {
+    testRunBtn.addEventListener('click', function(){
+      var sampleText = (document.getElementById('test_input_text').value || '').trim();
+      var modelId    = (document.getElementById('test_model_select').value || '').trim();
+      var sysPrompt  = (document.getElementById('system_default_override').value || '').trim();
+      var resultEl   = document.getElementById('test_prompt_result');
+      var statusEl   = document.getElementById('test_prompt_status');
+      var outputEl   = document.getElementById('test_prompt_output');
+
+      if (!sampleText) { alert('Введіть тестовий вхідний матеріал'); return; }
+      if (!modelId)    { alert('Виберіть модель'); return; }
+      if (!sysPrompt)  { alert('System prompt порожній'); return; }
+
+      var userPrompt = buildTestUserPrompt(sampleText);
+
+      resultEl.style.display = '';
+      statusEl.textContent = 'Відправляю запит…';
+      outputEl.textContent  = '';
+      testRunBtn.disabled   = true;
+
+      apiPost({
+        action:        'test_prompt',
+        system_prompt: sysPrompt,
+        user_prompt:   userPrompt,
+        model_id:      modelId
+      }, function(err, d){
+        testRunBtn.disabled = false;
+        if (err) {
+          statusEl.innerHTML = '<span style="color:#A32D2D">Помилка: ' + err.message + '</span>';
+          return;
+        }
+        var inp  = (d.usage && d.usage.input_tokens)  || 0;
+        var out  = (d.usage && d.usage.output_tokens) || 0;
+        statusEl.textContent = 'Готово ✔  Вхід: ' + inp + ' токенів · Вихід: ' + out + ' токенів';
+        // prettify if valid JSON
+        var text = d.text || '';
+        try {
+          var parsed = JSON.parse(text.replace(/^```json\s*/,'').replace(/```\s*$/,'').trim());
+          text = JSON.stringify(parsed, null, 2);
+        } catch(e) {}
+        outputEl.textContent = text;
       });
     });
   }
