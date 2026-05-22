@@ -144,6 +144,16 @@ document.getElementById('makeNews').addEventListener('change', syncActionButtons
 document.getElementById('source').addEventListener('keydown', function (e) {
   if (e.ctrlKey && e.key === 'Enter') runProcess(null);
 });
+var PROV_VISUAL = {
+  anthropic: { name: 'Claude',  abbr: 'Cl',  color: '#c27a52' },
+  xai:       { name: 'xAI',    abbr: 'xAI', color: '#1a1a1a' },
+  gemini:    { name: 'Gemini', abbr: 'G',   color: '#4285f4' },
+  mistral:   { name: 'Mistral',abbr: 'Ms',  color: '#e07020' },
+  openai:    { name: 'OpenAI', abbr: 'OA',  color: '#10a37f' },
+  deepseek:  { name: 'Deep',   abbr: 'DS',  color: '#4d6bfe' },
+  groq:      { name: 'Groq',   abbr: 'Gq',  color: '#f55036' }
+};
+
 function loadModelSettings() {
   var xhr = new XMLHttpRequest();
   xhr.open('GET', '/api/settings', true);
@@ -154,24 +164,76 @@ function loadModelSettings() {
     if (!d.models || !d.models.length) return;
     MODEL_PRICES = {};
     MODEL_META = {};
-    var select = document.getElementById('modelSelect');
-    if (!select) return;
-    select.innerHTML = '';
+
+    var byProvider = {};
     for (var i = 0; i < d.models.length; i++) {
       var m = d.models[i];
       MODEL_PRICES[m.id] = { inp: Number(m.inp || 3), out: Number(m.out || 15), label: m.label || m.id };
       MODEL_META[m.id] = { provider: m.provider || '' };
       if (m.enabled === false || m.enabled === 0 || m.enabled === 'false') continue;
-      var opt = document.createElement('option');
-      opt.value = m.id;
-      opt.textContent = m.label || m.id;
-      select.appendChild(opt);
+      var p = m.provider || 'unknown';
+      if (!byProvider[p]) byProvider[p] = [];
+      byProvider[p].push(m);
     }
-    if (d.default_model) select.value = d.default_model;
+
     SYSTEM_PROMPT_DEFAULT = d.prompt_system || '';
     SYSTEM_PROMPT_CUSTOM = '';
     PROMPT_PROFILES = d.prompt_profiles || {};
-    document.getElementById('modelSelect').dispatchEvent(new Event('change'));
+
+    var provPicker  = document.getElementById('providerPicker');
+    var mdlCatalog  = document.getElementById('modelCatalog');
+    var hiddenSel   = document.getElementById('modelSelect');
+    if (!provPicker || !mdlCatalog || !hiddenSel) return;
+
+    var provKeys = Object.keys(byProvider);
+    if (!provKeys.length) return;
+
+    var initModel    = d.default_model || '';
+    var initProvider = (initModel && MODEL_META[initModel]) ? MODEL_META[initModel].provider : '';
+    if (!initProvider || !byProvider[initProvider]) {
+      initProvider = provKeys[0];
+      initModel    = byProvider[initProvider][0].id;
+    }
+    hiddenSel.value = initModel;
+
+    function renderModels(prov, selId) {
+      mdlCatalog.innerHTML = '';
+      (byProvider[prov] || []).forEach(function(mdl) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'mdl-btn' + (mdl.id === selId ? ' active' : '');
+        btn.textContent = mdl.label || mdl.id;
+        btn.addEventListener('click', function() {
+          hiddenSel.value = mdl.id;
+          mdlCatalog.querySelectorAll('.mdl-btn').forEach(function(b) { b.classList.remove('active'); });
+          btn.classList.add('active');
+        });
+        mdlCatalog.appendChild(btn);
+      });
+    }
+
+    var curProvider = initProvider;
+    provPicker.innerHTML = '';
+    provKeys.forEach(function(prov) {
+      var vis = PROV_VISUAL[prov] || { name: prov, abbr: prov.slice(0,2).toUpperCase(), color: '#888888' };
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'prov-btn' + (prov === initProvider ? ' active' : '');
+      btn.innerHTML =
+        '<div class="prov-icon" style="background:' + vis.color + '">' + vis.abbr + '</div>' +
+        '<div class="prov-name">' + vis.name + '</div>';
+      btn.addEventListener('click', function() {
+        if (curProvider === prov) return;
+        curProvider = prov;
+        provPicker.querySelectorAll('.prov-btn').forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        var first = (byProvider[prov] || [])[0];
+        if (first) { hiddenSel.value = first.id; renderModels(prov, first.id); }
+      });
+      provPicker.appendChild(btn);
+    });
+
+    renderModels(initProvider, initModel);
   };
   xhr.send();
 }
@@ -196,7 +258,7 @@ function normalizePromptProfile(profile) {
   return profile;
 }
 // ── Build prompt ──
-function buildPrompt(source, sourceRef, extra, fbCheck, fbStyle, tone, makeNews, depth, regenInstruction, webSearch) {
+function buildPrompt(source, sourceRef, extra, fbCheck, fbStyle, tone, makeNews, depth, regenInstruction) {
   var profile = (PROMPT_PROFILES && PROMPT_PROFILES.user) ? normalizePromptProfile(PROMPT_PROFILES.user) : {};
   if (!profile || !profile.json_rule || !profile.requirements_title) {
     throw new Error('Prompt profile is not configured. Open admin and save prompt JSON.');
@@ -207,7 +269,6 @@ function buildPrompt(source, sourceRef, extra, fbCheck, fbStyle, tone, makeNews,
 
   var extraBlock = extra            ? '\n\nДодаткові інструкції / контекст:\n' + extra : '';
   var regenBlock = regenInstruction ? '\n\nІНСТРУКЦІЇ ДЛЯ ПЕРЕГЕНЕРАЦІЇ:\n' + regenInstruction : '';
-  // refBlock видалено — джерело вказується через source_ref_rule в параметрах
   var refPrompt  = sourceRef
     ? String(profile.source_ref_rule || '').replaceAll('{{source_ref}}', sourceRef)
     : '';
@@ -422,13 +483,12 @@ function extractFirstJsonObject(text) {
   }
   return null;
 }
-function callAPI(prompt, model, webSearch, systemPromptOverride, expectNews, expectFacebook, attempt, resolve, reject) {
+function callAPI(prompt, model, systemPromptOverride, expectNews, expectFacebook, attempt, resolve, reject) {
   attempt = attempt || 1;
   var extra = attempt > 1 ? '\n\nКРИТИЧНО: поверни ВИКЛЮЧНО валідний JSON, починай з {' : '';
   var body = JSON.stringify({
     prompt: prompt + extra,
     model: model,
-    webSearch: webSearch ? 1 : 0,
     systemPromptOverride: systemPromptOverride || '',
     source: getVal('source'),
     sourceRef: getVal('sourceRef'),
@@ -520,7 +580,7 @@ function callAPI(prompt, model, webSearch, systemPromptOverride, expectNews, exp
       var jsonText = extractFirstJsonObject(clean);
 
       if (!jsonText) {
-        if (attempt < 3) return callAPI(prompt, model, webSearch, systemPromptOverride, expectNews, expectFacebook, attempt + 1, resolve, reject);
+        if (attempt < 3) return callAPI(prompt, model, systemPromptOverride, expectNews, expectFacebook, attempt + 1, resolve, reject);
         return reject(new Error('Модель не повернула JSON. Спробуй ще раз.'));
       }
 
@@ -531,7 +591,7 @@ function callAPI(prompt, model, webSearch, systemPromptOverride, expectNews, exp
         var parsed = JSON.parse(safeJsonText);
 
         if (!hasMeaningfulContent(parsed, expectNews, expectFacebook)) {
-          if (attempt < 3) return callAPI(prompt, model, webSearch, systemPromptOverride, expectNews, expectFacebook, attempt + 1, resolve, reject);
+          if (attempt < 3) return callAPI(prompt, model, systemPromptOverride, expectNews, expectFacebook, attempt + 1, resolve, reject);
           return reject(new Error('Модель повернула порожній JSON без тексту. Спробуй іншу модель.'));
         }
 
@@ -542,7 +602,7 @@ function callAPI(prompt, model, webSearch, systemPromptOverride, expectNews, exp
         parsed._model = model;
         resolve(parsed);
       } catch(e) {
-        if (attempt < 3) return callAPI(prompt, model, webSearch, systemPromptOverride, expectNews, expectFacebook, attempt + 1, resolve, reject);
+        if (attempt < 3) return callAPI(prompt, model, systemPromptOverride, expectNews, expectFacebook, attempt + 1, resolve, reject);
         reject(new Error('Помилка розбору відповіді. Спробуй ще раз.'));
       }
     }
@@ -566,9 +626,8 @@ function showPromptPreview(){
   var tone      = getTone();
   var fbStyle   = getFbStyle();
   var depth     = getDepth();
-  var webSearch = getWebSearch();
   if (!source) { alert('Додайте вхідний матеріал'); return; }
-  var prompt = buildPrompt(source, sourceRef, extra, fbCheck, fbStyle, tone, makeNews, depth, null, webSearch);
+  var prompt = buildPrompt(source, sourceRef, extra, fbCheck, fbStyle, tone, makeNews, depth, null);
   var sys = normalizePromptText(SYSTEM_PROMPT_CUSTOM || SYSTEM_PROMPT_DEFAULT);
   document.getElementById('promptPreview').textContent = (sys ? (sys + '\n\n') : '') + prompt;
 
@@ -597,10 +656,9 @@ function runProcess(regenInstruction) {
   } else {
     setBtn('btnRegen', 'spinRegen', 'regenBtnLbl', true, 'Перегенеровую\u2026');
   }
-  var webSearch = getWebSearch();
-  var prompt = buildPrompt(source, sourceRef, extra, fbCheck, fbStyle, tone, makeNews, depth, regenInstruction, webSearch);
+  var prompt = buildPrompt(source, sourceRef, extra, fbCheck, fbStyle, tone, makeNews, depth, regenInstruction);
   var systemPromptOverride = getVal('systemPromptOverride');
-  callAPI(prompt, model, webSearch, systemPromptOverride, makeNews, fbCheck, 1,
+  callAPI(prompt, model, systemPromptOverride, makeNews, fbCheck, 1,
     function (data) {
       if (data._usage) showCost(data._usage, data._model || model, data._webSearchUsed);
       copyStore = {}; copyIdx = 0;
@@ -630,8 +688,8 @@ function doDeepen() {
   if (btn) btn.disabled = true;
   if (sp)  sp.style.display = 'block';
   var prompt = buildPrompt(source, sourceRef, extra, fbCheck, fbStyle, tone, makeNews, depth,
-    'Текст недостатньо перероблено. Зроби значно глибший рерайт — переформулюй більшість речень, змінюй структуру, використовуй синоніми. Мінімум 20% змін.', getWebSearch());
-  callAPI(prompt, model, getWebSearch(), getVal('systemPromptOverride'), makeNews, fbCheck, 1,
+    'Текст недостатньо перероблено. Зроби значно глибший рерайт — переформулюй більшість речень, змінюй структуру, використовуй синоніми. Мінімум 20% змін.');
+  callAPI(prompt, model, getVal('systemPromptOverride'), makeNews, fbCheck, 1,
     function (data) {
       if (data._usage) showCost(data._usage, data._model || model, data._webSearchUsed);
       copyStore = {}; copyIdx = 0;

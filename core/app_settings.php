@@ -11,6 +11,8 @@ define('MAX_ENV_FILE_SIZE', 1024 * 1024); // 1MB safety cap
 define('MAX_SETTINGS_FILE_SIZE', 1024 * 1024); // 1MB safety cap
 define('PROMPTS_FILE', APP_ROOT . '/prompts.json');
 define('SQLITE_DB_FILE', APP_ROOT . '/storage/requests.db');
+define('PROVIDERS_ALL',        ['anthropic', 'xai', 'gemini', 'mistral', 'openai', 'deepseek', 'groq']);
+define('PROVIDERS_OAI_COMPAT', ['xai', 'mistral', 'openai', 'deepseek', 'groq']);
 
 $_tz = getenv('APP_TIMEZONE') ?: '';
 if ($_tz === '') {
@@ -286,7 +288,7 @@ function normalize_settings($settings) {
     $normModels[] = [
       'id' => trim((string)$m['id']),
       'label' => trim((string)($m['label'] ?? $m['id'])),
-      'provider' => in_array(($m['provider'] ?? ''), ['anthropic', 'xai', 'gemini', 'mistral', 'openai', 'deepseek', 'groq'], true) ? $m['provider'] : 'anthropic',
+      'provider' => in_array(($m['provider'] ?? ''), PROVIDERS_ALL, true) ? $m['provider'] : 'anthropic',
       'inp' => (float)($m['inp'] ?? 3.0),
       'out' => (float)($m['out'] ?? 15.0),
       'enabled' => isset($m['enabled']) ? (bool)$m['enabled'] : true,
