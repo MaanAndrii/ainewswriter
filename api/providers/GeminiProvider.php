@@ -18,7 +18,7 @@ class GeminiProvider extends BaseProvider
 
         $body = [
             'contents'        => [['parts' => [['text' => $text]]]],
-            'generationConfig' => ['temperature' => 0.4, 'maxOutputTokens' => 4000],
+            'generationConfig' => ['temperature' => 0.4, 'maxOutputTokens' => 8000],
         ];
 
         if ($this->useWebSearch) {

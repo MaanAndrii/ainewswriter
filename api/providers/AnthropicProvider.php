@@ -16,7 +16,7 @@ class AnthropicProvider extends BaseProvider
     {
         $body = [
             'model'      => $model,
-            'max_tokens' => 4000,
+            'max_tokens' => 8000,
             'messages'   => [['role' => 'user', 'content' => $prompt]],
         ];
 
