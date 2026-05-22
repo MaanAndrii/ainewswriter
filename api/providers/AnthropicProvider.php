@@ -12,11 +12,11 @@ class AnthropicProvider extends BaseProvider
         }
     }
 
-    public function buildRequest(string $model, string $prompt, string $systemPrompt, bool $streamMode): array
+    public function buildRequest(string $model, string $prompt, string $systemPrompt, bool $streamMode, int $maxTokens = 8000): array
     {
         $body = [
             'model'      => $model,
-            'max_tokens' => 8000,
+            'max_tokens' => $maxTokens,
             'messages'   => [['role' => 'user', 'content' => $prompt]],
         ];
 

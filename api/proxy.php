@@ -201,7 +201,11 @@ try {
     send_json(500, ['error' => $e->getMessage()]);
 }
 
-$req = $providerObj->buildRequest($model, $prompt, $system_prompt, $streamMode);
+$maxTokens = (int)($modelMeta['max_tokens'] ?? 8000);
+if ($maxTokens < 256)  $maxTokens = 256;
+if ($maxTokens > 32000) $maxTokens = 32000;
+
+$req = $providerObj->buildRequest($model, $prompt, $system_prompt, $streamMode, $maxTokens);
 
 $payload = json_encode($req['body'], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
 if ($payload === false) send_json(500, ['error' => 'Не вдалось сформувати запит до API (encoding error)']);
@@ -310,7 +314,7 @@ if ($streamMode) {
     // самим лімітом не допоможе; залишаємо обробку фронтенду.
     $streamOutputTokens = (int)($state['usage']['output_tokens'] ?? 0);
     if (!is_valid_json_response($accText) && $streamOutputTokens < 7500) {
-        $retryReq2 = $providerObj->buildRequest($model, build_retry_prompt($prompt), $system_prompt, false);
+        $retryReq2 = $providerObj->buildRequest($model, build_retry_prompt($prompt), $system_prompt, false, $maxTokens);
         $retryPl2  = json_encode($retryReq2['body'], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
         if ($retryPl2 !== false) {
             $rc = do_non_stream_call($retryReq2['url'], $retryReq2['headers'], $retryPl2);
@@ -410,7 +414,7 @@ $nsOutputTokens = (int)($usage['output_tokens'] ?? 0);
 if (!is_valid_json_response($text) && $nsOutputTokens < 7500) {
     $retryPromptNS = build_retry_prompt($prompt);
     for ($retryAttempt = 0; $retryAttempt < 2; $retryAttempt++) {
-        $nsReq = $providerObj->buildRequest($model, $retryPromptNS, $system_prompt, false);
+        $nsReq = $providerObj->buildRequest($model, $retryPromptNS, $system_prompt, false, $maxTokens);
         $nsPl  = json_encode($nsReq['body'], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
         if ($nsPl === false) break;
         $nsCall = do_non_stream_call($nsReq['url'], $nsReq['headers'], $nsPl);

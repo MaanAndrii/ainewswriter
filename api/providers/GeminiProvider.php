@@ -12,13 +12,13 @@ class GeminiProvider extends BaseProvider
         }
     }
 
-    public function buildRequest(string $model, string $prompt, string $systemPrompt, bool $streamMode): array
+    public function buildRequest(string $model, string $prompt, string $systemPrompt, bool $streamMode, int $maxTokens = 8000): array
     {
         $text = ($systemPrompt !== '' ? $systemPrompt . "\n\n" : '') . $prompt;
 
         $body = [
             'contents'        => [['parts' => [['text' => $text]]]],
-            'generationConfig' => ['temperature' => 0.4, 'maxOutputTokens' => 8000],
+            'generationConfig' => ['temperature' => 0.4, 'maxOutputTokens' => $maxTokens],
         ];
 
         if ($this->useWebSearch) {
