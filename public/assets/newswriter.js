@@ -242,7 +242,6 @@ function buildPrompt(source, sourceRef, extra, fbCheck, fbStyle, tone, makeNews,
     + '- ' + toneInstr + '\n'
     + '- ' + depthInstr + '\n'
     + (refPrompt ? ('- ' + refPrompt + '\n') : '')
-    + '- ' + (webSearch ? (profile.websearch_on || '') : (profile.websearch_off || '')) + '\n'
     + (fbLine ? ('- ' + fbLine + '\n') : '')
     + extraBlock + regenBlock + '\n'
     + (profile.input_title || 'ВХІДНИЙ МАТЕРІАЛ:') + '\n' + source;
@@ -533,7 +532,7 @@ function callAPI(prompt, model, webSearch, systemPromptOverride, expectNews, exp
 
         if (!hasMeaningfulContent(parsed, expectNews, expectFacebook)) {
           if (attempt < 3) return callAPI(prompt, model, webSearch, systemPromptOverride, expectNews, expectFacebook, attempt + 1, resolve, reject);
-          return reject(new Error('Модель повернула порожній JSON без тексту. Спробуй іншу модель або увімкни web-пошук.'));
+          return reject(new Error('Модель повернула порожній JSON без тексту. Спробуй іншу модель.'));
         }
 
         if (metaReceived) {
