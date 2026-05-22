@@ -3,18 +3,15 @@ var MODEL_PRICES = {};
 var MODEL_META = {};
 var DEPTH_LABELS = ['Мінімальна', 'Помірна', 'Глибока', 'Повна переробка'];
 var DEPTH_HINTS  = ['Зберігай формулювання', 'Перефразуй ~50%', 'Переписуй більшість', 'Лише факти'];
-var DEPTH_INSTR  = [];
 var DEPTH_THRESH = [10, 25, 45, 65];
 var FB_STYLE_LABELS = ['Серйозний', 'Нейтральний', 'Дружній', 'Гумористичний'];
 var FB_STYLE_HINTS  = ['Стримано, без емодзі', 'Збалансований тон', 'Теплий тон, помірні емодзі', 'Легкий гумор без токсичності'];
-var FB_STYLE_RULES  = [];
 var TONE_LABELS  = { neutral: 'Нейтральний', intriguing: 'Інтригуючий', emotional: 'Емоційний', seo: 'SEO' };
 var TONE_COLORS  = { 'Нейтральний': '#4a7fa5', 'Інтригуючий': '#8a4a9a', 'Емоційний': '#b5401a', 'SEO': '#2a5a30' };
 var currentSource = '';
 var copyStore = {};
 var copyIdx = 0;
 var SYSTEM_PROMPT_DEFAULT = '';
-var SYSTEM_PROMPT_CUSTOM = '';
 var PROMPT_PROFILES = {};
 // ── Copy ──
 function storeCopy(text) {
@@ -67,7 +64,6 @@ function getDepth()   { return parseInt(document.getElementById('depthSlider').v
 function getTone()    { var el = document.querySelector('input[name="tone"]:checked'); return el ? el.value : 'neutral'; }
 function getFbStyle() { var el = document.getElementById('fbStyleSlider'); return el ? parseInt(el.value, 10) : 1; }
 function getModel()      { var el = document.getElementById('modelSelect'); return el ? el.value : 'claude-haiku-4-5-20251001'; }
-function getWebSearch()  { var meta = MODEL_META[getModel()] || {}; return meta.provider === 'anthropic' || meta.provider === 'gemini'; }
 // ── Cost ──
 function calcCost(inputTok, outputTok, model) {
   var p = MODEL_PRICES[model] || { inp: 3.0, out: 15.0 };
@@ -177,7 +173,6 @@ function loadModelSettings() {
     }
 
     SYSTEM_PROMPT_DEFAULT = d.prompt_system || '';
-    SYSTEM_PROMPT_CUSTOM = '';
     PROMPT_PROFILES = d.prompt_profiles || {};
 
     var provPicker  = document.getElementById('providerPicker');
@@ -288,13 +283,12 @@ function buildPrompt(source, sourceRef, extra, fbCheck, fbStyle, tone, makeNews,
       .replaceAll('{{lead_min_chars}}', String(profile.lead_min_chars || 150))
       .replaceAll('{{lead_max_chars}}', String(profile.lead_max_chars || 180));
   }
-  var fbStyleRules = Array.isArray(profile.fb_style_rules) ? profile.fb_style_rules : FB_STYLE_RULES;
+  var fbStyleRules = Array.isArray(profile.fb_style_rules) ? profile.fb_style_rules : [];
   var fbStyleRule = fbStyleRules[fbStyle] || fbStyleRules[1] || '';
   var fbLine = fbCheck
     ? String(profile.fb_checkbox_on || '').replaceAll('{{facebook_max_chars}}', String(profile.facebook_max_chars || 400)).replaceAll('{{fb_style_rule}}', fbStyleRule)
     : '';
-  var fbWhenDisabled = String(profile.facebook_when_disabled || 'omit');
-  var jsonFacebookField = fbCheck ? '\n  "facebook": "..."' : (fbWhenDisabled === 'empty_string' ? '\n  "facebook": ""' : '');
+  var jsonFacebookField = fbCheck ? '\n  "facebook": "..."' : '';
   var jsonNewsFields = newsFields;
   if (jsonNewsFields && jsonFacebookField) jsonNewsFields = jsonNewsFields.replace(/[,\s]+$/, '') + ',';
   return profile.json_rule + '\n{\n' + jsonNewsFields + jsonFacebookField + '\n}\n\n'
@@ -628,7 +622,7 @@ function showPromptPreview(){
   var depth     = getDepth();
   if (!source) { alert('Додайте вхідний матеріал'); return; }
   var prompt = buildPrompt(source, sourceRef, extra, fbCheck, fbStyle, tone, makeNews, depth, null);
-  var sys = normalizePromptText(SYSTEM_PROMPT_CUSTOM || SYSTEM_PROMPT_DEFAULT);
+  var sys = normalizePromptText(SYSTEM_PROMPT_DEFAULT);
   document.getElementById('promptPreview').textContent = (sys ? (sys + '\n\n') : '') + prompt;
 
   document.getElementById('promptModal').style.display = 'flex';

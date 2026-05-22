@@ -493,14 +493,6 @@ function list_prompt_backups() {
     return $result;
 }
 
-function mask_val($value) {
-  $value = (string)$value;
-  if ($value === '') return 'не задано';
-  $len = strlen($value);
-  if ($len <= 10) return str_repeat('*', $len);
-  return substr($value, 0, 5) . str_repeat('*', max(0, $len - 10)) . substr($value, -5);
-}
-
 function validate_prompt_profiles_payload($profiles) {
   if (!is_array($profiles)) return 'profiles must be object';
   $user = $profiles['user'] ?? null;

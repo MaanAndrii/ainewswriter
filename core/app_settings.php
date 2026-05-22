@@ -347,6 +347,14 @@ function save_settings($settings) {
   }
 }
 
+function mask_val($value) {
+  $value = (string)$value;
+  if ($value === '') return 'не задано';
+  $len = strlen($value);
+  if ($len <= 10) return str_repeat('*', $len);
+  return substr($value, 0, 5) . str_repeat('*', max(0, $len - 10)) . substr($value, -5);
+}
+
 function resolve_system_prompt($settings) {
   return trim((string)($settings['system_prompt_default_override'] ?? $settings['system_prompt_custom'] ?? get_default_system_prompt()));
 }
