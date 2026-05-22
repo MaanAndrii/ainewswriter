@@ -61,6 +61,12 @@ if ($method === 'POST') {
       echo json_encode(['ok' => false, 'error' => 'profiles must be object']);
       exit;
     }
+    $profileErr = validate_prompt_profiles_payload($profiles);
+    if ($profileErr !== null) {
+      http_response_code(400);
+      echo json_encode(['ok' => false, 'error' => $profileErr]);
+      exit;
+    }
     $current = load_settings();
     save_settings([
       'models' => $current['models'] ?? [],
@@ -171,6 +177,12 @@ if ($method === 'POST') {
     if (!is_array($prompts)) {
       http_response_code(400);
       echo json_encode(['ok' => false, 'error' => 'prompts must be object']);
+      exit;
+    }
+    $promptsErr = validate_prompts_json_payload($prompts);
+    if ($promptsErr !== null) {
+      http_response_code(400);
+      echo json_encode(['ok' => false, 'error' => $promptsErr]);
       exit;
     }
     if (save_prompts_to_json($prompts)) {
@@ -420,6 +432,47 @@ function mask_val($value) {
   $len = strlen($value);
   if ($len <= 10) return str_repeat('*', $len);
   return substr($value, 0, 5) . str_repeat('*', max(0, $len - 10)) . substr($value, -5);
+}
+
+function validate_prompt_profiles_payload($profiles) {
+  if (!is_array($profiles)) return 'profiles must be object';
+  $user = $profiles['user'] ?? null;
+  if (!is_array($user)) return 'profiles.user must be object';
+
+  $requiredStrings = [
+    'json_rule', 'requirements_title', 'input_title',
+    'news_fields_on', 'news_requirements_on',
+    'tone_prefix', 'depth_prefix', 'source_ref_rule',
+  ];
+  foreach ($requiredStrings as $field) {
+    $v = $user[$field] ?? '';
+    if (!is_string($v) || trim($v) === '') return "profiles.user.$field is required and must be non-empty";
+  }
+
+  $tsr = $user['tone_short_rules'] ?? null;
+  if (!is_array($tsr)) return 'profiles.user.tone_short_rules must be object';
+  $toneKeys = ['neutral', 'intriguing', 'emotional', 'seo'];
+  foreach ($toneKeys as $k) {
+    if (!isset($tsr[$k]) || trim((string)$tsr[$k]) === '') return "profiles.user.tone_short_rules.$k is required";
+  }
+
+  return null;
+}
+
+function validate_prompts_json_payload($prompts) {
+  if (!is_array($prompts)) return 'prompts must be object';
+
+  $sp = $prompts['system_prompts'] ?? null;
+  if (!is_array($sp)) return 'prompts.system_prompts must be object';
+  $spDefault = $sp['default'] ?? '';
+  if (!is_string($spDefault) || trim($spDefault) === '') return 'prompts.system_prompts.default must be non-empty string';
+
+  $up = $prompts['user_prompt_profiles'] ?? null;
+  if (!is_array($up)) return 'prompts.user_prompt_profiles must be object';
+  $upDefault = $up['default'] ?? null;
+  if (!is_array($upDefault)) return 'prompts.user_prompt_profiles.default must be object';
+
+  return null;
 }
 
 function validate_models_payload($models) {
