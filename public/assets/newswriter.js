@@ -485,6 +485,7 @@ function callAPI(prompt, model, webSearch, systemPromptOverride, expectNews, exp
           try {
             var ev = JSON.parse(payload);
             if (ev.error) { reader.cancel(); reject(new Error(ev.error)); return; }
+            if (ev.reset) { accText = ''; streamBox.textContent = ''; continue; }
             if (ev.meta) { metaReceived = ev; continue; }
             if (ev.delta != null) {
               accText += ev.delta;
