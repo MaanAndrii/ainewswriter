@@ -198,7 +198,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:8px 10px;
 .btn-mini{background:#1a1714;color:#fff;border:0;border-radius:4px;padding:7px 10px;font-family:'Roboto Mono',monospace;font-size:10px;cursor:pointer}
 .btn-mini.danger{background:#8e2d16}.btn-mini.muted{background:#8a8278}
 tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
-.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}.tab-btn{background:#fff;border:1px solid #d8d0be;border-radius:4px;padding:8px 12px;font-family:'Roboto Mono',monospace;font-size:11px;cursor:pointer}.tab-btn.active{background:#1a1714;color:#fff;border-color:#1a1714}.tab-pane{display:none}.tab-pane.active{display:block}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}.tab-btn{background:#fff;border:1px solid #d8d0be;border-radius:4px;padding:8px 12px;font-family:'Roboto Mono',monospace;font-size:11px;cursor:pointer}.tab-btn.active{background:#1a1714;color:#fff;border-color:#1a1714}.tab-pane{display:none;grid-column:1 / -1}.tab-pane.active{display:block}
 @media(max-width:980px){.wrap{grid-template-columns:1fr}}
 .btn-icon{background:none;border:1px solid #d8d0be;border-radius:3px;padding:2px 7px;font-size:14px;cursor:pointer;line-height:1.2;color:#1a1714;transition:all .1s;vertical-align:middle}
 .btn-icon:hover{background:#f5f2eb;border-color:#8a8278}
