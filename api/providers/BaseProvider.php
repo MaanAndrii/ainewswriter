@@ -20,7 +20,8 @@ abstract class BaseProvider
         string $model,
         string $prompt,
         string $systemPrompt,
-        bool   $streamMode
+        bool   $streamMode,
+        int    $maxTokens = 8000
     ): array;
 
     /**

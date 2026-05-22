@@ -40,7 +40,7 @@ class OpenAICompatProvider extends BaseProvider
         }
     }
 
-    public function buildRequest(string $model, string $prompt, string $systemPrompt, bool $streamMode): array
+    public function buildRequest(string $model, string $prompt, string $systemPrompt, bool $streamMode, int $maxTokens = 8000): array
     {
         $messages = [];
         if ($systemPrompt !== '') {
@@ -51,7 +51,7 @@ class OpenAICompatProvider extends BaseProvider
         $body = [
             'model'      => $model,
             'messages'   => $messages,
-            'max_tokens' => 8000,
+            'max_tokens' => $maxTokens,
             'temperature' => 0.4,
         ];
 

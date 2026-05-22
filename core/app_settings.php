@@ -289,9 +289,10 @@ function normalize_settings($settings) {
       'id' => trim((string)$m['id']),
       'label' => trim((string)($m['label'] ?? $m['id'])),
       'provider' => in_array(($m['provider'] ?? ''), PROVIDERS_ALL, true) ? $m['provider'] : 'anthropic',
-      'inp' => (float)($m['inp'] ?? 3.0),
-      'out' => (float)($m['out'] ?? 15.0),
-      'enabled' => isset($m['enabled']) ? (bool)$m['enabled'] : true,
+      'inp'        => (float)($m['inp'] ?? 3.0),
+      'out'        => (float)($m['out'] ?? 15.0),
+      'max_tokens' => isset($m['max_tokens']) ? max(256, min(32000, (int)$m['max_tokens'])) : 8000,
+      'enabled'    => isset($m['enabled']) ? (bool)$m['enabled'] : true,
     ];
   }
   if ($models && !$normModels) $normModels = $defaults['models'];

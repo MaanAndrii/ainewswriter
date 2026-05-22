@@ -194,7 +194,7 @@ textarea.big{min-height:250px}.btn{margin-top:14px;background:#b5401a;color:#fff
 .small{font-size:12px;color:#8a8278}.ok{color:#2a5a30;font-size:13px;margin-top:8px}.err{color:#b5401a;font-size:13px;margin-top:8px}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}.pill{display:inline-block;background:#faf8f3;border:1px solid #e8e2d4;padding:6px 9px;border-radius:4px;font-family:'Roboto Mono',monospace;font-size:11px}
 table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:8px 10px;border-bottom:1px solid #eee;text-align:left}th{font-family:'Roboto Mono',monospace;font-size:10px;color:#8a8278;text-transform:uppercase}
-.model-grid{display:grid;grid-template-columns:2fr 1.3fr .8fr .8fr .8fr;gap:8px;align-items:end}
+.model-grid{display:grid;grid-template-columns:2fr 1.3fr .8fr .8fr .8fr .8fr;gap:8px;align-items:end}
 .btn-mini{background:#1a1714;color:#fff;border:0;border-radius:4px;padding:7px 10px;font-family:'Roboto Mono',monospace;font-size:10px;cursor:pointer}
 .btn-mini.danger{background:#8e2d16}.btn-mini.muted{background:#8a8278}
 tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
@@ -272,6 +272,7 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
           <div><label class="small">Provider</label><select id="m_provider"><?php foreach (PROVIDERS_ALL as $p) echo '<option value="'.htmlspecialchars($p).'">'.htmlspecialchars($p).'</option>'; ?></select></div>
           <div><label class="small">Inp $/1M</label><input type="number" id="m_inp" step="0.01" value="3.00"></div>
           <div><label class="small">Out $/1M</label><input type="number" id="m_out" step="0.01" value="15.00"></div>
+          <div><label class="small">Max tokens</label><input type="number" id="m_max_tokens" step="256" min="256" max="32000" value="8000"></div>
         </div>
         <div class="row" style="margin-top:8px">
           <div></div>
@@ -281,7 +282,7 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
           </div>
         </div>
         <table id="models_table" style="margin-top:10px">
-          <tr><th>Порядок</th><th>ID</th><th>Назва</th><th>Provider</th><th>Inp</th><th>Out</th><th>Вкл</th><th>Дії</th></tr>
+          <tr><th>Порядок</th><th>ID</th><th>Назва</th><th>Provider</th><th>Inp</th><th>Out</th><th>Max tok</th><th>Вкл</th><th>Дії</th></tr>
           <tbody></tbody>
         </table>
         <div class="small" id="models_status" style="margin-top:6px"></div>
@@ -593,8 +594,9 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
       id: document.getElementById('m_id').value.trim(),
       label: document.getElementById('m_label').value.trim(),
       provider: document.getElementById('m_provider').value,
-      inp: Number(document.getElementById('m_inp').value || 0),
-      out: Number(document.getElementById('m_out').value || 0),
+      inp:        Number(document.getElementById('m_inp').value || 0),
+      out:        Number(document.getElementById('m_out').value || 0),
+      max_tokens: Math.max(256, Math.min(32000, parseInt(document.getElementById('m_max_tokens').value || 8000, 10))),
       enabled: editIndex >= 0 && models[editIndex] ? (models[editIndex].enabled !== false) : true
     };
   }
@@ -604,7 +606,7 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
     document.getElementById('m_provider').value = 'anthropic';
     document.getElementById('m_inp').value = '3.00';
     document.getElementById('m_out').value = '15.00';
-    // web_search auto-set by provider
+    document.getElementById('m_max_tokens').value = '8000';
     editIndex = -1;
     document.getElementById('m_add').textContent = 'Додати модель';
     document.getElementById('m_cancel').style.display = 'none';
@@ -636,6 +638,7 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
         + '<td>'+esc(m.provider)+'</td>'
         + '<td>'+Number(m.inp).toFixed(2)+'</td>'
         + '<td>'+Number(m.out).toFixed(2)+'</td>'
+        + '<td>'+(m.max_tokens||8000)+'</td>'
         + '<td style="text-align:center"><input type="checkbox" '+(enabled?'checked':'')+' data-toggle="'+i+'" title="Вмикати/вимикати модель"></td>'
         + '<td style="white-space:nowrap"><button type="button" class="btn-icon" title="Редагувати" data-edit="'+i+'">✏</button> <button type="button" class="btn-icon danger" title="Видалити" data-del="'+i+'">✕</button></td>'
         + '</tr>';
@@ -906,6 +909,7 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
     document.getElementById('m_provider').value = m.provider || 'anthropic';
     document.getElementById('m_inp').value = Number(m.inp || 0).toFixed(2);
     document.getElementById('m_out').value = Number(m.out || 0).toFixed(2);
+    document.getElementById('m_max_tokens').value = m.max_tokens || 8000;
     // web_search auto-set by provider on save
     document.getElementById('m_add').textContent = 'Зберегти зміни';
     document.getElementById('m_cancel').style.display = 'inline-block';
