@@ -306,7 +306,10 @@ if ($streamMode) {
     }
 
     // ── Серверна валідація JSON + повторна спроба (streaming) ───────────────
-    if (!is_valid_json_response($accText)) {
+    // Якщо output_tokens досяг ліміту — відповідь обрізана, повтор з тим
+    // самим лімітом не допоможе; залишаємо обробку фронтенду.
+    $streamOutputTokens = (int)($state['usage']['output_tokens'] ?? 0);
+    if (!is_valid_json_response($accText) && $streamOutputTokens < 7500) {
         $retryReq2 = $providerObj->buildRequest($model, build_retry_prompt($prompt), $system_prompt, false);
         $retryPl2  = json_encode($retryReq2['body'], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
         if ($retryPl2 !== false) {
@@ -402,7 +405,9 @@ $webSearch   = $parsed['web_search_used'];
 if (trim($text) === '') send_json(500, ['error' => 'Порожня відповідь від API']);
 
 // ── Серверна валідація JSON + повторна спроба (non-streaming) ────────────────
-if (!is_valid_json_response($text)) {
+// Пропускаємо повтор якщо модель обрізала відповідь через ліміт токенів.
+$nsOutputTokens = (int)($usage['output_tokens'] ?? 0);
+if (!is_valid_json_response($text) && $nsOutputTokens < 7500) {
     $retryPromptNS = build_retry_prompt($prompt);
     for ($retryAttempt = 0; $retryAttempt < 2; $retryAttempt++) {
         $nsReq = $providerObj->buildRequest($model, $retryPromptNS, $system_prompt, false);
