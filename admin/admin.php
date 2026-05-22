@@ -106,6 +106,9 @@ function collect_system_info() {
     'xai'       => !empty(trim((string)($keys['xai'] ?? ''))),
     'gemini'    => !empty(trim((string)($keys['gemini'] ?? ''))),
     'mistral'   => !empty(trim((string)($keys['mistral'] ?? ''))),
+    'openai'    => !empty(trim((string)($keys['openai'] ?? ''))),
+    'deepseek'  => !empty(trim((string)($keys['deepseek'] ?? ''))),
+    'groq'      => !empty(trim((string)($keys['groq'] ?? ''))),
   ];
 
   // Моделі
@@ -243,7 +246,11 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
     <div class="card">
       <div class="ttl">Налаштування AI</div>
       <form onsubmit="return false;">
-        <label class="lbl">API ключі</label>
+        <label class="lbl" style="display:flex;align-items:center;gap:8px;cursor:pointer" id="keys_toggle">
+          API ключі
+          <span id="keys_toggle_icon" style="display:inline-block;width:20px;height:20px;line-height:20px;text-align:center;background:#e8e3dc;border-radius:4px;font-size:14px;font-weight:700;color:#5a544c;user-select:none">+</span>
+        </label>
+        <div id="keys_section" style="display:none">
         <table id="keys_table">
           <tr><th>Provider</th><th>API ключ</th><th>Дія</th></tr>
           <tr><td>anthropic</td><td><input type="password" id="k_anthropic" data-mask="<?= htmlspecialchars(mask_val($runtimeKeys['anthropic'] ?? '')) ?>" placeholder="<?= htmlspecialchars(mask_val($runtimeKeys['anthropic'] ?? '')) ?>"></td><td><button type="button" class="btn-mini" data-save-key="anthropic">Зберегти</button></td></tr>
@@ -252,15 +259,17 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
           <tr><td>mistral</td><td><input type="password" id="k_mistral" data-mask="<?= htmlspecialchars(mask_val($runtimeKeys['mistral'] ?? '')) ?>" placeholder="<?= htmlspecialchars(mask_val($runtimeKeys['mistral'] ?? '')) ?>"></td><td><button type="button" class="btn-mini" data-save-key="mistral">Зберегти</button></td></tr>
           <tr><td>openai</td><td><input type="password" id="k_openai" data-mask="<?= htmlspecialchars(mask_val($runtimeKeys['openai'] ?? '')) ?>" placeholder="<?= htmlspecialchars(mask_val($runtimeKeys['openai'] ?? '')) ?>"></td><td><button type="button" class="btn-mini" data-save-key="openai">Зберегти</button></td></tr>
           <tr><td>deepseek</td><td><input type="password" id="k_deepseek" data-mask="<?= htmlspecialchars(mask_val($runtimeKeys['deepseek'] ?? '')) ?>" placeholder="<?= htmlspecialchars(mask_val($runtimeKeys['deepseek'] ?? '')) ?>"></td><td><button type="button" class="btn-mini" data-save-key="deepseek">Зберегти</button></td></tr>
+          <tr><td>groq</td><td><input type="password" id="k_groq" data-mask="<?= htmlspecialchars(mask_val($runtimeKeys['groq'] ?? '')) ?>" placeholder="<?= htmlspecialchars(mask_val($runtimeKeys['groq'] ?? '')) ?>"></td><td><button type="button" class="btn-mini" data-save-key="groq">Зберегти</button></td></tr>
         </table>
         <div class="small" id="keys_status" style="margin-top:6px"></div>
         <div class="small" style="margin-bottom:10px">Ключі записуються у файл env: <code><?= htmlspecialchars(get_env_file_path()) ?></code>. Збереження ключа відбувається одразу по кнопці в таблиці.</div>
+        </div>
 
         <label class="lbl">Моделі AI</label>
         <div class="model-grid">
           <div><label class="small">ID</label><input type="text" id="m_id" placeholder="claude-sonnet-4-6"></div>
           <div><label class="small">Назва</label><input type="text" id="m_label" placeholder="Sonnet 4.6"></div>
-          <div><label class="small">Provider</label><select id="m_provider"><option value="anthropic">anthropic</option><option value="xai">xai</option><option value="gemini">gemini</option><option value="mistral">mistral</option><option value="openai">openai</option><option value="deepseek">deepseek</option></select></div>
+          <div><label class="small">Provider</label><select id="m_provider"><option value="anthropic">anthropic</option><option value="xai">xai</option><option value="gemini">gemini</option><option value="mistral">mistral</option><option value="openai">openai</option><option value="deepseek">deepseek</option><option value="groq">groq</option></select></div>
           <div><label class="small">Inp $/1M</label><input type="number" id="m_inp" step="0.01" value="3.00"></div>
           <div><label class="small">Out $/1M</label><input type="number" id="m_out" step="0.01" value="15.00"></div>
         </div>
@@ -484,7 +493,7 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
           <label style="font-size:13px"><input type="checkbox" id="imp_profiles" checked> Параметри промтів та профілі</label>
           <label style="font-size:13px"><input type="checkbox" id="imp_system" checked> System prompt (override)</label>
           <label style="font-size:13px"><input type="checkbox" id="imp_prompts_json" checked> prompts.json (системні шаблони)</label>
-          <label style="font-size:13px"><input type="checkbox" id="imp_api_keys" checked> API-ключі (anthropic, xai, gemini, mistral)</label>
+          <label style="font-size:13px"><input type="checkbox" id="imp_api_keys" checked> API-ключі (anthropic, xai, gemini, mistral, openai, deepseek, groq)</label>
         </div>
 
         <button type="button" class="btn-mini danger" id="btn_import_confirm">Застосувати імпорт</button>
@@ -559,6 +568,9 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
         <tr><td style="padding:5px 0;color:#8a8278">xAI (Grok)</td><td><?= yn($si['keys']['xai'], '✓ задано', '✗ не задано') ?></td></tr>
         <tr><td style="padding:5px 0;color:#8a8278">Google Gemini</td><td><?= yn($si['keys']['gemini'], '✓ задано', '✗ не задано') ?></td></tr>
         <tr><td style="padding:5px 0;color:#8a8278">Mistral</td><td><?= yn($si['keys']['mistral'], '✓ задано', '✗ не задано') ?></td></tr>
+        <tr><td style="padding:5px 0;color:#8a8278">OpenAI</td><td><?= yn($si['keys']['openai'] ?? false, '✓ задано', '✗ не задано') ?></td></tr>
+        <tr><td style="padding:5px 0;color:#8a8278">DeepSeek</td><td><?= yn($si['keys']['deepseek'] ?? false, '✓ задано', '✗ не задано') ?></td></tr>
+        <tr><td style="padding:5px 0;color:#8a8278">Groq</td><td><?= yn($si['keys']['groq'] ?? false, '✓ задано', '✗ не задано') ?></td></tr>
       </table>
     </div>
 
@@ -845,6 +857,17 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
     });
   }
 
+  var keysToggle = document.getElementById('keys_toggle');
+  var keysSection = document.getElementById('keys_section');
+  var keysToggleIcon = document.getElementById('keys_toggle_icon');
+  if (keysToggle && keysSection) {
+    keysToggle.addEventListener('click', function() {
+      var open = keysSection.style.display !== 'none';
+      keysSection.style.display = open ? 'none' : '';
+      keysToggleIcon.textContent = open ? '+' : '−';
+    });
+  }
+
   var keyBtns = document.querySelectorAll('[data-save-key]');
   for (var iKey = 0; iKey < keyBtns.length; iKey++) {
     keyBtns[iKey].addEventListener('click', function(){
@@ -902,7 +925,7 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
   document.getElementById('m_add').addEventListener('click', function(){
     var m = readForm();
     if (!m.id || !m.label) { alert('Заповніть ID і назву моделі'); return; }
-    if (!['anthropic','xai','gemini','mistral','openai','deepseek'].includes(m.provider)) { alert('Provider має бути anthropic, xai, gemini, mistral, openai або deepseek'); return; }
+    if (!['anthropic','xai','gemini','mistral','openai','deepseek','groq'].includes(m.provider)) { alert('Provider має бути anthropic, xai, gemini, mistral, openai, deepseek або groq'); return; }
     if (editIndex >= 0) models[editIndex] = m; else models.push(m);
     models = dedupeModels(models);
     clearForm();

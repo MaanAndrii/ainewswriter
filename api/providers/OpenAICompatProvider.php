@@ -14,6 +14,7 @@ class OpenAICompatProvider extends BaseProvider
         'mistral'  => 'https://api.mistral.ai/v1/chat/completions',
         'openai'   => 'https://api.openai.com/v1/chat/completions',
         'deepseek' => 'https://api.deepseek.com/v1/chat/completions',
+        'groq'     => 'https://api.groq.com/openai/v1/chat/completions',
     ];
 
     private const ENV_NAMES = [
@@ -21,6 +22,7 @@ class OpenAICompatProvider extends BaseProvider
         'mistral'  => 'MISTRAL_API_KEY',
         'openai'   => 'OPENAI_API_KEY',
         'deepseek' => 'DEEPSEEK_API_KEY',
+        'groq'     => 'GROQ_API_KEY',
     ];
 
     // Провайдери що підтримують stream_options.include_usage

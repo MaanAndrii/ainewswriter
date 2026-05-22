@@ -43,7 +43,7 @@ if ($method === 'POST') {
   if ($action === 'save_key') {
     $provider = (string)($data['provider'] ?? '');
     $value = trim((string)($data['value'] ?? ''));
-    $map = ['anthropic' => 'ANTHROPIC_API_KEY', 'xai' => 'XAI_API_KEY', 'gemini' => 'GEMINI_API_KEY', 'mistral' => 'MISTRAL_API_KEY', 'openai' => 'OPENAI_API_KEY', 'deepseek' => 'DEEPSEEK_API_KEY'];
+    $map = ['anthropic' => 'ANTHROPIC_API_KEY', 'xai' => 'XAI_API_KEY', 'gemini' => 'GEMINI_API_KEY', 'mistral' => 'MISTRAL_API_KEY', 'openai' => 'OPENAI_API_KEY', 'deepseek' => 'DEEPSEEK_API_KEY', 'groq' => 'GROQ_API_KEY'];
     if (!isset($map[$provider]) || $value === '') {
       http_response_code(400);
       echo json_encode(['ok' => false, 'error' => 'Invalid provider or empty value']);
@@ -255,7 +255,7 @@ if ($method === 'POST') {
 
     $importedKeys = 0;
     if (isset($payload['api_keys']) && is_array($payload['api_keys'])) {
-      $keyMap = ['anthropic' => 'ANTHROPIC_API_KEY', 'xai' => 'XAI_API_KEY', 'gemini' => 'GEMINI_API_KEY', 'mistral' => 'MISTRAL_API_KEY', 'openai' => 'OPENAI_API_KEY', 'deepseek' => 'DEEPSEEK_API_KEY'];
+      $keyMap = ['anthropic' => 'ANTHROPIC_API_KEY', 'xai' => 'XAI_API_KEY', 'gemini' => 'GEMINI_API_KEY', 'mistral' => 'MISTRAL_API_KEY', 'openai' => 'OPENAI_API_KEY', 'deepseek' => 'DEEPSEEK_API_KEY', 'groq' => 'GROQ_API_KEY'];
       $toSave = [];
       foreach ($keyMap as $provider => $envKey) {
         $val = trim((string)($payload['api_keys'][$provider] ?? ''));
@@ -393,6 +393,7 @@ echo json_encode([
     'mistral' => mask_val($keys['mistral'] ?? ''),
     'openai' => mask_val($keys['openai'] ?? ''),
     'deepseek' => mask_val($keys['deepseek'] ?? ''),
+    'groq' => mask_val($keys['groq'] ?? ''),
   ],
   'default_model' => $models[0]['id'] ?? null,
   'prompt_system' => resolve_system_prompt($settings),
@@ -422,7 +423,7 @@ function mask_val($value) {
 }
 
 function validate_models_payload($models) {
-  $allowedProviders = ['anthropic', 'xai', 'gemini', 'mistral', 'openai', 'deepseek'];
+  $allowedProviders = ['anthropic', 'xai', 'gemini', 'mistral', 'openai', 'deepseek', 'groq'];
   $seenIds = [];
   foreach ($models as $idx => $m) {
     if (!is_array($m)) return 'model[' . $idx . '] must be object';
