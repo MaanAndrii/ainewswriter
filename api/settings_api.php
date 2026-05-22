@@ -423,7 +423,7 @@ function mask_val($value) {
 }
 
 function validate_models_payload($models) {
-  $allowedProviders = ['anthropic', 'xai', 'gemini', 'mistral', 'openai', 'deepseek', 'groq'];
+  $allowedProviders = PROVIDERS_ALL;
   $seenIds = [];
   foreach ($models as $idx => $m) {
     if (!is_array($m)) return 'model[' . $idx . '] must be object';

@@ -269,7 +269,7 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
         <div class="model-grid">
           <div><label class="small">ID</label><input type="text" id="m_id" placeholder="claude-sonnet-4-6"></div>
           <div><label class="small">Назва</label><input type="text" id="m_label" placeholder="Sonnet 4.6"></div>
-          <div><label class="small">Provider</label><select id="m_provider"><option value="anthropic">anthropic</option><option value="xai">xai</option><option value="gemini">gemini</option><option value="mistral">mistral</option><option value="openai">openai</option><option value="deepseek">deepseek</option><option value="groq">groq</option></select></div>
+          <div><label class="small">Provider</label><select id="m_provider"><?php foreach (PROVIDERS_ALL as $p) echo '<option value="'.htmlspecialchars($p).'">'.htmlspecialchars($p).'</option>'; ?></select></div>
           <div><label class="small">Inp $/1M</label><input type="number" id="m_inp" step="0.01" value="3.00"></div>
           <div><label class="small">Out $/1M</label><input type="number" id="m_out" step="0.01" value="15.00"></div>
         </div>
@@ -580,6 +580,7 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
 
 </div>
 <script>
+var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
 (function(){
   var models = <?= json_encode($settings['models'] ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
   var editIndex = -1;
@@ -913,7 +914,7 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
   document.getElementById('m_add').addEventListener('click', function(){
     var m = readForm();
     if (!m.id || !m.label) { alert('Заповніть ID і назву моделі'); return; }
-    if (!['anthropic','xai','gemini','mistral','openai','deepseek','groq'].includes(m.provider)) { alert('Provider має бути anthropic, xai, gemini, mistral, openai, deepseek або groq'); return; }
+    if (!ALLOWED_PROVIDERS.includes(m.provider)) { alert('Невідомий провайдер: ' + m.provider); return; }
     if (editIndex >= 0) models[editIndex] = m; else models.push(m);
     models = dedupeModels(models);
     clearForm();
