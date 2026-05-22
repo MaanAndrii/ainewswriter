@@ -261,6 +261,7 @@ function get_runtime_keys() {
     'mistral'   => env_str('MISTRAL_API_KEY', ''),
     'openai'    => env_str('OPENAI_API_KEY', ''),
     'deepseek'  => env_str('DEEPSEEK_API_KEY', ''),
+    'groq'      => env_str('GROQ_API_KEY', ''),
   ];
 }
 
@@ -287,7 +288,7 @@ function normalize_settings($settings) {
     $normModels[] = [
       'id' => trim((string)$m['id']),
       'label' => trim((string)($m['label'] ?? $m['id'])),
-      'provider' => in_array(($m['provider'] ?? ''), ['anthropic', 'xai', 'gemini', 'mistral', 'openai', 'deepseek'], true) ? $m['provider'] : 'anthropic',
+      'provider' => in_array(($m['provider'] ?? ''), ['anthropic', 'xai', 'gemini', 'mistral', 'openai', 'deepseek', 'groq'], true) ? $m['provider'] : 'anthropic',
       'inp' => (float)($m['inp'] ?? 3.0),
       'out' => (float)($m['out'] ?? 15.0),
       'enabled' => isset($m['enabled']) ? (bool)$m['enabled'] : true,

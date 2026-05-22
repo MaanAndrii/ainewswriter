@@ -146,7 +146,7 @@ function build_retry_prompt(string $originalPrompt): string
 
 function make_provider(string $provider, array $keys, bool $useWebSearch): BaseProvider
 {
-    $oaiProviders = ['xai', 'mistral', 'openai', 'deepseek'];
+    $oaiProviders = ['xai', 'mistral', 'openai', 'deepseek', 'groq'];
 
     return match (true) {
         $provider === 'anthropic'             => new AnthropicProvider($keys['anthropic'] ?? '', $useWebSearch),
