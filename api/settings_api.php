@@ -194,6 +194,43 @@ if ($method === 'POST') {
     exit;
   }
 
+  if ($action === 'get_prompt_backups') {
+    echo json_encode(['ok' => true, 'backups' => list_prompt_backups()], JSON_UNESCAPED_UNICODE);
+    exit;
+  }
+
+  if ($action === 'restore_prompt_backup') {
+    $name = preg_replace('/[^a-z0-9_]/i', '', (string)($data['name'] ?? ''));
+    $dir  = dirname(__DIR__) . '/storage/prompt_backups';
+    $file = "$dir/$name.json";
+    if (!file_exists($file)) {
+      http_response_code(404);
+      echo json_encode(['ok' => false, 'error' => 'Бекап не знайдено']);
+      exit;
+    }
+    $raw  = file_get_contents($file);
+    $parsed = json_decode($raw, true);
+    if (!is_array($parsed)) {
+      http_response_code(422);
+      echo json_encode(['ok' => false, 'error' => 'Файл бекапу пошкоджений (невалідний JSON)']);
+      exit;
+    }
+    $err = validate_prompts_json_payload($parsed);
+    if ($err !== null) {
+      http_response_code(422);
+      echo json_encode(['ok' => false, 'error' => 'Файл бекапу пошкоджений: ' . $err]);
+      exit;
+    }
+    // зберігаємо через save_prompts_to_json — це зробить ще один бекап поточного стану
+    if (!save_prompts_to_json($parsed)) {
+      http_response_code(500);
+      echo json_encode(['ok' => false, 'error' => 'Не вдалося записати prompts.json']);
+      exit;
+    }
+    echo json_encode(['ok' => true], JSON_UNESCAPED_UNICODE);
+    exit;
+  }
+
   // Export settings (no API keys)
   if ($action === 'export_settings') {
     $settings = load_settings();
@@ -415,15 +452,45 @@ echo json_encode([
 ], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
 
 /**
- * Збереження prompts.json
+ * Збереження prompts.json з автоматичним бекапом
  */
 function save_prompts_to_json($prompts) {
     $promptsFile = dirname(__DIR__) . '/prompts.json';
     $json = json_encode($prompts, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-    if ($json === false) {
-        return false;
-    }
+    if ($json === false) return false;
+    backup_prompts_file($promptsFile);
     return file_put_contents($promptsFile, $json, LOCK_EX) !== false;
+}
+
+function backup_prompts_file($promptsFile) {
+    if (!file_exists($promptsFile)) return;
+    $dir = dirname(__DIR__) . '/storage/prompt_backups';
+    if (!is_dir($dir)) @mkdir($dir, 0755, true);
+    $ts  = date('Ymd_His');
+    @copy($promptsFile, "$dir/prompts_$ts.json");
+    // зберігаємо тільки 5 останніх бекапів
+    $files = glob("$dir/prompts_*.json") ?: [];
+    if (count($files) > 5) {
+        sort($files);
+        foreach (array_slice($files, 0, count($files) - 5) as $old) @unlink($old);
+    }
+}
+
+function list_prompt_backups() {
+    $dir   = dirname(__DIR__) . '/storage/prompt_backups';
+    $files = glob("$dir/prompts_*.json") ?: [];
+    rsort($files);
+    $result = [];
+    foreach ($files as $f) {
+        $name = basename($f, '.json');
+        if (!preg_match('/^prompts_(\d{8})_(\d{6})$/', $name, $m)) continue;
+        $ts = mktime(
+            (int)substr($m[2], 0, 2), (int)substr($m[2], 2, 2), (int)substr($m[2], 4, 2),
+            (int)substr($m[1], 4, 2), (int)substr($m[1], 6, 2), (int)substr($m[1], 0, 4)
+        );
+        $result[] = ['name' => $name, 'ts' => $ts, 'label' => date('d.m.Y H:i:s', $ts)];
+    }
+    return $result;
 }
 
 function mask_val($value) {

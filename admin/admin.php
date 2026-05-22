@@ -182,6 +182,12 @@ $promptsJsonPretty = file_exists($promptsFile) ? file_get_contents($promptsFile)
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Адмін-панель</title>
 <link rel="stylesheet" href="/public/assets/fonts/fonts.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.19/lib/codemirror.min.css">
+<style>
+.CodeMirror{border:1px solid #d8d0be;border-radius:4px;font-family:'Roboto Mono',monospace;font-size:12px;line-height:1.6;background:#fff;min-height:180px}
+.CodeMirror-scroll{min-height:180px}
+.cm-big .CodeMirror,.cm-big .CodeMirror-scroll{min-height:250px}
+</style>
 <style>
 *{box-sizing:border-box} body{margin:0;background:#f5f2eb;color:#1a1714;font-family:'Roboto',sans-serif}
 .hdr{background:#1a1714;color:#f5f2eb;padding:14px 28px;border-bottom:3px solid #b5401a;display:flex;justify-content:space-between;align-items:center}
@@ -319,6 +325,15 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
         <button type="button" class="btn-mini danger" id="save_system_default_btn">Зберегти system prompt</button>
       </div>
       <div class="small" id="save_system_status" style="text-align:right;margin-top:4px"></div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div class="ttl" style="margin-bottom:0">Резервні копії prompts.json</div>
+        <button type="button" class="btn-mini muted" id="backups_reload_btn">&#8635; Оновити</button>
+      </div>
+      <div id="backups_list" style="margin-top:10px;font-family:'Roboto Mono',monospace;font-size:11px;color:#8a8278">Завантаження…</div>
+      <div class="small" id="backup_restore_status" style="margin-top:6px"></div>
     </div>
 
     <div class="card" style="margin-top:14px">
@@ -580,6 +595,7 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
   </section>
 
 </div>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.19/lib/codemirror.min.js"></script>
 <script>
 var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
 (function(){
@@ -728,11 +744,32 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
     };
   }
 
+  // Ініціалізація CodeMirror для системного промту
+  var syspromptEditor = null;
+  var syspromptTextarea = document.getElementById('system_default_override');
+  if (syspromptTextarea && typeof CodeMirror !== 'undefined') {
+    syspromptEditor = CodeMirror.fromTextArea(syspromptTextarea, {
+      lineNumbers: true,
+      lineWrapping: true,
+      mode: 'text',
+      indentWithTabs: false,
+      extraKeys: {}
+    });
+    syspromptEditor.getWrapperElement().classList.add('cm-big');
+  }
+  function getSyspromptValue() {
+    return syspromptEditor ? syspromptEditor.getValue() : (syspromptTextarea ? syspromptTextarea.value : '');
+  }
+  function setSyspromptValue(val) {
+    if (syspromptEditor) syspromptEditor.setValue(val || '');
+    else if (syspromptTextarea) syspromptTextarea.value = val || '';
+  }
+
   // Зберегти system prompt
   var saveSystemBtn = document.getElementById('save_system_default_btn');
   if (saveSystemBtn) {
     saveSystemBtn.addEventListener('click', function(){
-      var text = (document.getElementById('system_default_override').value || '').trim();
+      var text = getSyspromptValue().trim();
       var status = document.getElementById('save_system_status');
       if (!text) { status.textContent = 'System prompt не може бути порожнім'; return; }
       if (!confirm('Зберегти system prompt?')) return;
@@ -796,7 +833,7 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
       if (!confirm('Скинути system prompt та всі складові user-промту до значень за замовчуванням?')) return;
       apiPost({action:'restore_default_prompts'}, function(err, d){
         if (err) { alert('Не вдалося відновити: ' + err.message); return; }
-        if (d && d.prompt_system) document.getElementById('system_default_override').value = d.prompt_system;
+        if (d && d.prompt_system) setSyspromptValue(d.prompt_system);
         if (d && d.prompt_profiles && d.prompt_profiles.user) {
           var p = d.prompt_profiles.user;
           function setVal(id, v) { var el = document.getElementById(id); if (el) el.value = v || ''; }
@@ -848,6 +885,51 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
       });
     });
   }
+
+  // ── Резервні копії prompts.json ────────────────────────────────────────────
+  function renderBackups(backups) {
+    var el = document.getElementById('backups_list');
+    if (!el) return;
+    if (!backups || !backups.length) {
+      el.textContent = 'Резервних копій ще немає. Вони з\'являться після першого збереження prompts.json.';
+      return;
+    }
+    var html = '<table style="width:100%;border-collapse:collapse;font-size:11px">';
+    html += '<tr><th style="text-align:left;padding:4px 8px 4px 0;border-bottom:1px solid #e8e2d4;color:#8a8278">Дата і час</th>';
+    html += '<th style="text-align:left;padding:4px 0;border-bottom:1px solid #e8e2d4;color:#8a8278">Дія</th></tr>';
+    backups.forEach(function(b) {
+      html += '<tr>';
+      html += '<td style="padding:6px 8px 6px 0;color:#1a1714">' + b.label + '</td>';
+      html += '<td style="padding:6px 0"><button type="button" class="btn-mini muted" data-restore="' + b.name + '">Відновити</button></td>';
+      html += '</tr>';
+    });
+    html += '</table>';
+    el.innerHTML = html;
+    el.querySelectorAll('[data-restore]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var name = btn.getAttribute('data-restore');
+        var status = document.getElementById('backup_restore_status');
+        if (!confirm('Відновити prompts.json зі збереженої копії ' + name + '?\n\nПоточний стан буде збережено як новий бекап.')) return;
+        apiPost({action:'restore_prompt_backup', name: name}, function(err) {
+          if (err) { status.innerHTML = '<span style="color:#A32D2D">Помилка: ' + err.message + '</span>'; return; }
+          status.textContent = 'Відновлено ✔ · Перезавантажте сторінку щоб побачити зміни';
+          loadBackups();
+        });
+      });
+    });
+  }
+  function loadBackups() {
+    apiPost({action:'get_prompt_backups'}, function(err, d) {
+      if (err) { var el=document.getElementById('backups_list'); if(el) el.textContent='Помилка завантаження'; return; }
+      renderBackups(d.backups || []);
+    });
+  }
+  var backupsReloadBtn = document.getElementById('backups_reload_btn');
+  if (backupsReloadBtn) backupsReloadBtn.addEventListener('click', loadBackups);
+  // Завантажуємо бекапи при першому відкритті вкладки "Промти і параметри"
+  document.querySelectorAll('.tab-btn[data-tab="prompts"]').forEach(function(tb) {
+    tb.addEventListener('click', function() { if (document.getElementById('backups_list').textContent === 'Завантаження…') loadBackups(); }, {once: true});
+  });
 
   var keysToggle = document.getElementById('keys_toggle');
   var keysSection = document.getElementById('keys_section');
