@@ -13,8 +13,6 @@
       "fb_checkbox_on": "Facebook-допис: до {{facebook_max_chars}} символів. Стиль: {{fb_style_rule}}.",
       "depth_prefix": "Глибина рерайту (коротка інструкція): {{depth_short}}.",
       "source_ref_rule": "Органічно впиши джерело \"{{source_ref}}\" в перший абзац статті — як посилання на те, хто повідомив новину (наприклад: \"Про це повідомила {{source_ref}}\", \"За даними {{source_ref}}\", \"Як зазначає {{source_ref}}\" тощо). Не виноси джерело окремим рядком.",
-      "websearch_on": "Дозволено використання web-пошуку для уточнення фактів.",
-      "websearch_off": "Web-пошук вимкнений. Використовуй тільки вхідний матеріал.",
       "input_title": "ВХІДНИЙ МАТЕРІАЛ:",
       "fb_style_rules": [
         "Серйозний стиль: стримано, без емодзі, фокус на фактах.",
@@ -49,16 +47,14 @@
         "label": "Haiku 4.5 — швидко / дешево",
         "provider": "anthropic",
         "inp": 1.0,
-        "out": 5.0,
-        "web_search": true
+        "out": 5.0
       },
       {
         "id": "claude-sonnet-4-6",
         "label": "Sonnet 4.6 — баланс / рекомендовано",
         "provider": "anthropic",
         "inp": 3.0,
-        "out": 15.0,
-        "web_search": true
+        "out": 15.0
       }
     ],
     "cors_allowed_origins": [

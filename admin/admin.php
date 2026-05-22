@@ -373,12 +373,6 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
       <label class="lbl" style="margin-top:10px">Інструкція для джерела <span class="small" style="font-weight:400">— {{source_ref}} замінюється значенням з поля «Джерело новини»; опишіть як органічно вписати джерело в перший абзац</span></label>
       <textarea id="pf_source_ref_rule" rows="3"><?= pp_str($pp,'source_ref_rule') ?></textarea>
 
-      <label class="lbl" style="margin-top:10px">Web-пошук увімкнено <span style="color:#A32D2D">*</span></label>
-      <input type="text" id="pf_websearch_on" value="<?= pp_str($pp,'websearch_on') ?>">
-
-      <label class="lbl" style="margin-top:10px">Web-пошук вимкнено <span style="color:#A32D2D">*</span></label>
-      <input type="text" id="pf_websearch_off" value="<?= pp_str($pp,'websearch_off') ?>">
-
       <label class="lbl" style="margin-top:10px">Facebook-рядок (увімкнено) <span class="small" style="font-weight:400">— підтримує {{facebook_max_chars}}, {{fb_style_rule}}</span></label>
       <textarea id="pf_fb_checkbox_on" rows="2"><?= pp_str($pp,'fb_checkbox_on') ?></textarea>
 
@@ -600,7 +594,6 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
       provider: document.getElementById('m_provider').value,
       inp: Number(document.getElementById('m_inp').value || 0),
       out: Number(document.getElementById('m_out').value || 0),
-      web_search: ['anthropic', 'gemini'].indexOf(document.getElementById('m_provider').value) !== -1,
       enabled: editIndex >= 0 && models[editIndex] ? (models[editIndex].enabled !== false) : true
     };
   }
@@ -684,8 +677,7 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
     'pf_tone_prefix':          'Префікс тональності',
     'pf_tone_short_rules':     'Короткі описи тональностей',
     'pf_depth_prefix':         'Префікс глибини рерайту',
-    'pf_websearch_on':         'Web-пошук увімкнено',
-    'pf_websearch_off':        'Web-пошук вимкнено'
+    'pf_source_ref_rule':      'Інструкція для джерела'
   };
 
   function validatePromptFields() {
@@ -726,8 +718,6 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
       depth_prefix:          val('pf_depth_prefix'),
       depth_short_rules:     lines('pf_depth_short_rules'),
       source_ref_rule:       val('pf_source_ref_rule'),
-      websearch_on:          val('pf_websearch_on'),
-      websearch_off:         val('pf_websearch_off'),
       fb_checkbox_on:        val('pf_fb_checkbox_on'),
       fb_style_rules:        lines('pf_fb_style_rules'),
       facebook_when_disabled: 'omit'
@@ -821,8 +811,6 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
           setVal('pf_depth_prefix',         p.depth_prefix);
           setLines('pf_depth_short_rules',  p.depth_short_rules);
           setVal('pf_source_ref_rule',      p.source_ref_rule);
-          setVal('pf_websearch_on',         p.websearch_on);
-          setVal('pf_websearch_off',        p.websearch_off);
           setVal('pf_fb_checkbox_on',       p.fb_checkbox_on);
           setLines('pf_fb_style_rules',     p.fb_style_rules);
           if (p.headlines_count)   document.getElementById('lim_headlines').value  = p.headlines_count;
