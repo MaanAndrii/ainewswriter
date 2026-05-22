@@ -86,6 +86,62 @@ function log_request(array $payload): void
     sqlite_log_request($payload);
 }
 
+// ── JSON-валідація відповіді ─────────────────────────────────────────────────
+
+/**
+ * Витягує перший JSON-об'єкт з тексту (ігнорує markdown-огорожі).
+ * Повертає null якщо JSON-об'єкт не знайдено або не парсується.
+ */
+function extract_and_parse_json(string $text): ?array
+{
+    $text = trim($text);
+    // Strip ```json ... ``` or ``` ... ``` fences
+    if (preg_match('/^```(?:json)?\s*([\s\S]*?)\s*```$/s', $text, $m)) {
+        $text = trim($m[1]);
+    }
+    $start = strpos($text, '{');
+    $end   = strrpos($text, '}');
+    if ($start === false || $end === false || $end <= $start) return null;
+    $parsed = json_decode(substr($text, $start, $end - $start + 1), true);
+    return is_array($parsed) && count($parsed) > 0 ? $parsed : null;
+}
+
+function is_valid_json_response(string $text): bool
+{
+    return extract_and_parse_json($text) !== null;
+}
+
+/**
+ * Виконує одиночний не-стримінговий HTTP-запит до LLM API.
+ * Повертає ['response' => string, 'code' => int, 'curl_error' => string].
+ */
+function do_non_stream_call(string $url, array $headers, string $payload): array
+{
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST           => true,
+        CURLOPT_POSTFIELDS     => $payload,
+        CURLOPT_HTTPHEADER     => $headers,
+        CURLOPT_TIMEOUT        => TIMEOUT,
+    ]);
+    $response  = (string)curl_exec($ch);
+    $code      = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlErr   = curl_error($ch);
+    curl_close($ch);
+    return ['response' => $response, 'code' => $code, 'curl_error' => $curlErr];
+}
+
+/**
+ * Формує повідомлення про помилку та уточнений запит для повторної спроби.
+ */
+function build_retry_prompt(string $originalPrompt): string
+{
+    return $originalPrompt
+        . "\n\nКРИТИЧНО: попередня відповідь не містила валідного JSON-об'єкта. "
+        . "Поверни ВИКЛЮЧНО валідний JSON-об'єкт (починай з {, закінчуй }), без будь-якого іншого тексту.";
+}
+
 // ── Фабрика провайдерів ──────────────────────────────────────────────────────
 
 function make_provider(string $provider, array $keys, bool $useWebSearch): BaseProvider
@@ -249,6 +305,28 @@ if ($streamMode) {
         exit;
     }
 
+    // ── Серверна валідація JSON + повторна спроба (streaming) ───────────────
+    if (!is_valid_json_response($accText)) {
+        $retryReq2 = $providerObj->buildRequest($model, build_retry_prompt($prompt), $system_prompt, false);
+        $retryPl2  = json_encode($retryReq2['body'], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+        if ($retryPl2 !== false) {
+            $rc = do_non_stream_call($retryReq2['url'], $retryReq2['headers'], $retryPl2);
+            if (!$rc['curl_error'] && $rc['code'] === 200) {
+                $retryResult2 = json_decode($rc['response'], true) ?: [];
+                $retryParsed2 = $providerObj->parseResponse($retryResult2);
+                if (trim($retryParsed2['text']) !== '') {
+                    echo 'data: ' . json_encode(['reset' => true], JSON_UNESCAPED_UNICODE) . "\n\n";
+                    echo 'data: ' . json_encode(['delta' => $retryParsed2['text']], JSON_UNESCAPED_UNICODE) . "\n\n";
+                    flush();
+                    $accText = $retryParsed2['text'];
+                    $ru = $retryParsed2['usage'];
+                    $state['usage']['input_tokens']  = ($state['usage']['input_tokens']  ?? 0) + ($ru['input_tokens']  ?? 0);
+                    $state['usage']['output_tokens'] = ($state['usage']['output_tokens'] ?? 0) + ($ru['output_tokens'] ?? 0);
+                }
+            }
+        }
+    }
+
     $usage       = $state['usage'];
     $webSearch   = $state['web_search_used'];
     $durationSec = max(0, $timeEnd - $timeStart);
@@ -322,6 +400,27 @@ $usage       = $parsed['usage'];
 $webSearch   = $parsed['web_search_used'];
 
 if (trim($text) === '') send_json(500, ['error' => 'Порожня відповідь від API']);
+
+// ── Серверна валідація JSON + повторна спроба (non-streaming) ────────────────
+if (!is_valid_json_response($text)) {
+    $retryPromptNS = build_retry_prompt($prompt);
+    for ($retryAttempt = 0; $retryAttempt < 2; $retryAttempt++) {
+        $nsReq = $providerObj->buildRequest($model, $retryPromptNS, $system_prompt, false);
+        $nsPl  = json_encode($nsReq['body'], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+        if ($nsPl === false) break;
+        $nsCall = do_non_stream_call($nsReq['url'], $nsReq['headers'], $nsPl);
+        if ($nsCall['curl_error'] || $nsCall['code'] !== 200) break;
+        $nsResult = json_decode($nsCall['response'], true) ?: [];
+        $nsParsed = $providerObj->parseResponse($nsResult);
+        if (trim($nsParsed['text']) !== '') {
+            $ru = $nsParsed['usage'];
+            $usage['input_tokens']  = ($usage['input_tokens']  ?? 0) + ($ru['input_tokens']  ?? 0);
+            $usage['output_tokens'] = ($usage['output_tokens'] ?? 0) + ($ru['output_tokens'] ?? 0);
+            $text = $nsParsed['text'];
+            break;
+        }
+    }
+}
 
 $durationSec = max(0, $timeEnd - $timeStart);
 $cost        = calc_request_cost($usage, $modelMeta);

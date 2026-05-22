@@ -339,6 +339,10 @@ function save_settings($settings) {
   $payload = "<?php\nreturn " . var_export($stored, true) . ";\n";
   file_put_contents(SETTINGS_FILE, $payload, LOCK_EX);
   @chmod(SETTINGS_FILE, 0600);
+  // OPcache може зберігати старий варіант файлу — інвалідуємо явно
+  if (function_exists('opcache_invalidate')) {
+    @opcache_invalidate(SETTINGS_FILE, true);
+  }
 }
 
 function resolve_system_prompt($settings) {
