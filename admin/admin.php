@@ -124,15 +124,6 @@ $defaultPrompt = get_default_system_prompt();
 $defaultOverride = $settings['system_prompt_default_override'] ?? '';
 $runtimeKeys = get_runtime_keys();
 
-function mask_val($value) {
-  $value = (string)$value;
-  if ($value === '') return 'не задано';
-  $len = strlen($value);
-  if ($len <= 10) return str_repeat('*', $len);
-  return substr($value, 0, 5) . str_repeat('*', max(0, $len - 10)) . substr($value, -5);
-}
-
-
 function stats_from_sqlite() {
   $db = get_sqlite_db();
   if (!$db) return null;
@@ -310,6 +301,29 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
     ?>
 
     <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer" id="gen_params_toggle">
+        <div class="ttl" style="margin-bottom:0">Параметри генерації</div>
+        <span id="gen_params_icon" style="display:inline-block;width:20px;height:20px;line-height:20px;text-align:center;background:#e8e3dc;border-radius:4px;font-size:14px;font-weight:700;color:#5a544c;user-select:none">+</span>
+      </div>
+      <div id="gen_params_body" style="display:none;margin-top:12px">
+        <div class="row">
+          <div><label class="small">К-сть заголовків</label><input type="number" id="lim_headlines" min="1" max="10" value="<?= (int)($pp['headlines_count'] ?? 4) ?>"></div>
+          <div><label class="small">К-сть лідів</label><input type="number" id="lim_leads" min="1" max="5" value="<?= (int)($pp['leads_count'] ?? 2) ?>"></div>
+          <div><label class="small">Макс. символів новини</label><input type="number" id="lim_article" min="300" max="10000" value="<?= (int)($pp['article_max_chars'] ?? 3000) ?>"></div>
+          <div><label class="small">Макс. символів Facebook</label><input type="number" id="lim_fb" min="50" max="2000" value="<?= (int)($pp['facebook_max_chars'] ?? 400) ?>"></div>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <div><label class="small">Мін. символів ліду</label><input type="number" id="lim_lead_min" min="50" max="500" value="<?= (int)($pp['lead_min_chars'] ?? 150) ?>"></div>
+          <div><label class="small">Макс. символів ліду</label><input type="number" id="lim_lead_max" min="50" max="500" value="<?= (int)($pp['lead_max_chars'] ?? 180) ?>"></div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+          <button type="button" class="btn-mini" id="save_prompt_limits_btn">Зберегти параметри</button>
+        </div>
+        <div class="small" id="save_limits_status" style="text-align:right;margin-top:4px"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
       <div class="ttl">System prompt</div>
       <textarea id="system_default_override" class="big" style="min-height:180px"><?= htmlspecialchars($defaultOverride !== '' ? $defaultOverride : $defaultPrompt) ?></textarea>
       <div class="small" style="margin-top:4px">Базові інструкції для моделі — роль редактора, мовні вимоги, формат відповіді.</div>
@@ -319,33 +333,6 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
         <button type="button" class="btn-mini danger" id="save_system_default_btn">Зберегти system prompt</button>
       </div>
       <div class="small" id="save_system_status" style="text-align:right;margin-top:4px"></div>
-    </div>
-
-    <div class="card" style="margin-top:14px">
-      <div style="display:flex;align-items:center;justify-content:space-between">
-        <div class="ttl" style="margin-bottom:0">Резервні копії prompts.json</div>
-        <button type="button" class="btn-mini muted" id="backups_reload_btn">&#8635; Оновити</button>
-      </div>
-      <div id="backups_list" style="margin-top:10px;font-family:'Roboto Mono',monospace;font-size:11px;color:#8a8278">Завантаження…</div>
-      <div class="small" id="backup_restore_status" style="margin-top:6px"></div>
-    </div>
-
-    <div class="card" style="margin-top:14px">
-      <div class="ttl">Параметри генерації</div>
-      <div class="row">
-        <div><label class="small">К-сть заголовків</label><input type="number" id="lim_headlines" min="1" max="10" value="<?= (int)($pp['headlines_count'] ?? 4) ?>"></div>
-        <div><label class="small">К-сть лідів</label><input type="number" id="lim_leads" min="1" max="5" value="<?= (int)($pp['leads_count'] ?? 2) ?>"></div>
-        <div><label class="small">Макс. символів новини</label><input type="number" id="lim_article" min="300" max="10000" value="<?= (int)($pp['article_max_chars'] ?? 3000) ?>"></div>
-        <div><label class="small">Макс. символів Facebook</label><input type="number" id="lim_fb" min="50" max="2000" value="<?= (int)($pp['facebook_max_chars'] ?? 400) ?>"></div>
-      </div>
-      <div class="row" style="margin-top:8px">
-        <div><label class="small">Мін. символів ліду</label><input type="number" id="lim_lead_min" min="50" max="500" value="<?= (int)($pp['lead_min_chars'] ?? 150) ?>"></div>
-        <div><label class="small">Макс. символів ліду</label><input type="number" id="lim_lead_max" min="50" max="500" value="<?= (int)($pp['lead_max_chars'] ?? 180) ?>"></div>
-      </div>
-      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
-        <button type="button" class="btn-mini" id="save_prompt_limits_btn">Зберегти параметри</button>
-      </div>
-      <div class="small" id="save_limits_status" style="text-align:right;margin-top:4px"></div>
     </div>
 
     <div class="card" style="margin-top:14px">
@@ -393,6 +380,15 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
         <button type="button" class="btn-mini danger" id="save_prompt_fields_btn">Зберегти складові промту</button>
       </div>
       <div class="small" id="save_fields_status" style="text-align:right;margin-top:4px"></div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div class="ttl" style="margin-bottom:0">Резервні копії prompts.json</div>
+        <button type="button" class="btn-mini muted" id="backups_reload_btn">&#8635; Оновити</button>
+      </div>
+      <div id="backups_list" style="margin-top:10px;font-family:'Roboto Mono',monospace;font-size:11px;color:#8a8278">Завантаження…</div>
+      <div class="small" id="backup_restore_status" style="margin-top:6px"></div>
     </div>
   </section>
 
@@ -902,6 +898,17 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
   document.querySelectorAll('.tab-btn[data-tab="prompts"]').forEach(function(tb) {
     tb.addEventListener('click', function() { if (document.getElementById('backups_list').textContent === 'Завантаження…') loadBackups(); }, {once: true});
   });
+
+  var genParamsToggle = document.getElementById('gen_params_toggle');
+  var genParamsBody   = document.getElementById('gen_params_body');
+  var genParamsIcon   = document.getElementById('gen_params_icon');
+  if (genParamsToggle && genParamsBody) {
+    genParamsToggle.addEventListener('click', function() {
+      var open = genParamsBody.style.display !== 'none';
+      genParamsBody.style.display = open ? 'none' : '';
+      genParamsIcon.textContent   = open ? '+' : '−';
+    });
+  }
 
   var keysToggle = document.getElementById('keys_toggle');
   var keysSection = document.getElementById('keys_section');
