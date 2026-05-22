@@ -151,13 +151,33 @@ var PROV_VISUAL = {
 };
 
 function loadModelSettings() {
+  var provPicker = document.getElementById('providerPicker');
+  var mdlCatalog = document.getElementById('modelCatalog');
+
+  function showModelError(msg) {
+    if (provPicker) provPicker.innerHTML = '';
+    if (mdlCatalog) mdlCatalog.innerHTML =
+      '<span style="font-size:11px;color:#b5401a;font-family:\'Roboto Mono\',monospace">' +
+      msg + ' <button onclick="loadModelSettings()" style="margin-left:6px;font-size:11px;' +
+      'border:1px solid #b5401a;background:none;color:#b5401a;border-radius:3px;padding:2px 7px;cursor:pointer">↺</button></span>';
+  }
+
+  if (provPicker) provPicker.innerHTML = '';
+  if (mdlCatalog) mdlCatalog.innerHTML =
+    '<span style="font-size:11px;color:#8a8278;font-family:\'Roboto Mono\',monospace">Завантаження…</span>';
+
   var xhr = new XMLHttpRequest();
   xhr.open('GET', '/api/settings', true);
+  xhr.timeout = 10000;
+  xhr.ontimeout = function() { showModelError('Timeout — сервер не відповідає'); };
+  xhr.onerror   = function() { showModelError('Помилка мережі'); };
   xhr.onload = function () {
-    if (xhr.status !== 200) return;
+    if (xhr.status !== 200) { showModelError('HTTP ' + xhr.status); return; }
     var d = {};
-    try { d = JSON.parse(xhr.responseText); } catch (e) { return; }
-    if (!d.models || !d.models.length) return;
+    try { d = JSON.parse(xhr.responseText); } catch (e) { showModelError('Помилка відповіді сервера'); return; }
+
+    if (!d.models || !d.models.length) { showModelError('Моделі не налаштовано — додайте в адмінці'); return; }
+
     MODEL_PRICES = {};
     MODEL_META = {};
 
@@ -175,14 +195,15 @@ function loadModelSettings() {
     SYSTEM_PROMPT_DEFAULT = d.prompt_system || '';
     PROMPT_PROFILES = d.prompt_profiles || {};
 
-    var provPicker  = document.getElementById('providerPicker');
-    var mdlCatalog  = document.getElementById('modelCatalog');
-    var hiddenSel   = document.getElementById('modelSelect');
-    if (!provPicker || !mdlCatalog || !hiddenSel) return;
+    if (!provPicker || !mdlCatalog || !document.getElementById('modelSelect')) {
+      showModelError('DOM error — перезавантажте сторінку');
+      return;
+    }
 
     var provKeys = Object.keys(byProvider);
-    if (!provKeys.length) return;
+    if (!provKeys.length) { showModelError('Всі моделі вимкнені — увімкніть в адмінці'); return; }
 
+    var hiddenSel = document.getElementById('modelSelect');
     var initModel    = d.default_model || '';
     var initProvider = (initModel && MODEL_META[initModel]) ? MODEL_META[initModel].provider : '';
     if (!initProvider || !byProvider[initProvider]) {
