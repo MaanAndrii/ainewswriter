@@ -315,8 +315,8 @@ function buildPrompt(source, sourceRef, extra, fbCheck, fbStyle, tone, makeNews,
   return profile.json_rule + '\n{\n' + jsonNewsFields + jsonFacebookField + '\n}\n\n'
     + profile.requirements_title + '\n'
     + (newsReqs ? ('- ' + newsReqs + '\n') : '')
-    + '- ' + toneInstr + '\n'
-    + '- ' + depthInstr + '\n'
+    + (makeNews ? ('- ' + toneInstr + '\n') : '')
+    + (makeNews ? ('- ' + depthInstr + '\n') : '')
     + (refPrompt ? ('- ' + refPrompt + '\n') : '')
     + (fbLine ? ('- ' + fbLine + '\n') : '')
     + extraBlock + regenBlock + '\n'
