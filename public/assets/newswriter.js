@@ -167,7 +167,7 @@ function loadModelSettings() {
     '<span style="font-size:11px;color:#8a8278;font-family:\'Roboto Mono\',monospace">Завантаження…</span>';
 
   var xhr = new XMLHttpRequest();
-  xhr.open('GET', '/api/settings', true);
+  xhr.open('GET', '/api/settings?_=' + Date.now(), true);
   xhr.timeout = 10000;
   xhr.ontimeout = function() { showModelError('Timeout — сервер не відповідає'); };
   xhr.onerror   = function() { showModelError('Помилка мережі'); };
@@ -315,8 +315,8 @@ function buildPrompt(source, sourceRef, extra, fbCheck, fbStyle, tone, makeNews,
   return profile.json_rule + '\n{\n' + jsonNewsFields + jsonFacebookField + '\n}\n\n'
     + profile.requirements_title + '\n'
     + (newsReqs ? ('- ' + newsReqs + '\n') : '')
-    + '- ' + toneInstr + '\n'
-    + '- ' + depthInstr + '\n'
+    + (makeNews ? ('- ' + toneInstr + '\n') : '')
+    + (makeNews ? ('- ' + depthInstr + '\n') : '')
     + (refPrompt ? ('- ' + refPrompt + '\n') : '')
     + (fbLine ? ('- ' + fbLine + '\n') : '')
     + extraBlock + regenBlock + '\n'
