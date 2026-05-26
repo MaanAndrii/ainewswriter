@@ -457,6 +457,30 @@ function get_sqlite_db() {
         web_search_used INTEGER DEFAULT 0
     )');
 
+    $pdo->exec('CREATE TABLE IF NOT EXISTS async_jobs (
+        id TEXT PRIMARY KEY,
+        created_at TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT \'pending\',
+        model TEXT NOT NULL DEFAULT \'\',
+        provider TEXT NOT NULL DEFAULT \'\',
+        prompt_text TEXT NOT NULL DEFAULT \'\',
+        source_text TEXT NOT NULL DEFAULT \'\',
+        source_ref TEXT NOT NULL DEFAULT \'\',
+        system_prompt TEXT NOT NULL DEFAULT \'\',
+        max_tokens INTEGER NOT NULL DEFAULT 8000,
+        worker_pid INTEGER DEFAULT NULL,
+        finished_at TEXT DEFAULT NULL
+    )');
+
+    $pdo->exec('CREATE TABLE IF NOT EXISTS async_job_chunks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        job_id TEXT NOT NULL,
+        chunk TEXT NOT NULL,
+        created_at TEXT NOT NULL
+    )');
+
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_job_chunks ON async_job_chunks (job_id, id)');
+
     // Migrations: add columns that may be missing in older DB files
     $existingCols = array_column(
       $pdo->query("PRAGMA table_info(generations)")->fetchAll(PDO::FETCH_ASSOC),

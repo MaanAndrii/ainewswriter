@@ -513,7 +513,6 @@ function callAPI(prompt, model, systemPromptOverride, expectNews, expectFacebook
   var accText = '';
   var metaReceived = null;
 
-  // Show streaming preview in output area
   var output = document.getElementById('output');
   var streamBox = document.createElement('div');
   streamBox.className = 'stream-preview';
@@ -523,7 +522,100 @@ function callAPI(prompt, model, systemPromptOverride, expectNews, expectFacebook
   output.innerHTML = '';
   output.appendChild(streamBox);
 
-  fetch(PROXY_URL, {
+  function startStream(streamUrl) {
+    fetch(streamUrl).then(function(response) {
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+
+      var reader = response.body.getReader();
+      var decoder = new TextDecoder();
+      var lineBuf = '';
+
+      function read() {
+        return reader.read().then(function(result) {
+          if (result.done) {
+            onComplete();
+            return;
+          }
+
+          lineBuf += decoder.decode(result.value, {stream: true});
+          var lines = lineBuf.split('\n');
+          lineBuf = lines.pop();
+
+          for (var li = 0; li < lines.length; li++) {
+            var line = lines[li].trim();
+            if (!line || line.indexOf('data: ') !== 0) continue;
+            var evPayload = line.substring(6);
+            if (evPayload === '[DONE]') continue;
+            try {
+              var ev = JSON.parse(evPayload);
+              if (ev.error) { reader.cancel(); reject(new Error(ev.error)); return; }
+              if (ev.reset) { accText = ''; streamBox.textContent = ''; continue; }
+              if (ev.meta) { metaReceived = ev; continue; }
+              if (ev.delta != null) {
+                accText += ev.delta;
+                var preview = accText.length > 600 ? '…' + accText.slice(-600) : accText;
+                streamBox.textContent = preview;
+                var newCursor = document.createElement('div');
+                newCursor.className = 'stream-cursor';
+                streamBox.appendChild(newCursor);
+              }
+            } catch(e) {}
+          }
+
+          return read();
+        });
+      }
+
+      return read();
+    }).catch(function(err) {
+      output.innerHTML = '';
+      reject(new Error(err.message || 'Помилка мережі'));
+    });
+  }
+
+  function onComplete() {
+    output.innerHTML = '';
+
+    if (!accText.trim()) {
+      reject(new Error('Порожня відповідь від API'));
+      return;
+    }
+
+    var raw = accText;
+    raw = raw.replace(/<cite[^>]*>([\s\S]*?)<\/cite>/g, '$1').replace(/<cite[^>]*>/g, '').replace(/<\/cite>/g, '');
+    var clean = stripMarkdownWrapper(raw);
+    var jsonText = extractFirstJsonObject(clean);
+
+    if (!jsonText) {
+      if (attempt < 3) return callAPI(prompt, model, systemPromptOverride, expectNews, expectFacebook, attempt + 1, resolve, reject);
+      return reject(new Error('Модель не повернула JSON. Спробуй ще раз.'));
+    }
+
+    try {
+      var safeJsonText = jsonText.replace(/"(?:[^"\\]|\\.)*"/g, function(m) {
+        return m.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t');
+      });
+      var parsed = JSON.parse(safeJsonText);
+
+      if (!hasMeaningfulContent(parsed, expectNews, expectFacebook)) {
+        if (attempt < 3) return callAPI(prompt, model, systemPromptOverride, expectNews, expectFacebook, attempt + 1, resolve, reject);
+        return reject(new Error('Модель повернула порожній JSON без тексту. Спробуй іншу модель.'));
+      }
+
+      if (metaReceived) {
+        parsed._usage = metaReceived.usage || null;
+        parsed._webSearchUsed = !!metaReceived.web_search_used;
+      }
+      parsed._model = model;
+      resolve(parsed);
+    } catch(e) {
+      if (attempt < 3) return callAPI(prompt, model, systemPromptOverride, expectNews, expectFacebook, attempt + 1, resolve, reject);
+      reject(new Error('Помилка розбору відповіді. Спробуй ще раз.'));
+    }
+  }
+
+  // Step 1: submit async job
+  fetch('/api/job_submit', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: body
@@ -535,94 +627,13 @@ function callAPI(prompt, model, systemPromptOverride, expectNews, expectFacebook
         throw new Error('HTTP ' + response.status);
       });
     }
-
-    var reader = response.body.getReader();
-    var decoder = new TextDecoder();
-    var lineBuf = '';
-
-    function read() {
-      return reader.read().then(function(result) {
-        if (result.done) {
-          onComplete();
-          return;
-        }
-
-        lineBuf += decoder.decode(result.value, {stream: true});
-        var lines = lineBuf.split('\n');
-        lineBuf = lines.pop();
-
-        for (var li = 0; li < lines.length; li++) {
-          var line = lines[li].trim();
-          if (!line || line.indexOf('data: ') !== 0) continue;
-          var payload = line.substring(6);
-          if (payload === '[DONE]') continue;
-          try {
-            var ev = JSON.parse(payload);
-            if (ev.error) { reader.cancel(); reject(new Error(ev.error)); return; }
-            if (ev.reset) { accText = ''; streamBox.textContent = ''; continue; }
-            if (ev.meta) { metaReceived = ev; continue; }
-            if (ev.delta != null) {
-              accText += ev.delta;
-              // Update streaming preview - show last 600 chars
-              var preview = accText.length > 600 ? '…' + accText.slice(-600) : accText;
-              streamBox.textContent = preview;
-              var newCursor = document.createElement('div');
-              newCursor.className = 'stream-cursor';
-              streamBox.appendChild(newCursor);
-            }
-          } catch(e) {
-            if (e.message && e.message !== 'Unexpected end of JSON input') {
-              // Ignore JSON parse errors for incomplete chunks
-            }
-          }
-        }
-
-        return read();
-      });
+    return response.json();
+  }).then(function(result) {
+    if (!result || !result.ok || !result.job_id) {
+      throw new Error((result && result.error) || 'Не вдалось створити завдання');
     }
-
-    function onComplete() {
-      output.innerHTML = '';
-
-      if (!accText.trim()) {
-        reject(new Error('Порожня відповідь від API'));
-        return;
-      }
-
-      var raw = accText;
-      raw = raw.replace(/<cite[^>]*>([\s\S]*?)<\/cite>/g, '$1').replace(/<cite[^>]*>/g, '').replace(/<\/cite>/g, '');
-      var clean = stripMarkdownWrapper(raw);
-      var jsonText = extractFirstJsonObject(clean);
-
-      if (!jsonText) {
-        if (attempt < 3) return callAPI(prompt, model, systemPromptOverride, expectNews, expectFacebook, attempt + 1, resolve, reject);
-        return reject(new Error('Модель не повернула JSON. Спробуй ще раз.'));
-      }
-
-      try {
-        var safeJsonText = jsonText.replace(/"(?:[^"\\]|\\.)*"/g, function(m) {
-          return m.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t');
-        });
-        var parsed = JSON.parse(safeJsonText);
-
-        if (!hasMeaningfulContent(parsed, expectNews, expectFacebook)) {
-          if (attempt < 3) return callAPI(prompt, model, systemPromptOverride, expectNews, expectFacebook, attempt + 1, resolve, reject);
-          return reject(new Error('Модель повернула порожній JSON без тексту. Спробуй іншу модель.'));
-        }
-
-        if (metaReceived) {
-          parsed._usage = metaReceived.usage || null;
-          parsed._webSearchUsed = !!metaReceived.web_search_used;
-        }
-        parsed._model = model;
-        resolve(parsed);
-      } catch(e) {
-        if (attempt < 3) return callAPI(prompt, model, systemPromptOverride, expectNews, expectFacebook, attempt + 1, resolve, reject);
-        reject(new Error('Помилка розбору відповіді. Спробуй ще раз.'));
-      }
-    }
-
-    return read();
+    // Step 2: stream job output
+    startStream('/api/job_stream?id=' + encodeURIComponent(result.job_id));
   }).catch(function(err) {
     output.innerHTML = '';
     reject(new Error(err.message || 'Помилка мережі'));
