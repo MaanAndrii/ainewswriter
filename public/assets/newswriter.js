@@ -1,4 +1,3 @@
-var PROXY_URL = '/api/proxy';
 var MODEL_PRICES = {};
 var MODEL_META = {};
 var DEPTH_LABELS = ['Мінімальна', 'Помірна', 'Глибока', 'Повна переробка'];
@@ -506,8 +505,7 @@ function callAPI(prompt, model, systemPromptOverride, expectNews, expectFacebook
     model: model,
     systemPromptOverride: systemPromptOverride || '',
     source: getVal('source'),
-    sourceRef: getVal('sourceRef'),
-    stream: 1
+    sourceRef: getVal('sourceRef')
   });
 
   var accText = '';
@@ -522,15 +520,16 @@ function callAPI(prompt, model, systemPromptOverride, expectNews, expectFacebook
   output.innerHTML = '';
   output.appendChild(streamBox);
 
+  // Повертає: 'continue' | 'done' (маркер [DONE]) | 'error' (reject вже викликано)
   function processChunk(raw) {
-    if (!raw || raw.indexOf('data: ') !== 0) return true;
+    if (!raw || raw.indexOf('data: ') !== 0) return 'continue';
     var evPayload = raw.substring(6);
-    if (evPayload === '[DONE]') return true;
+    if (evPayload === '[DONE]') return 'done';
     try {
       var ev = JSON.parse(evPayload);
-      if (ev.error) { reject(new Error(ev.error)); return false; }
-      if (ev.reset) { accText = ''; streamBox.textContent = ''; return true; }
-      if (ev.meta)  { metaReceived = ev; return true; }
+      if (ev.error) { reject(new Error(ev.error)); return 'error'; }
+      if (ev.reset) { accText = ''; streamBox.textContent = ''; return 'continue'; }
+      if (ev.meta)  { metaReceived = ev; return 'continue'; }
       if (ev.delta != null) {
         accText += ev.delta;
         var preview = accText.length > 600 ? '…' + accText.slice(-600) : accText;
@@ -540,7 +539,7 @@ function callAPI(prompt, model, systemPromptOverride, expectNews, expectFacebook
         streamBox.appendChild(nc);
       }
     } catch(e) {}
-    return true;
+    return 'continue';
   }
 
   function startPolling(jobId) {
@@ -564,17 +563,16 @@ function callAPI(prompt, model, systemPromptOverride, expectNews, expectFacebook
 
           var chunks = data.chunks || [];
           for (var i = 0; i < chunks.length; i++) {
-            if (!processChunk(chunks[i])) { stopped = true; return; }
+            var res = processChunk(chunks[i]);
+            if (res === 'error') { stopped = true; return; }
+            if (res === 'done')  { stopped = true; onComplete(); return; }
           }
           if (data.next_after !== undefined) afterId = data.next_after;
 
-          var status = data.status || '';
-          if (status === 'failed') {
-            if (!stopped) { stopped = true; output.innerHTML = ''; reject(new Error('Помилка виконання запиту')); }
-            return;
-          }
-          if (status === 'done') {
-            if (!stopped) { stopped = true; onComplete(); }
+          // status=failed без чанка-помилки (воркер не встиг записати) — запобіжник
+          if ((data.status || '') === 'failed') {
+            stopped = true; output.innerHTML = '';
+            reject(new Error('Помилка виконання запиту'));
             return;
           }
 

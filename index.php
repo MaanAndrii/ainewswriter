@@ -50,7 +50,6 @@ if ($uri === '/sw.js') {
 }
 
 // ── API ───────────────────────────────────────────────────────────────────────
-if ($uri === '/api/proxy')      { require $base . '/api/proxy.php';        exit; }
 if ($uri === '/api/settings')   { require $base . '/api/settings_api.php'; exit; }
 if ($uri === '/api/job_submit') { require $base . '/api/job_submit.php';   exit; }
 if ($uri === '/api/job_poll')   { require $base . '/api/job_poll.php';     exit; }
