@@ -86,12 +86,25 @@ try {
     js_send(500, ['error' => 'Не вдалось створити завдання']);
 }
 
-// Spawn background worker
-$phpBin  = PHP_BINARY;
-$script  = realpath(__DIR__ . '/job_worker.php');
+// Знаходимо PHP CLI бінарник (PHP_BINARY у FPM вказує на php-fpm, а не php-cli)
+function find_php_cli(): string {
+    $candidates = [
+        '/usr/bin/php8.4', '/usr/bin/php8.3', '/usr/bin/php8.2',
+        '/usr/bin/php8',   '/usr/bin/php',    '/usr/local/bin/php',
+    ];
+    foreach ($candidates as $bin) {
+        if (@is_executable($bin)) return $bin;
+    }
+    $which = trim((string)@shell_exec('which php 2>/dev/null'));
+    if ($which !== '' && @is_executable($which)) return $which;
+    return 'php';
+}
+
+$phpBin  = find_php_cli();
+$script  = __DIR__ . '/job_worker.php';
 $logFile = APP_ROOT . '/storage/worker_errors.log';
 $cmd = sprintf(
-    '%s %s %s >> %s 2>&1 &',
+    'nohup %s %s %s >> %s 2>&1 &',
     escapeshellarg($phpBin),
     escapeshellarg($script),
     escapeshellarg($jobId),
