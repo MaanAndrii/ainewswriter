@@ -242,6 +242,23 @@ if ($streamError !== null) {
     exit(1);
 }
 
+// Flush any data that remained in the buffer without a trailing \n
+if (trim($accChunks) !== '') {
+    foreach (explode("\n", $accChunks) as $line) {
+        $line = rtrim($line, "\r");
+        if (!str_starts_with($line, 'data: ')) continue;
+        $dataStr = substr($line, 6);
+        if ($dataStr === '[DONE]' || trim($dataStr) === '') continue;
+        $ev = json_decode($dataStr, true);
+        if (!is_array($ev) || isset($ev['error'])) continue;
+        $delta = $providerObj->processStreamEvent($ev, $state);
+        if ($delta !== null && $delta !== '') {
+            $accText .= $delta;
+            write_chunk($db, $jobId, 'data: ' . json_encode(['delta' => $delta], JSON_UNESCAPED_UNICODE));
+        }
+    }
+}
+
 // ── Retry if invalid JSON ─────────────────────────────────────────────────────
 
 $streamOutputTokens = (int)($state['usage']['output_tokens'] ?? 0);
