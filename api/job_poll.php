@@ -23,13 +23,18 @@ function jp_send(int $code, array $payload): never
 apply_cors_headers();
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') { http_response_code(204); exit; }
+if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') jp_send(405, ['error' => 'Method not allowed']);
 
-$jobId = trim((string)($_GET['id'] ?? ''));
+$body = file_get_contents('php://input');
+$data = json_decode((string)$body, true);
+if (!is_array($data)) jp_send(400, ['error' => 'Invalid JSON body']);
+
+$jobId = trim((string)($data['id'] ?? ''));
 if ($jobId === '' || !preg_match('/^[0-9a-f]{32}$/', $jobId)) {
     jp_send(400, ['error' => 'Invalid job id']);
 }
 
-$after = max(0, (int)($_GET['after'] ?? 0));
+$after = max(0, (int)($data['after'] ?? 0));
 
 $db = get_sqlite_db();
 if (!$db) jp_send(500, ['error' => 'DB недоступна']);

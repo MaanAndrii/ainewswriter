@@ -552,7 +552,11 @@ function callAPI(prompt, model, systemPromptOverride, expectNews, expectFacebook
 
     function poll() {
       if (stopped) return;
-      fetch('/api/job_poll?id=' + encodeURIComponent(jobId) + '&after=' + afterId + '&_=' + Date.now())
+      fetch('/api/job_poll', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({id: jobId, after: afterId})
+        })
         .then(function(r) { return r.json(); })
         .then(function(data) {
           if (stopped) return;
