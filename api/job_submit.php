@@ -67,12 +67,8 @@ if (!$db) js_send(500, ['error' => 'DB недоступна']);
 // Cleanup jobs older than 2 hours
 try {
     $cutoff = date('c', time() - 7200);
-    $oldIds = $db->prepare('SELECT id FROM async_jobs WHERE created_at < ?');
-    $oldIds->execute([$cutoff]);
-    foreach ($oldIds->fetchAll(PDO::FETCH_COLUMN) as $oldId) {
-        $db->prepare('DELETE FROM async_job_chunks WHERE job_id = ?')->execute([$oldId]);
-        $db->prepare('DELETE FROM async_jobs WHERE id = ?')->execute([$oldId]);
-    }
+    $db->prepare('DELETE FROM async_job_chunks WHERE job_id IN (SELECT id FROM async_jobs WHERE created_at < ?)')->execute([$cutoff]);
+    $db->prepare('DELETE FROM async_jobs WHERE created_at < ?')->execute([$cutoff]);
 } catch (Exception $e) {
     error_log('async job cleanup error: ' . $e->getMessage());
 }
