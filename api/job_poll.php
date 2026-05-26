@@ -49,7 +49,7 @@ if ($status === 'unknown') jp_send(404, ['error' => 'Job not found']);
 
 // Нові чанки
 $cStmt = $db->prepare(
-    'SELECT id, chunk FROM async_job_chunks WHERE job_id = ? AND id > ? ORDER BY id ASC LIMIT 200'
+    'SELECT id, chunk FROM async_job_chunks WHERE job_id = ? AND id > ? ORDER BY id ASC LIMIT 2000'
 );
 $cStmt->execute([$jobId, $after]);
 $rows = $cStmt->fetchAll(PDO::FETCH_ASSOC);

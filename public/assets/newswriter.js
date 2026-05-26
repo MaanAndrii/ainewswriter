@@ -569,7 +569,11 @@ function callAPI(prompt, model, systemPromptOverride, expectNews, expectFacebook
           if (data.next_after !== undefined) afterId = data.next_after;
 
           var status = data.status || '';
-          if (status === 'done' || status === 'failed') {
+          if (status === 'failed') {
+            if (!stopped) { stopped = true; output.innerHTML = ''; reject(new Error('Помилка виконання запиту')); }
+            return;
+          }
+          if (status === 'done') {
             if (!stopped) { stopped = true; onComplete(); }
             return;
           }
