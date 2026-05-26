@@ -522,55 +522,72 @@ function callAPI(prompt, model, systemPromptOverride, expectNews, expectFacebook
   output.innerHTML = '';
   output.appendChild(streamBox);
 
-  function startStream(streamUrl) {
-    fetch(streamUrl).then(function(response) {
-      if (!response.ok) throw new Error('HTTP ' + response.status);
+  function processChunk(raw) {
+    if (!raw || raw.indexOf('data: ') !== 0) return true;
+    var evPayload = raw.substring(6);
+    if (evPayload === '[DONE]') return true;
+    try {
+      var ev = JSON.parse(evPayload);
+      if (ev.error) { reject(new Error(ev.error)); return false; }
+      if (ev.reset) { accText = ''; streamBox.textContent = ''; return true; }
+      if (ev.meta)  { metaReceived = ev; return true; }
+      if (ev.delta != null) {
+        accText += ev.delta;
+        var preview = accText.length > 600 ? '…' + accText.slice(-600) : accText;
+        streamBox.textContent = preview;
+        var nc = document.createElement('div');
+        nc.className = 'stream-cursor';
+        streamBox.appendChild(nc);
+      }
+    } catch(e) {}
+    return true;
+  }
 
-      var reader = response.body.getReader();
-      var decoder = new TextDecoder();
-      var lineBuf = '';
+  function startPolling(jobId) {
+    var afterId  = 0;
+    var maxWait  = 300000; // 5 хвилин
+    var elapsed  = 0;
+    var interval = 400;
+    var stopped  = false;
 
-      function read() {
-        return reader.read().then(function(result) {
-          if (result.done) {
-            onComplete();
+    function poll() {
+      if (stopped) return;
+      fetch('/api/job_poll?id=' + encodeURIComponent(jobId) + '&after=' + afterId + '&_=' + Date.now())
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (stopped) return;
+          if (data.error) { stopped = true; output.innerHTML = ''; reject(new Error(data.error)); return; }
+
+          var chunks = data.chunks || [];
+          for (var i = 0; i < chunks.length; i++) {
+            if (!processChunk(chunks[i])) { stopped = true; return; }
+          }
+          if (data.next_after !== undefined) afterId = data.next_after;
+
+          var status = data.status || '';
+          if (status === 'done' || status === 'failed') {
+            if (!stopped) { stopped = true; onComplete(); }
             return;
           }
 
-          lineBuf += decoder.decode(result.value, {stream: true});
-          var lines = lineBuf.split('\n');
-          lineBuf = lines.pop();
-
-          for (var li = 0; li < lines.length; li++) {
-            var line = lines[li].trim();
-            if (!line || line.indexOf('data: ') !== 0) continue;
-            var evPayload = line.substring(6);
-            if (evPayload === '[DONE]') continue;
-            try {
-              var ev = JSON.parse(evPayload);
-              if (ev.error) { reader.cancel(); reject(new Error(ev.error)); return; }
-              if (ev.reset) { accText = ''; streamBox.textContent = ''; continue; }
-              if (ev.meta) { metaReceived = ev; continue; }
-              if (ev.delta != null) {
-                accText += ev.delta;
-                var preview = accText.length > 600 ? '…' + accText.slice(-600) : accText;
-                streamBox.textContent = preview;
-                var newCursor = document.createElement('div');
-                newCursor.className = 'stream-cursor';
-                streamBox.appendChild(newCursor);
-              }
-            } catch(e) {}
+          elapsed += interval;
+          if (elapsed >= maxWait) {
+            stopped = true;
+            output.innerHTML = '';
+            reject(new Error('Перевищено час очікування відповіді'));
+            return;
           }
-
-          return read();
+          setTimeout(poll, interval);
+        })
+        .catch(function(err) {
+          if (stopped) return;
+          stopped = true;
+          output.innerHTML = '';
+          reject(new Error(err.message || 'Помилка мережі'));
         });
-      }
+    }
 
-      return read();
-    }).catch(function(err) {
-      output.innerHTML = '';
-      reject(new Error(err.message || 'Помилка мережі'));
-    });
+    poll();
   }
 
   function onComplete() {
@@ -632,8 +649,8 @@ function callAPI(prompt, model, systemPromptOverride, expectNews, expectFacebook
     if (!result || !result.ok || !result.job_id) {
       throw new Error((result && result.error) || 'Не вдалось створити завдання');
     }
-    // Step 2: stream job output
-    startStream('/api/job_stream?id=' + encodeURIComponent(result.job_id));
+    // Step 2: poll for job output
+    startPolling(result.job_id);
   }).catch(function(err) {
     output.innerHTML = '';
     reject(new Error(err.message || 'Помилка мережі'));
