@@ -347,6 +347,24 @@ function save_settings($settings) {
   }
 }
 
+/**
+ * Збереження останніх N відповідей API у JSON-файл (для діагностики в адмінці).
+ */
+function save_api_response($entry) {
+  $file = APP_ROOT . '/storage/api_responses.json';
+  $list = [];
+  if (file_exists($file)) {
+    $raw = file_get_contents($file);
+    if ($raw) $list = json_decode($raw, true) ?: [];
+  }
+  array_unshift($list, $entry);
+  if (count($list) > 5) $list = array_slice($list, 0, 5);
+  $encoded = json_encode($list, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT | JSON_INVALID_UTF8_SUBSTITUTE);
+  if ($encoded !== false) {
+    file_put_contents($file, $encoded, LOCK_EX);
+  }
+}
+
 function mask_val($value) {
   $value = (string)$value;
   if ($value === '') return 'не задано';
@@ -423,6 +441,7 @@ function get_sqlite_db() {
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     $pdo->exec('PRAGMA journal_mode=WAL');
     $pdo->exec('PRAGMA synchronous=NORMAL');
+    $pdo->exec('PRAGMA busy_timeout=5000');
 
     $pdo->exec('CREATE TABLE IF NOT EXISTS requests (
         id INTEGER PRIMARY KEY AUTOINCREMENT,

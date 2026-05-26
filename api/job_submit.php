@@ -4,6 +4,8 @@
  * запускає job_worker.php у фоні, повертає {ok:true, job_id:"..."}.
  */
 
+define('MAX_CHARS', 30000);
+
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
 ini_set('log_errors', 1);
@@ -18,6 +20,13 @@ function js_send(int $code, array $payload): never
     exit;
 }
 
+function exec_available(): bool
+{
+    if (!function_exists('exec')) return false;
+    $disabled = array_map('trim', explode(',', (string)ini_get('disable_functions')));
+    return !in_array('exec', $disabled, true);
+}
+
 apply_cors_headers();
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') { http_response_code(204); exit; }
@@ -29,6 +38,11 @@ if (!is_array($data))       js_send(400, ['error' => 'Invalid JSON body']);
 if (empty($data['prompt'])) js_send(400, ['error' => 'Missing prompt']);
 
 $prompt    = trim((string)$data['prompt']);
+$promptLen = function_exists('mb_strlen') ? mb_strlen($prompt) : strlen($prompt);
+if ($promptLen > MAX_CHARS) {
+    js_send(400, ['error' => 'Текст занадто довгий (' . $promptLen . ' символів, ліміт ' . MAX_CHARS . ')']);
+}
+
 $source    = (string)($data['source']    ?? '');
 $sourceRef = (string)($data['sourceRef'] ?? '');
 $model     = (string)($data['model']     ?? '');
@@ -98,6 +112,12 @@ function find_php_cli(): string {
     $which = trim((string)@shell_exec('which php 2>/dev/null'));
     if ($which !== '' && @is_executable($which)) return $which;
     return 'php';
+}
+
+if (!exec_available()) {
+    $db->prepare('UPDATE async_jobs SET status = ?, finished_at = ? WHERE id = ?')
+       ->execute(['failed', date('c'), $jobId]);
+    js_send(500, ['error' => 'Фоновий воркер недоступний (exec() вимкнено на сервері)']);
 }
 
 $phpBin  = find_php_cli();

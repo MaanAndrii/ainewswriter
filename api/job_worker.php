@@ -13,7 +13,6 @@ if (php_sapi_name() !== 'cli') {
 }
 
 define('TIMEOUT', 120);
-define('MAX_CHARS', 30000);
 
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
@@ -30,14 +29,6 @@ require_once __DIR__ . '/providers/OpenAICompatProvider.php';
 function w_strlen(string $v): int
 {
     return function_exists('mb_strlen') ? mb_strlen($v) : strlen($v);
-}
-
-function w_substr(string $v, int $start, ?int $len = null): string
-{
-    if (function_exists('mb_substr')) {
-        return $len === null ? mb_substr($v, $start) : mb_substr($v, $start, $len);
-    }
-    return $len === null ? substr($v, $start) : substr($v, $start, $len);
 }
 
 function w_extract_json(string $text): ?array
@@ -241,6 +232,7 @@ if ($httpCodeFinal !== 200) {
     if ($apiMsg === 'Помилка API') $apiMsg = 'Помилка API (HTTP ' . $httpCodeFinal . ')';
     fail_job($db, $jobId, $apiMsg);
     sqlite_log_request(['date' => date('Y-m-d'), 'time' => date('H:i:s'), 'model' => $model, 'provider' => $provider, 'error' => $apiMsg, 'code' => $httpCodeFinal]);
+    save_api_response(['ts' => date('c'), 'type' => 'error', 'provider' => $provider, 'model' => $model, 'code' => $httpCodeFinal, 'body' => mb_substr($accChunks, 0, 8000)]);
     exit(1);
 }
 
@@ -312,3 +304,5 @@ if (trim($accText) !== '') {
         'web_search_used' => $webSearch ? 1 : 0,
     ]);
 }
+
+save_api_response(['ts' => date('c'), 'type' => 'success', 'provider' => $provider, 'model' => $model, 'code' => 200, 'body' => mb_substr($accText, 0, 8000)]);

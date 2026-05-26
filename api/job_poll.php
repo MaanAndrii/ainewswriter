@@ -1,7 +1,7 @@
 <?php
 /**
- * job_poll.php — короткий GET-ендпоінт для polling async job.
- * GET /api/job_poll?id=<job_id>&after=<last_chunk_id>
+ * job_poll.php — короткий POST-ендпоінт для polling async job.
+ * POST /api/job_poll  body: {"id":"<job_id>","after":<last_chunk_id>}
  * Повертає {status, chunks:[...], next_after} — живе < 1 секунди.
  */
 
