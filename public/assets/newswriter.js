@@ -569,11 +569,16 @@ function callAPI(prompt, model, systemPromptOverride, expectNews, expectFacebook
           }
           if (data.next_after !== undefined) afterId = data.next_after;
 
-          // status=failed без чанка-помилки (воркер не встиг записати) — запобіжник
           if ((data.status || '') === 'failed') {
             stopped = true; output.innerHTML = '';
             reject(new Error('Помилка виконання запиту'));
             return;
+          }
+
+          // Job is done server-side but [DONE] marker was not in the chunks window —
+          // treat accumulated text as the final response instead of polling forever.
+          if ((data.status || '') === 'done') {
+            stopped = true; onComplete(); return;
           }
 
           elapsed += interval;
