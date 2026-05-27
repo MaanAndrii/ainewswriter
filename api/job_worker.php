@@ -146,10 +146,11 @@ $provider     = (string)$modelMeta['provider'];
 $keys         = $settings['keys'] ?? [];
 $useWebSearch = in_array($provider, ['anthropic', 'gemini'], true);
 $maxTokens    = (int)$job['max_tokens'];
-$prompt       = (string)$job['prompt_text'];
-$source       = (string)$job['source_text'];
-$sourceRef    = (string)$job['source_ref'];
-$systemPrompt = (string)$job['system_prompt'];
+$prompt           = (string)$job['prompt_text'];
+$source           = (string)$job['source_text'];
+$sourceRef        = (string)$job['source_ref'];
+$extraInstructions = (string)($job['extra_instructions'] ?? '');
+$systemPrompt     = (string)$job['system_prompt'];
 
 try {
     $providerObj = w_make_provider($provider, $keys, $useWebSearch);
@@ -315,7 +316,8 @@ sqlite_log_request([
 if (trim($accText) !== '') {
     save_generation_to_db([
         'model' => $model, 'provider' => $provider, 'source_ref' => $sourceRef,
-        'input_text' => $source, 'output_json' => $accText, 'cost' => $cost,
+        'input_text' => $source, 'extra_instructions' => $extraInstructions,
+        'output_json' => $accText, 'cost' => $cost,
         'input_tokens' => (int)($usage['input_tokens'] ?? 0),
         'output_tokens' => (int)($usage['output_tokens'] ?? 0),
         'web_search_used' => $webSearch ? 1 : 0,

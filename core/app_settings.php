@@ -469,6 +469,7 @@ function get_sqlite_db() {
         provider TEXT NOT NULL,
         source_ref TEXT DEFAULT \'\',
         input_text TEXT DEFAULT \'\',
+        extra_instructions TEXT DEFAULT \'\',
         output_json TEXT DEFAULT \'\',
         cost REAL DEFAULT 0,
         input_tokens INTEGER DEFAULT 0,
@@ -487,6 +488,7 @@ function get_sqlite_db() {
         source_ref TEXT NOT NULL DEFAULT \'\',
         system_prompt TEXT NOT NULL DEFAULT \'\',
         max_tokens INTEGER NOT NULL DEFAULT 8000,
+        extra_instructions TEXT DEFAULT \'\',
         worker_pid INTEGER DEFAULT NULL,
         finished_at TEXT DEFAULT NULL
     )');
@@ -507,6 +509,17 @@ function get_sqlite_db() {
     );
     if (!in_array('web_search_used', $existingCols, true)) {
       $pdo->exec('ALTER TABLE generations ADD COLUMN web_search_used INTEGER DEFAULT 0');
+    }
+    if (!in_array('extra_instructions', $existingCols, true)) {
+      $pdo->exec("ALTER TABLE generations ADD COLUMN extra_instructions TEXT DEFAULT ''");
+    }
+
+    $existingJobCols = array_column(
+      $pdo->query("PRAGMA table_info(async_jobs)")->fetchAll(PDO::FETCH_ASSOC),
+      'name'
+    );
+    if (!in_array('extra_instructions', $existingJobCols, true)) {
+      $pdo->exec("ALTER TABLE async_jobs ADD COLUMN extra_instructions TEXT DEFAULT ''");
     }
   } catch (Exception $e) {
     error_log('SQLite init error: ' . $e->getMessage());
@@ -561,20 +574,21 @@ function save_generation_to_db($payload) {
   if (!$db) return false;
   try {
     $stmt = $db->prepare(
-      'INSERT INTO generations (created_at,model,provider,source_ref,input_text,output_json,cost,input_tokens,output_tokens,web_search_used)
-       VALUES (:created_at,:model,:provider,:source_ref,:input_text,:output_json,:cost,:input_tokens,:output_tokens,:web_search_used)'
+      'INSERT INTO generations (created_at,model,provider,source_ref,input_text,extra_instructions,output_json,cost,input_tokens,output_tokens,web_search_used)
+       VALUES (:created_at,:model,:provider,:source_ref,:input_text,:extra_instructions,:output_json,:cost,:input_tokens,:output_tokens,:web_search_used)'
     );
     $stmt->execute([
-      ':created_at'      => date('c'),
-      ':model'           => (string)($payload['model'] ?? ''),
-      ':provider'        => (string)($payload['provider'] ?? ''),
-      ':source_ref'      => (string)($payload['source_ref'] ?? ''),
-      ':input_text'      => (string)($payload['input_text'] ?? ''),
-      ':output_json'     => (string)($payload['output_json'] ?? ''),
-      ':cost'            => (float)($payload['cost'] ?? 0),
-      ':input_tokens'    => (int)($payload['input_tokens'] ?? 0),
-      ':output_tokens'   => (int)($payload['output_tokens'] ?? 0),
-      ':web_search_used' => (int)($payload['web_search_used'] ?? 0),
+      ':created_at'          => date('c'),
+      ':model'               => (string)($payload['model'] ?? ''),
+      ':provider'            => (string)($payload['provider'] ?? ''),
+      ':source_ref'          => (string)($payload['source_ref'] ?? ''),
+      ':input_text'          => (string)($payload['input_text'] ?? ''),
+      ':extra_instructions'  => (string)($payload['extra_instructions'] ?? ''),
+      ':output_json'         => (string)($payload['output_json'] ?? ''),
+      ':cost'                => (float)($payload['cost'] ?? 0),
+      ':input_tokens'        => (int)($payload['input_tokens'] ?? 0),
+      ':output_tokens'       => (int)($payload['output_tokens'] ?? 0),
+      ':web_search_used'     => (int)($payload['web_search_used'] ?? 0),
     ]);
     return true;
   } catch (Exception $e) {
