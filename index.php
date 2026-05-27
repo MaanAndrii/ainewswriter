@@ -60,8 +60,14 @@ if ($uri === '/admin/logs')   { header('Location: /admin/admin.php'); exit; }
 
 // ── Головна ───────────────────────────────────────────────────────────────────
 if ($uri === '/') {
+    require_once $base . '/version.php';
+    $v    = APP_VERSION;
+    $html = (string)file_get_contents($base . '/public/newswriter.html');
+    $html = str_replace('/public/assets/newswriter.css"', '/public/assets/newswriter.css?v=' . $v . '"', $html);
+    $html = str_replace('/public/assets/newswriter.js"',  '/public/assets/newswriter.js?v='  . $v . '"', $html);
     header('Content-Type: text/html; charset=utf-8');
-    readfile($base . '/public/newswriter.html');
+    header('Cache-Control: no-store');
+    echo $html;
     exit;
 }
 
