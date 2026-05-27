@@ -282,7 +282,8 @@ function buildPrompt(source, sourceRef, extra, fbCheck, fbStyle, tone, makeNews,
   var toneShortMap = profile.tone_short_rules || {};
   var toneShort = toneShortMap[tone] || toneLabel;
 
-  var extraBlock = extra            ? '\n\nДодаткові інструкції / контекст:\n' + extra : '';
+  var extraTitle = profile.extra_block_title || 'Додаткові інструкції / контекст:';
+  var extraBlock = extra            ? '\n\n' + extraTitle + '\n' + extra : '';
   var regenBlock = regenInstruction ? '\n\nІНСТРУКЦІЇ ДЛЯ ПЕРЕГЕНЕРАЦІЇ:\n' + regenInstruction : '';
   var refPrompt  = sourceRef
     ? String(profile.source_ref_rule || '').replaceAll('{{source_ref}}', sourceRef)
@@ -402,8 +403,10 @@ function loadGenerationById(id) {
     // Populate input fields
     var srcEl = document.getElementById('source');
     var refEl = document.getElementById('sourceRef');
+    var extEl = document.getElementById('extra');
     if (srcEl && item.input_text) srcEl.value = item.input_text;
     if (refEl && item.source_ref) refEl.value = item.source_ref;
+    if (extEl) extEl.value = item.extra_instructions || '';
     // Display raw output JSON in output area
     var output = document.getElementById('output');
     if (output && item.output_json) {
@@ -505,7 +508,8 @@ function callAPI(prompt, model, systemPromptOverride, expectNews, expectFacebook
     model: model,
     systemPromptOverride: systemPromptOverride || '',
     source: getVal('source'),
-    sourceRef: getVal('sourceRef')
+    sourceRef: getVal('sourceRef'),
+    extra: getVal('extra')
   });
 
   var accText = '';

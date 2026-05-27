@@ -310,7 +310,7 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
           <div><label class="small">К-сть заголовків</label><input type="number" id="lim_headlines" min="1" max="10" value="<?= (int)($pp['headlines_count'] ?? 4) ?>"></div>
           <div><label class="small">К-сть лідів</label><input type="number" id="lim_leads" min="1" max="5" value="<?= (int)($pp['leads_count'] ?? 2) ?>"></div>
           <div><label class="small">Макс. символів новини</label><input type="number" id="lim_article" min="300" max="10000" value="<?= (int)($pp['article_max_chars'] ?? 3000) ?>"></div>
-          <div><label class="small">Макс. символів Facebook</label><input type="number" id="lim_fb" min="50" max="2000" value="<?= (int)($pp['facebook_max_chars'] ?? 400) ?>"></div>
+          <div><label class="small">Довжина допису для Facebook</label><input type="number" id="lim_fb" min="50" max="2000" value="<?= (int)($pp['facebook_max_chars'] ?? 400) ?>"></div>
         </div>
         <div class="row" style="margin-top:8px">
           <div><label class="small">Мін. символів ліду</label><input type="number" id="lim_lead_min" min="50" max="500" value="<?= (int)($pp['lead_min_chars'] ?? 150) ?>"></div>
@@ -347,6 +347,9 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
 
       <label class="lbl" style="margin-top:10px">Заголовок вхідного матеріалу <span style="color:#A32D2D">*</span> <span class="small" style="font-weight:400">— напр. «ВХІДНИЙ МАТЕРІАЛ:»</span></label>
       <input type="text" id="pf_input_title" value="<?= pp_str($pp,'input_title','ВХІДНИЙ МАТЕРІАЛ:') ?>">
+
+      <label class="lbl" style="margin-top:10px">Заголовок блоку «Додаткові інструкції» <span class="small" style="font-weight:400">— текст перед полем додаткових інструкцій у промті</span></label>
+      <input type="text" id="pf_extra_block_title" value="<?= pp_str($pp,'extra_block_title','Додаткові інструкції / контекст:') ?>">
 
       <label class="lbl" style="margin-top:10px">Поля JSON при увімкненій новині <span style="color:#A32D2D">*</span> <span class="small" style="font-weight:400">— рядки всередині {}</span></label>
       <textarea id="pf_news_fields_on" rows="3" style="font-family:var(--font-mono, monospace);font-size:12px"><?= pp_str($pp,'news_fields_on') ?></textarea>
@@ -714,6 +717,7 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
       json_rule:             val('pf_json_rule'),
       requirements_title:    val('pf_requirements_title'),
       input_title:           val('pf_input_title'),
+      extra_block_title:     val('pf_extra_block_title'),
       news_fields_on:        val('pf_news_fields_on'),
       news_requirements_on:  val('pf_news_requirements_on'),
       tone_prefix:           val('pf_tone_prefix'),
@@ -813,6 +817,7 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
           setVal('pf_json_rule',            p.json_rule);
           setVal('pf_requirements_title',   p.requirements_title);
           setVal('pf_input_title',          p.input_title);
+          setVal('pf_extra_block_title',    p.extra_block_title);
           setVal('pf_news_fields_on',       p.news_fields_on);
           setVal('pf_news_requirements_on', p.news_requirements_on);
           setVal('pf_tone_prefix',          p.tone_prefix);

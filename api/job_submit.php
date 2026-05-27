@@ -45,6 +45,7 @@ if ($promptLen > MAX_CHARS) {
 
 $source    = (string)($data['source']    ?? '');
 $sourceRef = (string)($data['sourceRef'] ?? '');
+$extra     = trim((string)($data['extra'] ?? ''));
 $model     = (string)($data['model']     ?? '');
 $sysOver   = trim((string)($data['systemPromptOverride'] ?? ''));
 
@@ -77,8 +78,8 @@ $jobId = bin2hex(random_bytes(16));
 
 try {
     $db->prepare(
-        'INSERT INTO async_jobs (id, created_at, status, model, provider, prompt_text, source_text, source_ref, system_prompt, max_tokens)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        'INSERT INTO async_jobs (id, created_at, status, model, provider, prompt_text, source_text, source_ref, system_prompt, max_tokens, extra_instructions)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     )->execute([
         $jobId,
         date('c'),
@@ -90,6 +91,7 @@ try {
         $sourceRef,
         $systemPrompt,
         $maxTokens,
+        $extra,
     ]);
 } catch (Exception $e) {
     error_log('async job insert error: ' . $e->getMessage());
