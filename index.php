@@ -65,6 +65,7 @@ if ($uri === '/') {
     $html = (string)file_get_contents($base . '/public/newswriter.html');
     $html = str_replace('/public/assets/newswriter.css"', '/public/assets/newswriter.css?v=' . $v . '"', $html);
     $html = str_replace('/public/assets/newswriter.js"',  '/public/assets/newswriter.js?v='  . $v . '"', $html);
+    $html = str_replace('{{APP_VERSION}}', $v, $html);
     header('Content-Type: text/html; charset=utf-8');
     header('Cache-Control: no-store');
     echo $html;
