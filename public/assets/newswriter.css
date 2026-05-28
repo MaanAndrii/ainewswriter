@@ -49,6 +49,13 @@ input[type=range] { width:100%; accent-color:var(--red); cursor:pointer; }
 .btn-red:disabled { opacity:.45; cursor:not-allowed; }
 .btn-ghost { padding:9px 18px; background:transparent; color:var(--ink3); border:1px solid var(--bd); border-radius:3px; font-family:'Roboto Mono',monospace; font-size:11px; letter-spacing:.1em; text-transform:uppercase; cursor:pointer; transition:all .15s; width:100%; }
 .btn-ghost:hover { border-color:var(--red); color:var(--red); }
+.btn-new { padding:9px 18px; background:#4a7fa5; color:#fff; border:none; border-radius:3px; font-family:'Roboto Mono',monospace; font-size:11px; letter-spacing:.1em; text-transform:uppercase; cursor:pointer; transition:background .15s; width:100%; }
+.btn-new:hover { background:#3a6f95; }
+.advanced-toggle { display:flex; justify-content:space-between; align-items:center; cursor:pointer; padding:8px 11px; background:#fff; border:1px solid var(--bd); border-radius:3px; user-select:none; }
+.advanced-toggle:hover { border-color:var(--ink3); }
+.advanced-toggle span:first-child { font-family:'Roboto Mono',monospace; font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink3); }
+.advanced-icon { display:inline-block; width:18px; height:18px; line-height:18px; text-align:center; background:var(--bg); border-radius:3px; font-size:14px; font-weight:700; color:var(--ink3); }
+#advancedBody { display:flex; flex-direction:column; gap:18px; padding:14px 0 2px; }
 .btn-sm { padding:7px 14px; background:var(--red); color:#fff; border:none; border-radius:3px; font-family:'Roboto Mono',monospace; font-size:10px; letter-spacing:.1em; text-transform:uppercase; cursor:pointer; display:inline-flex; align-items:center; gap:6px; margin-top:10px; }
 .btn-sm:disabled { opacity:.45; cursor:not-allowed; }
 .btn-regen { padding:9px 16px; background:var(--red); color:#fff; border:none; border-radius:3px; font-family:'Roboto Mono',monospace; font-size:10px; letter-spacing:.1em; text-transform:uppercase; cursor:pointer; display:inline-flex; align-items:center; gap:8px; }

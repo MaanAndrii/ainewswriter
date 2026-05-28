@@ -22,7 +22,6 @@
     <div>
       <label class="lbl">Вхідний матеріал</label>
       <textarea id="source" style="min-height:170px" placeholder="Новина, Facebook-допис, Telegram, коментар&#8230; (будь-яка мова)"></textarea>
-      <p class="hint">Ctrl+Enter &#8212; запустити</p>
     </div>
     <div>
       <label class="lbl">Джерело новини</label>
@@ -30,39 +29,47 @@
       <p class="hint">Вказується в кінці першого абзацу</p>
     </div>
     <div>
-      <label class="lbl">Глибина рерайту</label>
-      <div class="depth-row">
-        <span class="depth-label" id="depthLabel">Глибока</span>
-        <span class="depth-hint"  id="depthHint">Переписуй більшість</span>
-      </div>
-      <input type="range" id="depthSlider" min="0" max="3" step="1" value="2">
-      <div class="depth-marks"><span>Мін</span><span></span><span></span><span>Макс</span></div>
-    </div>
-    <div>
-      <label class="lbl">Тональність</label>
-      <div class="tone-grid">
-        <label class="tone-opt active" data-key="neutral">
-          <input type="radio" name="tone" value="neutral" checked>
-          <div><div class="tone-name">Нейтральний</div><div class="tone-desc">Факти без оцінок</div></div>
-        </label>
-        <label class="tone-opt" data-key="intriguing">
-          <input type="radio" name="tone" value="intriguing">
-          <div><div class="tone-name">Інтригуючий</div><div class="tone-desc">Питання, напруга</div></div>
-        </label>
-        <label class="tone-opt" data-key="emotional">
-          <input type="radio" name="tone" value="emotional">
-          <div><div class="tone-name">Емоційний</div><div class="tone-desc">Враження, реакція</div></div>
-        </label>
-        <label class="tone-opt" data-key="seo">
-          <input type="radio" name="tone" value="seo">
-          <div><div class="tone-name">SEO</div><div class="tone-desc">Ключові слова</div></div>
-        </label>
-      </div>
-    </div>
-    <div>
       <label class="lbl">Додаткові інструкції</label>
       <textarea id="extra" style="min-height:68px" placeholder="Акценти, уточнення, що виділити&#8230;"></textarea>
     </div>
+
+    <div class="advanced-toggle" id="advancedToggle">
+      <span>Глибина рерайту та тональність</span>
+      <span class="advanced-icon" id="advancedIcon">+</span>
+    </div>
+    <div id="advancedBody" style="display:none">
+      <div style="margin-bottom:18px">
+        <label class="lbl">Глибина рерайту</label>
+        <div class="depth-row">
+          <span class="depth-label" id="depthLabel">Глибока</span>
+          <span class="depth-hint"  id="depthHint">Переписуй більшість</span>
+        </div>
+        <input type="range" id="depthSlider" min="0" max="3" step="1" value="2">
+        <div class="depth-marks"><span>Мін</span><span></span><span></span><span>Макс</span></div>
+      </div>
+      <div>
+        <label class="lbl">Тональність</label>
+        <div class="tone-grid">
+          <label class="tone-opt active" data-key="neutral">
+            <input type="radio" name="tone" value="neutral" checked>
+            <div><div class="tone-name">Нейтральний</div><div class="tone-desc">Факти без оцінок</div></div>
+          </label>
+          <label class="tone-opt" data-key="intriguing">
+            <input type="radio" name="tone" value="intriguing">
+            <div><div class="tone-name">Інтригуючий</div><div class="tone-desc">Питання, напруга</div></div>
+          </label>
+          <label class="tone-opt" data-key="emotional">
+            <input type="radio" name="tone" value="emotional">
+            <div><div class="tone-name">Емоційний</div><div class="tone-desc">Враження, реакція</div></div>
+          </label>
+          <label class="tone-opt" data-key="seo">
+            <input type="radio" name="tone" value="seo">
+            <div><div class="tone-name">SEO</div><div class="tone-desc">Ключові слова</div></div>
+          </label>
+        </div>
+      </div>
+    </div>
+
     <label class="cb-row">
       <input type="checkbox" id="makeNews" checked>
       <span class="cb-text"><strong>Робити новину</strong> (заголовки, ліди, текст)</span>
@@ -71,7 +78,7 @@
       <input type="checkbox" id="fbCheck">
       <span class="cb-text"><strong>Facebook-допис</strong> на основі матеріалу</span>
     </label>
-    
+
     <div id="fbStyleWrap" style="display:none">
       <label class="lbl">Стиль Facebook-допису</label>
       <div class="depth-row">
@@ -91,9 +98,9 @@
       <div class="spin" id="spinProcess"></div>
       <span id="btnProcessText">&#9654; Обробити матеріал</span>
     </button>
+    <button class="btn-new" onclick="resetAll()">&#10005; Нове завдання</button>
     <button class="btn-ghost" onclick="showPromptPreview()">Тест: показати промпт</button>
     <button class="btn-ghost" onclick="showHistoryPanel()">&#9776; Історія</button>
-    <button class="btn-ghost" onclick="resetAll()">&#10005; Нове завдання</button>
   </aside>
 
   <div style="display:flex;flex-direction:column;overflow:hidden;">
@@ -108,7 +115,7 @@
 </div>
 
 <footer class="site-footer">
-  AI Newswriter v5.5 &nbsp;&middot;&nbsp; <a href="/admin/admin.php">Адмінка</a>
+  AI Newswriter v{{APP_VERSION}} &nbsp;&middot;&nbsp; <a href="/admin/admin.php">Адмінка</a>
 </footer>
 
 <div class="modal-backdrop" id="promptModal" onclick="if(event.target===this)closePromptModal()">

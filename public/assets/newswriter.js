@@ -136,9 +136,16 @@ function syncActionButtons() {
 }
 syncActionButtons();
 document.getElementById('makeNews').addEventListener('change', syncActionButtons);
-document.getElementById('source').addEventListener('keydown', function (e) {
-  if (e.ctrlKey && e.key === 'Enter') runProcess(null);
-});
+var advToggle = document.getElementById('advancedToggle');
+var advBody   = document.getElementById('advancedBody');
+var advIcon   = document.getElementById('advancedIcon');
+if (advToggle && advBody) {
+  advToggle.addEventListener('click', function () {
+    var open = advBody.style.display !== 'none';
+    advBody.style.display = open ? 'none' : 'flex';
+    if (advIcon) advIcon.textContent = open ? '+' : '−';
+  });
+}
 var PROV_VISUAL = {
   anthropic: { name: 'Claude',  abbr: 'Cl',  color: '#c27a52' },
   xai:       { name: 'xAI',    abbr: 'xAI', color: '#1a1a1a' },
@@ -786,6 +793,10 @@ function resetAll() {
   var opts = document.querySelectorAll('.tone-opt');
   for (var i = 0; i < opts.length; i++) opts[i].classList.remove('active');
   document.querySelector('.tone-opt[data-key="neutral"]').classList.add('active');
+  var ab = document.getElementById('advancedBody');
+  var ai = document.getElementById('advancedIcon');
+  if (ab) ab.style.display = 'none';
+  if (ai) ai.textContent = '+';
   document.getElementById('costBar').innerHTML = '';
   document.getElementById('output').innerHTML = '<div class="empty"><div class="empty-icon">&#10022;</div><div class="empty-text">Результат z\'явиться тут</div></div>';
   currentSource = '';
