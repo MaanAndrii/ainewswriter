@@ -224,7 +224,16 @@ function loadModelSettings() {
         var btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'mdl-btn' + (mdl.id === selId ? ' active' : '');
-        btn.textContent = mdl.label || mdl.id;
+        var span = document.createElement('span');
+        span.textContent = mdl.label || mdl.id;
+        btn.appendChild(span);
+        if (mdl.paid) {
+          var badge = document.createElement('span');
+          badge.className = 'mdl-badge-paid';
+          badge.title = 'Платна модель';
+          badge.textContent = '$';
+          btn.appendChild(badge);
+        }
         btn.addEventListener('click', function() {
           hiddenSel.value = mdl.id;
           mdlCatalog.querySelectorAll('.mdl-btn').forEach(function(b) { b.classList.remove('active'); });
