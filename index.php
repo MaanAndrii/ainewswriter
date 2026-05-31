@@ -40,12 +40,13 @@ if ($uri === '/manifest.json') {
     exit;
 }
 if ($uri === '/sw.js') {
+    require_once $base . '/version.php';
     $file = $base . '/public/sw.js';
     if (!is_file($file)) { http_response_code(404); echo '404 Not Found'; exit; }
     header('Content-Type: application/javascript');
     header('Service-Worker-Allowed: /');
     header('Cache-Control: no-cache');
-    readfile($file);
+    echo str_replace('{{APP_VERSION}}', APP_VERSION, (string)file_get_contents($file));
     exit;
 }
 

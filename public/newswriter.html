@@ -141,6 +141,17 @@
 <script>
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(function(){});
+  navigator.serviceWorker.addEventListener('message', function(e) {
+    if (!e.data || e.data.type !== 'SW_UPDATED') return;
+    var bar = document.getElementById('sw-update-bar');
+    if (bar) return;
+    bar = document.createElement('div');
+    bar.id = 'sw-update-bar';
+    bar.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#1a1714;color:#f5f2eb;font-family:Roboto Mono,monospace;font-size:11px;letter-spacing:.08em;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;z-index:9999;border-top:2px solid #b5401a';
+    bar.innerHTML = '<span>&#9654; Доступна нова версія застосунку</span>'
+      + '<button onclick="window.location.reload()" style="background:#b5401a;color:#fff;border:none;border-radius:3px;padding:6px 14px;font-family:Roboto Mono,monospace;font-size:11px;letter-spacing:.08em;cursor:pointer">Оновити сторінку</button>';
+    document.body.appendChild(bar);
+  });
 }
 </script>
 </body>
