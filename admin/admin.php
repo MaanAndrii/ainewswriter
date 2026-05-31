@@ -401,7 +401,6 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
       <table>
         <tr><th>Зона</th><th>Новий пароль</th><th>Дія</th></tr>
         <tr><td>Адмін-панель</td><td><input type="password" id="pwd_admin" placeholder="мінімум 8 символів"></td><td><button type="button" class="btn-mini" data-save-password="admin">Зберегти</button></td></tr>
-        <tr><td>Перегляд логів</td><td><input type="password" id="pwd_logs" placeholder="мінімум 8 символів"></td><td><button type="button" class="btn-mini" data-save-password="logs">Зберегти</button></td></tr>
       </table>
       <div class="small" id="password_status" style="margin-top:6px"></div>
     </div>
