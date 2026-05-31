@@ -1,5 +1,6 @@
 var MODEL_PRICES = {};
 var MODEL_META = {};
+var POST_PROCESSING = { quote_style: 'upper' };
 var DEPTH_LABELS = ['Мінімальна', 'Помірна', 'Глибока', 'Повна переробка'];
 var DEPTH_HINTS  = ['Зберігай формулювання', 'Перефразуй ~50%', 'Переписуй більшість', 'Лише факти'];
 var DEPTH_THRESH = [10, 25, 45, 65];
@@ -199,6 +200,7 @@ function loadModelSettings() {
     }
 
     var paidProviders = d.paid_providers || [];
+    if (d.post_processing) POST_PROCESSING = d.post_processing;
 
     SYSTEM_PROMPT_DEFAULT = d.prompt_system || '';
     PROMPT_PROFILES = d.prompt_profiles || {};
@@ -843,7 +845,24 @@ function resetAll() {
   copyStore = {}; copyIdx = 0;
 }
 // ── Render ──
+function normalizeQuotes(s) {
+  if (typeof s !== 'string') return s;
+  var style = (POST_PROCESSING && POST_PROCESSING.quote_style) || 'upper';
+  if (style === 'none') return s;
+  var open  = style === 'guillemets' ? '\u00AB'
+            : style === 'low_high'   ? '\u201E'
+            : '\u201C';
+  var close = style === 'guillemets' ? '\u00BB'
+            : '\u201D';
+  return s.replace(/\u0022([^\u0022\n]+)\u0022/g, open + '$1' + close);
+}
+
 function renderResults(data, source, makeNews, fbCheck, depth) {
+  // Normalize quotes in all text fields before rendering
+  if (Array.isArray(data.headlines)) data.headlines.forEach(function(h) { if (h) h.text = normalizeQuotes(h.text); });
+  if (Array.isArray(data.leads))     data.leads.forEach(function(l)     { if (l) l.text = normalizeQuotes(l.text); });
+  if (data.article)  data.article  = normalizeQuotes(data.article);
+  if (data.facebook) data.facebook = normalizeQuotes(data.facebook);
   var article  = data.article || '';
   var chg      = 100 - similarity(source, article);
   var charLen  = article.length;
