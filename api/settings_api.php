@@ -133,7 +133,7 @@ if ($method === 'POST') {
     return ['system' => $systemText, 'profiles' => $profiles];
   }
 
-  // ▶ Зберегти промти — тільки runtime (settings_store.php)
+  // ▶ Зберегти промти — runtime + prompts.json (з бекапом)
   if ($action === 'save_all_prompts') {
     $res = extract_prompt_payload($data);
     if (is_string($res)) { http_response_code(400); echo json_encode(['ok'=>false,'error'=>$res]); exit; }
@@ -144,7 +144,16 @@ if ($method === 'POST') {
       'system_prompt_default_override' => $res['system'],
       'prompt_profiles'                => $res['profiles'],
     ]);
-    echo json_encode(['ok' => true], JSON_UNESCAPED_UNICODE);
+    $newDefaults = [
+      'system_prompts'       => ['default' => $res['system']],
+      'user_prompt_profiles' => ['default' => $res['profiles']['user'] ?? []],
+    ];
+    if (save_prompts_to_json($newDefaults)) {
+      echo json_encode(['ok' => true], JSON_UNESCAPED_UNICODE);
+    } else {
+      http_response_code(500);
+      echo json_encode(['ok' => false, 'error' => 'Не вдалося записати prompts.json — перевірте права на файл']);
+    }
     exit;
   }
 
