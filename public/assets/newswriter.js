@@ -561,9 +561,10 @@ function callAPI(prompt, model, systemPromptOverride, expectNews, expectFacebook
     if (evPayload === '[DONE]') return 'done';
     try {
       var ev = JSON.parse(evPayload);
-      if (ev.error) { reject(new Error(ev.error)); return 'error'; }
-      if (ev.reset) { accText = ''; hasChunks = false; return 'continue'; }
-      if (ev.meta)  { metaReceived = ev; return 'continue'; }
+      if (ev.error)  { reject(new Error(ev.error)); return 'error'; }
+      if (ev.status) { setStatus(ev.status); return 'continue'; }
+      if (ev.reset)  { accText = ''; hasChunks = false; return 'continue'; }
+      if (ev.meta)   { metaReceived = ev; return 'continue'; }
       if (ev.delta != null && ev.delta !== '') {
         accText += ev.delta;
         if (!hasChunks) { hasChunks = true; setStatus('Отримую відповідь…'); }

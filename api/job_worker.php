@@ -166,65 +166,92 @@ if ($payload === false) {
     exit(1);
 }
 
-// ── Streaming call ────────────────────────────────────────────────────────────
+// ── Streaming call (з одним авто-повтором при 429) ───────────────────────────
 
-$accText     = '';
-$accChunks   = '';
-$streamError = null;
-$state       = BaseProvider::initialStreamState();
+$accText       = '';
+$accChunks     = '';
+$streamError   = null;
+$state         = BaseProvider::initialStreamState();
+$httpCodeFinal = 0;
+$curlErr       = '';
+$timeStart     = microtime(true);
+$timeEnd       = $timeStart;
+$maxAttempts   = 2;
 
-$ch = curl_init($req['url']);
-curl_setopt_array($ch, [
-    CURLOPT_RETURNTRANSFER => false,
-    CURLOPT_POST           => true,
-    CURLOPT_POSTFIELDS     => $payload,
-    CURLOPT_HTTPHEADER     => $req['headers'],
-    CURLOPT_TIMEOUT        => TIMEOUT,
-    CURLOPT_WRITEFUNCTION  => function ($ch, $chunk) use (&$accText, &$accChunks, &$streamError, &$state, $providerObj, $db, $jobId) {
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $accChunks .= $chunk;
+for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+    $accText     = '';
+    $accChunks   = '';
+    $streamError = null;
+    $state       = BaseProvider::initialStreamState();
 
-        if ($httpCode !== 0 && $httpCode !== 200) {
-            return strlen($chunk);
-        }
+    $ch = curl_init($req['url']);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => false,
+        CURLOPT_POST           => true,
+        CURLOPT_POSTFIELDS     => $payload,
+        CURLOPT_HTTPHEADER     => $req['headers'],
+        CURLOPT_TIMEOUT        => TIMEOUT,
+        CURLOPT_WRITEFUNCTION  => function ($ch, $chunk) use (&$accText, &$accChunks, &$streamError, &$state, $providerObj, $db, $jobId) {
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $accChunks .= $chunk;
 
-        while (($pos = strpos($accChunks, "\n")) !== false) {
-            $line      = rtrim(substr($accChunks, 0, $pos), "\r");
-            $accChunks = substr($accChunks, $pos + 1);
-
-            if (!str_starts_with($line, 'data: ')) continue;
-            $dataStr = substr($line, 6);
-            if ($dataStr === '[DONE]' || trim($dataStr) === '') continue;
-
-            $ev = json_decode($dataStr, true);
-            if (!is_array($ev)) continue;
-
-            if (isset($ev['error'])) {
-                $streamError = (string)($ev['error']['message'] ?? (is_string($ev['error']) ? $ev['error'] : 'Stream error'));
+            if ($httpCode !== 0 && $httpCode !== 200) {
                 return strlen($chunk);
             }
 
-            $delta = $providerObj->processStreamEvent($ev, $state);
-            if ($delta !== null && $delta !== '') {
-                $accText .= $delta;
-                write_chunk($db, $jobId, 'data: ' . json_encode(['delta' => $delta], JSON_UNESCAPED_UNICODE));
+            while (($pos = strpos($accChunks, "\n")) !== false) {
+                $line      = rtrim(substr($accChunks, 0, $pos), "\r");
+                $accChunks = substr($accChunks, $pos + 1);
+
+                if (!str_starts_with($line, 'data: ')) continue;
+                $dataStr = substr($line, 6);
+                if ($dataStr === '[DONE]' || trim($dataStr) === '') continue;
+
+                $ev = json_decode($dataStr, true);
+                if (!is_array($ev)) continue;
+
+                if (isset($ev['error'])) {
+                    $streamError = (string)($ev['error']['message'] ?? (is_string($ev['error']) ? $ev['error'] : 'Stream error'));
+                    return strlen($chunk);
+                }
+
+                $delta = $providerObj->processStreamEvent($ev, $state);
+                if ($delta !== null && $delta !== '') {
+                    $accText .= $delta;
+                    write_chunk($db, $jobId, 'data: ' . json_encode(['delta' => $delta], JSON_UNESCAPED_UNICODE));
+                }
             }
+
+            return strlen($chunk);
+        },
+    ]);
+
+    curl_exec($ch);
+    $httpCodeFinal = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $timeEnd       = microtime(true);
+    $curlErr       = curl_error($ch);
+    curl_close($ch);
+
+    if ($curlErr) {
+        fail_job($db, $jobId, 'cURL: ' . $curlErr);
+        sqlite_log_request(['date' => date('Y-m-d'), 'time' => date('H:i:s'), 'model' => $model, 'provider' => $provider, 'error' => 'cURL: ' . $curlErr]);
+        exit(1);
+    }
+
+    // Авто-повтор при rate limit (429)
+    if ($httpCodeFinal === 429 && $attempt < $maxAttempts) {
+        $errResult = json_decode($accChunks, true) ?: [];
+        $apiMsg    = $providerObj->normalizeError($errResult, $accChunks);
+        $retrySec  = 10;
+        if (preg_match('/try again in ([0-9]+(?:\.[0-9]+)?)s/i', $apiMsg, $rm)) {
+            $retrySec = min((int)ceil((float)$rm[1]) + 2, 65);
         }
+        write_chunk($db, $jobId, 'data: ' . json_encode(['status' => 'Ліміт запитів. Повторна спроба через ' . $retrySec . ' сек…'], JSON_UNESCAPED_UNICODE));
+        sleep($retrySec);
+        continue;
+    }
 
-        return strlen($chunk);
-    },
-]);
-
-$timeStart     = microtime(true);
-curl_exec($ch);
-$httpCodeFinal = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-$timeEnd       = microtime(true);
-$curlErr       = curl_error($ch);
-curl_close($ch);
-
-if ($curlErr) {
-    fail_job($db, $jobId, 'cURL: ' . $curlErr);
-    exit(1);
+    break;
 }
 
 if ($httpCodeFinal !== 200) {
