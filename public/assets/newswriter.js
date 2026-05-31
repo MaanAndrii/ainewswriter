@@ -843,7 +843,18 @@ function resetAll() {
   copyStore = {}; copyIdx = 0;
 }
 // ── Render ──
+function normalizeQuotes(s) {
+  if (typeof s !== 'string') return s;
+  // U+0022 (ASCII ") → U+201C / U+201D (верхні лапки “ ”)
+  return s.replace(/\u0022([^\u0022\n]+)\u0022/g, '\u201C$1\u201D');
+}
+
 function renderResults(data, source, makeNews, fbCheck, depth) {
+  // Normalize quotes in all text fields before rendering
+  if (Array.isArray(data.headlines)) data.headlines.forEach(function(h) { if (h) h.text = normalizeQuotes(h.text); });
+  if (Array.isArray(data.leads))     data.leads.forEach(function(l)     { if (l) l.text = normalizeQuotes(l.text); });
+  if (data.article)  data.article  = normalizeQuotes(data.article);
+  if (data.facebook) data.facebook = normalizeQuotes(data.facebook);
   var article  = data.article || '';
   var chg      = 100 - similarity(source, article);
   var charLen  = article.length;
