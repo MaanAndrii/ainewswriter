@@ -327,12 +327,6 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
       <div class="ttl">System prompt</div>
       <textarea id="system_default_override" class="big" style="min-height:180px"><?= htmlspecialchars($defaultOverride !== '' ? $defaultOverride : $defaultPrompt) ?></textarea>
       <div class="small" style="margin-top:4px">Базові інструкції для моделі — роль редактора, мовні вимоги, формат відповіді.</div>
-      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;flex-wrap:wrap">
-        <button type="button" class="btn-mini muted" id="restore_prompts_defaults_btn">Відновити за замовчуванням</button>
-        <button type="button" class="btn-mini" id="save_as_default_btn" title="Зберегти поточний промт та параметри як нові значення за замовчуванням (prompts.json)">&#9733; Зберегти як за замовчуванням</button>
-        <button type="button" class="btn-mini danger" id="save_system_default_btn">Зберегти system prompt</button>
-      </div>
-      <div class="small" id="save_system_status" style="text-align:right;margin-top:4px"></div>
     </div>
 
     <div class="card" style="margin-top:14px">
@@ -379,10 +373,14 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
       <label class="lbl" style="margin-top:10px">Стилі Facebook (0–3) <span class="small" style="font-weight:400">— 4 записи розділені <code>---</code>, для повзунка серйозний→гумористичний</span></label>
       <textarea id="pf_fb_style_rules" rows="4" style="font-family:var(--font-mono, monospace);font-size:12px"><?= pp_fb($pp) ?></textarea>
 
-      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
-        <button type="button" class="btn-mini danger" id="save_prompt_fields_btn">Зберегти складові промту</button>
+    </div>
+
+    <div class="card" style="margin-top:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:14px 18px">
+      <button type="button" class="btn-mini muted" id="restore_prompts_defaults_btn">&#8617; Відновити за замовчуванням</button>
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="small" id="save_all_prompts_status" style="min-width:180px;text-align:right"></div>
+        <button type="button" class="btn-mini danger" id="save_all_prompts_btn">&#9654; Зберегти промти</button>
       </div>
-      <div class="small" id="save_fields_status" style="text-align:right;margin-top:4px"></div>
     </div>
 
     <div class="card" style="margin-top:14px">
@@ -737,22 +735,39 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
     };
   }
 
-  // Зберегти system prompt
-  var saveSystemBtn = document.getElementById('save_system_default_btn');
-  if (saveSystemBtn) {
-    saveSystemBtn.addEventListener('click', function(){
-      var text = (document.getElementById('system_default_override').value || '').trim();
-      var status = document.getElementById('save_system_status');
-      if (!text) { status.textContent = 'System prompt не може бути порожнім'; return; }
-      if (!confirm('Зберегти system prompt?')) return;
-      apiPost({action:'save_system_default_override', value: text}, function(err){
-        if (err) { status.textContent = 'Помилка: ' + err.message; return; }
-        status.textContent = 'System prompt збережено ✔';
+  // Зберегти промти (system + профіль + бекап prompts.json)
+  var saveAllBtn = document.getElementById('save_all_prompts_btn');
+  if (saveAllBtn) {
+    saveAllBtn.addEventListener('click', function() {
+      var status = document.getElementById('save_all_prompts_status');
+      var errors = validatePromptFields();
+      if (errors.length) {
+        status.innerHTML = '<span style="color:#A32D2D">Виправте помилки:<br>' + errors.join('<br>') + '</span>';
+        return;
+      }
+      var systemText = (document.getElementById('system_default_override').value || '').trim();
+      if (!systemText) { status.textContent = 'System prompt не може бути порожнім'; return; }
+      var fields = readPromptFields();
+      var currentProfiles = { user: Object.assign({
+        headlines_count:   Number(document.getElementById('lim_headlines').value || 4),
+        leads_count:       Number(document.getElementById('lim_leads').value || 2),
+        article_max_chars: Number(document.getElementById('lim_article').value || 3000),
+        facebook_max_chars:Number(document.getElementById('lim_fb').value || 400),
+        lead_min_chars:    Number(document.getElementById('lim_lead_min').value || 150),
+        lead_max_chars:    Number(document.getElementById('lim_lead_max').value || 180)
+      }, fields) };
+      saveAllBtn.disabled = true;
+      status.textContent = 'Збереження…';
+      apiPost({action: 'save_all_prompts', system: systemText, profiles: currentProfiles}, function(err) {
+        saveAllBtn.disabled = false;
+        if (err) { status.innerHTML = '<span style="color:#A32D2D">Помилка: ' + err.message + '</span>'; return; }
+        status.textContent = '✔ Збережено · бекап створено';
+        loadBackups();
       });
     });
   }
 
-  // Зберегти параметри генерації (числа)
+  // Зберегти параметри генерації (числа — окрема швидка дія)
   var saveLimitsBtn = document.getElementById('save_prompt_limits_btn');
   if (saveLimitsBtn) {
     saveLimitsBtn.addEventListener('click', function(){
@@ -767,33 +782,6 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
       }}, function(err){
         if (err) { status.textContent = 'Помилка: ' + err.message; return; }
         status.textContent = 'Параметри збережено ✔';
-      });
-    });
-  }
-
-  // Зберегти складові user-промту (поля)
-  var saveFieldsBtn = document.getElementById('save_prompt_fields_btn');
-  if (saveFieldsBtn) {
-    saveFieldsBtn.addEventListener('click', function(){
-      var status = document.getElementById('save_fields_status');
-      var errors = validatePromptFields();
-      if (errors.length) {
-        status.innerHTML = '<span style="color:#A32D2D">Виправте помилки:<br>' + errors.join('<br>') + '</span>';
-        return;
-      }
-      var fields = readPromptFields();
-      // Зберігаємо через save_prompt_profiles з поточними числовими лімітами
-      var currentProfiles = { user: Object.assign({
-        headlines_count:   Number(document.getElementById('lim_headlines').value || 4),
-        leads_count:       Number(document.getElementById('lim_leads').value || 2),
-        article_max_chars: Number(document.getElementById('lim_article').value || 3000),
-        facebook_max_chars:Number(document.getElementById('lim_fb').value || 400),
-        lead_min_chars:    Number(document.getElementById('lim_lead_min').value || 150),
-        lead_max_chars:    Number(document.getElementById('lim_lead_max').value || 180)
-      }, fields) };
-      apiPost({action:'save_prompt_profiles', profiles: currentProfiles}, function(err){
-        if (err) { status.textContent = 'Помилка: ' + err.message; return; }
-        status.textContent = 'Складові промту збережено ✔';
       });
     });
   }
@@ -834,27 +822,8 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
           if (p.lead_min_chars)    document.getElementById('lim_lead_min').value    = p.lead_min_chars;
           if (p.lead_max_chars)    document.getElementById('lim_lead_max').value    = p.lead_max_chars;
         }
-        document.getElementById('save_system_status').textContent = 'Відновлено за замовчуванням ✔';
-        document.getElementById('save_fields_status').textContent = 'Відновлено за замовчуванням ✔';
-      });
-    });
-  }
-
-  // Зберегти як за замовчуванням (записує поточний стан у prompts.json)
-  var saveAsDefaultBtn = document.getElementById('save_as_default_btn');
-  if (saveAsDefaultBtn) {
-    saveAsDefaultBtn.addEventListener('click', function() {
-      if (!confirm('Зберегти поточний system prompt та всі параметри user-промту як нові значення за замовчуванням?\n\nПісля цього кнопка «Відновити за замовчуванням» відновлюватиме саме ці значення.')) return;
-      var status = document.getElementById('save_system_status');
-      saveAsDefaultBtn.disabled = true;
-      status.textContent = 'Збереження…';
-      apiPost({action: 'save_as_default_prompts'}, function(err) {
-        saveAsDefaultBtn.disabled = false;
-        if (err) {
-          status.innerHTML = '<span style="color:#A32D2D">Помилка: ' + err.message + '</span>';
-          return;
-        }
-        status.textContent = '★ Збережено як за замовчуванням ✔';
+        var saveAllStatus = document.getElementById('save_all_prompts_status');
+        if (saveAllStatus) saveAllStatus.textContent = 'Відновлено за замовчуванням ✔';
       });
     });
   }
