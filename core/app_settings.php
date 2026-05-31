@@ -373,6 +373,23 @@ function mask_val($value) {
   return substr($value, 0, 5) . str_repeat('*', max(0, $len - 10)) . substr($value, -5);
 }
 
+function get_paid_providers() {
+  $file = APP_ROOT . '/storage/paid_providers.json';
+  if (!file_exists($file)) return [];
+  $raw = file_get_contents($file);
+  if (!$raw) return [];
+  $arr = json_decode($raw, true);
+  if (!is_array($arr)) return [];
+  return array_values(array_filter($arr, function($v) { return in_array($v, PROVIDERS_ALL, true); }));
+}
+
+function save_paid_providers(array $providers) {
+  $clean = array_values(array_filter($providers, function($v) { return in_array($v, PROVIDERS_ALL, true); }));
+  $dir = APP_ROOT . '/storage';
+  if (!is_dir($dir)) @mkdir($dir, 0755, true);
+  file_put_contents($dir . '/paid_providers.json', json_encode($clean), LOCK_EX);
+}
+
 function resolve_system_prompt($settings) {
   return trim((string)($settings['system_prompt_default_override'] ?? $settings['system_prompt_custom'] ?? get_default_system_prompt()));
 }

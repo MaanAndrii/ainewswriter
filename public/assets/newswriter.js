@@ -198,6 +198,8 @@ function loadModelSettings() {
       byProvider[p].push(m);
     }
 
+    var paidProviders = d.paid_providers || [];
+
     SYSTEM_PROMPT_DEFAULT = d.prompt_system || '';
     PROMPT_PROFILES = d.prompt_profiles || {};
 
@@ -220,6 +222,7 @@ function loadModelSettings() {
 
     function renderModels(prov, selId) {
       mdlCatalog.innerHTML = '';
+      var isPaidProv = paidProviders.indexOf(prov) !== -1;
       (byProvider[prov] || []).forEach(function(mdl) {
         var btn = document.createElement('button');
         btn.type = 'button';
@@ -227,7 +230,7 @@ function loadModelSettings() {
         var span = document.createElement('span');
         span.textContent = mdl.label || mdl.id;
         btn.appendChild(span);
-        if (mdl.paid) {
+        if (isPaidProv) {
           var badge = document.createElement('span');
           badge.className = 'mdl-badge-paid';
           badge.title = 'Платна модель';

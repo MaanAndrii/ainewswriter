@@ -43,6 +43,7 @@ button { width:100%; padding:11px; background:#b5401a; color:#fff; border:none; 
 }
 
 $settings = load_settings();
+$paidProviders = get_paid_providers();
 $msg = '';
 $err = '';
 
@@ -243,14 +244,15 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
         </label>
         <div id="keys_section" style="display:none">
         <table id="keys_table">
-          <tr><th>Provider</th><th>API ключ</th><th>Дія</th></tr>
-          <tr><td>anthropic</td><td><input type="password" id="k_anthropic" data-mask="<?= htmlspecialchars(mask_val($runtimeKeys['anthropic'] ?? '')) ?>" placeholder="<?= htmlspecialchars(mask_val($runtimeKeys['anthropic'] ?? '')) ?>"></td><td><button type="button" class="btn-mini" data-save-key="anthropic">Зберегти</button></td></tr>
-          <tr><td>xai</td><td><input type="password" id="k_xai" data-mask="<?= htmlspecialchars(mask_val($runtimeKeys['xai'] ?? '')) ?>" placeholder="<?= htmlspecialchars(mask_val($runtimeKeys['xai'] ?? '')) ?>"></td><td><button type="button" class="btn-mini" data-save-key="xai">Зберегти</button></td></tr>
-          <tr><td>gemini</td><td><input type="password" id="k_gemini" data-mask="<?= htmlspecialchars(mask_val($runtimeKeys['gemini'] ?? '')) ?>" placeholder="<?= htmlspecialchars(mask_val($runtimeKeys['gemini'] ?? '')) ?>"></td><td><button type="button" class="btn-mini" data-save-key="gemini">Зберегти</button></td></tr>
-          <tr><td>mistral</td><td><input type="password" id="k_mistral" data-mask="<?= htmlspecialchars(mask_val($runtimeKeys['mistral'] ?? '')) ?>" placeholder="<?= htmlspecialchars(mask_val($runtimeKeys['mistral'] ?? '')) ?>"></td><td><button type="button" class="btn-mini" data-save-key="mistral">Зберегти</button></td></tr>
-          <tr><td>openai</td><td><input type="password" id="k_openai" data-mask="<?= htmlspecialchars(mask_val($runtimeKeys['openai'] ?? '')) ?>" placeholder="<?= htmlspecialchars(mask_val($runtimeKeys['openai'] ?? '')) ?>"></td><td><button type="button" class="btn-mini" data-save-key="openai">Зберегти</button></td></tr>
-          <tr><td>deepseek</td><td><input type="password" id="k_deepseek" data-mask="<?= htmlspecialchars(mask_val($runtimeKeys['deepseek'] ?? '')) ?>" placeholder="<?= htmlspecialchars(mask_val($runtimeKeys['deepseek'] ?? '')) ?>"></td><td><button type="button" class="btn-mini" data-save-key="deepseek">Зберегти</button></td></tr>
-          <tr><td>groq</td><td><input type="password" id="k_groq" data-mask="<?= htmlspecialchars(mask_val($runtimeKeys['groq'] ?? '')) ?>" placeholder="<?= htmlspecialchars(mask_val($runtimeKeys['groq'] ?? '')) ?>"></td><td><button type="button" class="btn-mini" data-save-key="groq">Зберегти</button></td></tr>
+          <tr><th>Provider</th><th>API ключ</th><th title="Позначте, якщо провайдер платний — на моделях відобразиться значок $">Платна</th><th>Дія</th></tr>
+          <?php foreach (['anthropic','xai','gemini','mistral','openai','deepseek','groq'] as $prov): $isPaid = in_array($prov, $paidProviders, true); ?>
+          <tr>
+            <td><?= htmlspecialchars($prov) ?></td>
+            <td><input type="password" id="k_<?= $prov ?>" data-mask="<?= htmlspecialchars(mask_val($runtimeKeys[$prov] ?? '')) ?>" placeholder="<?= htmlspecialchars(mask_val($runtimeKeys[$prov] ?? '')) ?>"></td>
+            <td style="text-align:center"><input type="checkbox" class="paid-prov-cb" data-prov="<?= $prov ?>" <?= $isPaid ? 'checked' : '' ?> style="width:14px;height:14px;accent-color:#8a6a20;cursor:pointer" title="Платна модель"></td>
+            <td><button type="button" class="btn-mini" data-save-key="<?= $prov ?>">Зберегти</button></td>
+          </tr>
+          <?php endforeach; ?>
         </table>
         <div class="small" id="keys_status" style="margin-top:6px"></div>
         <div class="small" style="margin-bottom:10px">Ключі записуються у файл env: <code><?= htmlspecialchars(get_env_file_path()) ?></code>. Збереження ключа відбувається одразу по кнопці в таблиці.</div>
@@ -264,7 +266,6 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
           <div><label class="small">Inp $/1M</label><input type="number" id="m_inp" step="0.01" value="3.00"></div>
           <div><label class="small">Out $/1M</label><input type="number" id="m_out" step="0.01" value="15.00"></div>
           <div><label class="small">Max tokens</label><input type="number" id="m_max_tokens" step="256" min="256" max="32000" value="8000"></div>
-          <div style="display:flex;align-items:center;gap:7px;padding-top:18px"><input type="checkbox" id="m_paid" style="width:15px;height:15px;accent-color:#8a6a20"><label class="small" for="m_paid" style="margin:0;cursor:pointer">Платна</label></div>
         </div>
         <div class="row" style="margin-top:8px">
           <div></div>
@@ -274,7 +275,7 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
           </div>
         </div>
         <table id="models_table" style="margin-top:10px">
-          <tr><th>Порядок</th><th>ID</th><th>Назва</th><th>Provider</th><th>Inp</th><th>Out</th><th>Max tok</th><th>Платна</th><th>Вкл</th><th>Дії</th></tr>
+          <tr><th>Порядок</th><th>ID</th><th>Назва</th><th>Provider</th><th>Inp</th><th>Out</th><th>Max tok</th><th>Вкл</th><th>Дії</th></tr>
           <tbody></tbody>
         </table>
         <div class="small" id="models_status" style="margin-top:6px"></div>
@@ -604,7 +605,6 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
       inp:        Number(document.getElementById('m_inp').value || 0),
       out:        Number(document.getElementById('m_out').value || 0),
       max_tokens: Math.max(256, Math.min(32000, parseInt(document.getElementById('m_max_tokens').value || 8000, 10))),
-      paid:    document.getElementById('m_paid').checked || false,
       enabled: editIndex >= 0 && models[editIndex] ? (models[editIndex].enabled !== false) : true
     };
   }
@@ -615,7 +615,6 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
     document.getElementById('m_inp').value = '3.00';
     document.getElementById('m_out').value = '15.00';
     document.getElementById('m_max_tokens').value = '8000';
-    document.getElementById('m_paid').checked = false;
     editIndex = -1;
     document.getElementById('m_add').textContent = 'Додати модель';
     document.getElementById('m_cancel').style.display = 'none';
@@ -648,7 +647,6 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
         + '<td>'+Number(m.inp).toFixed(2)+'</td>'
         + '<td>'+Number(m.out).toFixed(2)+'</td>'
         + '<td>'+(m.max_tokens||8000)+'</td>'
-        + '<td style="text-align:center">'+(m.paid?'<span title="Платна" style="color:#8a6a20;font-size:13px">$</span>':'')+'</td>'
         + '<td style="text-align:center"><input type="checkbox" '+(enabled?'checked':'')+' data-toggle="'+i+'" title="Вмикати/вимикати модель"></td>'
         + '<td style="white-space:nowrap"><button type="button" class="btn-icon" title="Редагувати" data-edit="'+i+'">✏</button> <button type="button" class="btn-icon danger" title="Видалити" data-del="'+i+'">✕</button></td>'
         + '</tr>';
@@ -983,6 +981,19 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
     });
   }
 
+  (function(){
+    var paidCbs = document.querySelectorAll('.paid-prov-cb');
+    function savePaidProviders(){
+      var checked = [];
+      paidCbs.forEach(function(cb){ if (cb.checked) checked.push(cb.getAttribute('data-prov')); });
+      apiPost({action:'save_paid_providers', providers: checked}, function(err){
+        var status = document.getElementById('keys_status');
+        if (status) status.textContent = err ? ('Помилка: ' + err.message) : 'Оновлено ✔';
+      });
+    }
+    paidCbs.forEach(function(cb){ cb.addEventListener('change', savePaidProviders); });
+  })();
+
   var pwdBtns = document.querySelectorAll('[data-save-password]');
   for (var iPwd = 0; iPwd < pwdBtns.length; iPwd++) {
     pwdBtns[iPwd].addEventListener('click', function(){
@@ -1011,7 +1022,6 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
     document.getElementById('m_inp').value = Number(m.inp || 0).toFixed(2);
     document.getElementById('m_out').value = Number(m.out || 0).toFixed(2);
     document.getElementById('m_max_tokens').value = m.max_tokens || 8000;
-    document.getElementById('m_paid').checked = m.paid === true;
     document.getElementById('m_add').textContent = 'Зберегти зміни';
     document.getElementById('m_cancel').style.display = 'inline-block';
   }
