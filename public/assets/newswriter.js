@@ -854,7 +854,12 @@ function normalizeQuotes(s) {
             : '\u201C';
   var close = style === 'guillemets' ? '\u00BB'
             : '\u201D';
-  return s.replace(/\u0022([^\u0022\n]+)\u0022/g, open + '$1' + close);
+  // Normalize all known quote variants to the chosen style
+  s = s.replace(/\u0022([^\u0022\n]+)\u0022/g, open + '$1' + close); // "..."
+  s = s.replace(/\u00AB([^\u00BB\n]+)\u00BB/g, open + '$1' + close); // «...»
+  s = s.replace(/\u201E([^\u201D\n]+)\u201D/g, open + '$1' + close); // „...”
+  s = s.replace(/\u201C([^\u201D\n]+)\u201D/g, open + '$1' + close); // “...”
+  return s;
 }
 
 function renderResults(data, source, makeNews, fbCheck, depth) {
