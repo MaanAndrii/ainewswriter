@@ -415,6 +415,18 @@ if ($method === 'POST') {
     exit;
   }
 
+  if ($action === 'save_post_processing') {
+    $pp = $data['post_processing'] ?? null;
+    if (!is_array($pp)) {
+      http_response_code(400);
+      echo json_encode(['ok' => false, 'error' => 'post_processing must be object']);
+      exit;
+    }
+    save_post_processing($pp);
+    echo json_encode(['ok' => true]);
+    exit;
+  }
+
   if ($action === 'save_paid_providers') {
     $providers = $data['providers'] ?? [];
     if (!is_array($providers)) {
@@ -540,6 +552,7 @@ $keys = get_runtime_keys();
 echo json_encode([
   'models' => $models,
   'paid_providers' => get_paid_providers(),
+  'post_processing' => get_post_processing(),
   'keys' => [
     'anthropic' => mask_val($keys['anthropic'] ?? ''),
     'xai' => mask_val($keys['xai'] ?? ''),

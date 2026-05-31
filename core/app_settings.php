@@ -390,6 +390,29 @@ function save_paid_providers(array $providers) {
   file_put_contents($dir . '/paid_providers.json', json_encode($clean), LOCK_EX);
 }
 
+define('POST_PROCESSING_QUOTE_STYLES', ['upper', 'guillemets', 'low_high', 'none']);
+
+function get_post_processing() {
+  $file = APP_ROOT . '/storage/post_processing.json';
+  $defaults = ['quote_style' => 'upper'];
+  if (!file_exists($file)) return $defaults;
+  $raw = file_get_contents($file);
+  if (!$raw) return $defaults;
+  $data = json_decode($raw, true);
+  if (!is_array($data)) return $defaults;
+  if (!in_array($data['quote_style'] ?? '', POST_PROCESSING_QUOTE_STYLES, true)) {
+    $data['quote_style'] = 'upper';
+  }
+  return $data;
+}
+
+function save_post_processing(array $data) {
+  $clean = ['quote_style' => in_array($data['quote_style'] ?? '', POST_PROCESSING_QUOTE_STYLES, true) ? $data['quote_style'] : 'upper'];
+  $dir = APP_ROOT . '/storage';
+  if (!is_dir($dir)) @mkdir($dir, 0755, true);
+  file_put_contents($dir . '/post_processing.json', json_encode($clean), LOCK_EX);
+}
+
 function resolve_system_prompt($settings) {
   return trim((string)($settings['system_prompt_default_override'] ?? $settings['system_prompt_custom'] ?? get_default_system_prompt()));
 }

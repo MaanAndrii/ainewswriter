@@ -189,6 +189,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:8px 10px;
 .model-grid{display:grid;grid-template-columns:2fr 1.3fr .8fr .8fr .8fr .8fr;gap:8px;align-items:end}
 .btn-mini{background:#1a1714;color:#fff;border:0;border-radius:4px;padding:7px 10px;font-family:'Roboto Mono',monospace;font-size:10px;cursor:pointer}
 .btn-mini.danger{background:#8e2d16}.btn-mini.muted{background:#8a8278}
+.pp-quote-opt:hover{border-color:#b5401a!important}.pp-quote-opt.pp-active{border-color:#b5401a!important;background:#fff8f5!important}
 tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
 .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}.tab-btn{background:#fff;border:1px solid #d8d0be;border-radius:4px;padding:8px 12px;font-family:'Roboto Mono',monospace;font-size:11px;cursor:pointer}.tab-btn.active{background:#1a1714;color:#fff;border-color:#1a1714}.tab-pane{display:none;grid-column:1 / -1}.tab-pane.active{display:block}
 @media(max-width:980px){.wrap{grid-template-columns:1fr}}
@@ -227,6 +228,7 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
   <div class="tabs" style="grid-column:1 / -1">
     <button type="button" class="tab-btn active" data-tab="ai">Налаштування AI</button>
     <button type="button" class="tab-btn" data-tab="prompts">Промти і параметри</button>
+    <button type="button" class="tab-btn" data-tab="postprocess">Постобробка</button>
     <button type="button" class="tab-btn" data-tab="stats">Статистика</button>
     <button type="button" class="tab-btn" data-tab="security">Безпека</button>
     <button type="button" class="tab-btn" data-tab="logs">Логи</button>
@@ -427,6 +429,34 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
         <button class="btn-mini" id="btn_load_api">Завантажити</button>
       </div>
       <div id="api_responses_list" style="font-family:'Roboto Mono',monospace;font-size:11px;color:#8a8278">Натисніть «Завантажити» для перегляду</div>
+    </div>
+  </section>
+
+  <section class="tab-pane" data-pane="postprocess">
+    <?php $pp = get_post_processing(); $qs = $pp['quote_style'] ?? 'upper'; ?>
+    <div class="card">
+      <div class="ttl">Нормалізація лапок</div>
+      <div class="small" style="margin-bottom:14px">Якщо модель виводить прямі ASCII-лапки <code>"слово"</code> — система автоматично замінить їх на обраний стиль.</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <?php
+        $opts = [
+          'upper'      => ['"слово"',  'верхні (U+201C/201D) — англомовний стандарт'],
+          'guillemets' => ['«слово»',  'ялинки — офіційний українськомовний стандарт'],
+          'low_high'   => ['„слово"',  'нижньо-верхній (German style)'],
+          'none'       => ['без змін', 'не замінювати — залишати як є'],
+        ];
+        foreach ($opts as $val => [$preview, $desc]): ?>
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;background:#fff;border:1px solid #d8d0be;border-radius:3px;transition:border-color .15s" class="pp-quote-opt <?= $qs === $val ? 'pp-active' : '' ?>">
+          <input type="radio" name="pp_quote_style" value="<?= $val ?>" <?= $qs === $val ? 'checked' : '' ?> style="accent-color:#b5401a;width:14px;height:14px;flex-shrink:0">
+          <code style="font-family:'Roboto Mono',monospace;font-size:13px;font-weight:600;color:#1a1714;min-width:90px"><?= $preview ?></code>
+          <span class="small" style="margin:0"><?= $desc ?></span>
+        </label>
+        <?php endforeach; ?>
+      </div>
+      <div style="margin-top:12px;display:flex;align-items:center;gap:12px">
+        <button type="button" class="btn-mini" id="pp_save_btn">Зберегти</button>
+        <span class="small" id="pp_save_status"></span>
+      </div>
     </div>
   </section>
 
@@ -1112,6 +1142,26 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
       if (tab === 'logs') loadLogs(document.getElementById('log-date') ? document.getElementById('log-date').value : '');
     });
   }
+
+  // ── Post-processing tab ─────────────────────────────────────────────────────
+  (function(){
+    var opts = document.querySelectorAll('.pp-quote-opt');
+    var radios = document.querySelectorAll('input[name="pp_quote_style"]');
+    function syncActive() {
+      opts.forEach(function(o) { o.classList.remove('pp-active'); });
+      radios.forEach(function(r) { if (r.checked) r.closest('.pp-quote-opt').classList.add('pp-active'); });
+    }
+    radios.forEach(function(r) { r.addEventListener('change', syncActive); });
+    var ppSaveBtn = document.getElementById('pp_save_btn');
+    if (ppSaveBtn) ppSaveBtn.addEventListener('click', function(){
+      var style = 'upper';
+      radios.forEach(function(r) { if (r.checked) style = r.value; });
+      apiPost({action:'save_post_processing', post_processing:{quote_style: style}}, function(err){
+        var status = document.getElementById('pp_save_status');
+        if (status) status.textContent = err ? 'Помилка: ' + err.message : 'Збережено ✔';
+      });
+    });
+  })();
 
   // ── Logs tab ────────────────────────────────────────────────────────────────
   function escL(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
