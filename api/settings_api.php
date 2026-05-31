@@ -415,6 +415,18 @@ if ($method === 'POST') {
     exit;
   }
 
+  if ($action === 'save_paid_providers') {
+    $providers = $data['providers'] ?? [];
+    if (!is_array($providers)) {
+      http_response_code(400);
+      echo json_encode(['ok' => false, 'error' => 'providers must be array']);
+      exit;
+    }
+    save_paid_providers($providers);
+    echo json_encode(['ok' => true]);
+    exit;
+  }
+
   if ($action === 'get_api_responses') {
     $file = dirname(__DIR__) . '/storage/api_responses.json';
     $list = [];
@@ -527,6 +539,7 @@ $keys = get_runtime_keys();
 
 echo json_encode([
   'models' => $models,
+  'paid_providers' => get_paid_providers(),
   'keys' => [
     'anthropic' => mask_val($keys['anthropic'] ?? ''),
     'xai' => mask_val($keys['xai'] ?? ''),
