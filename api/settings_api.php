@@ -238,7 +238,7 @@ if ($method === 'POST') {
   if ($action === 'save_password') {
     $target = (string)($data['target'] ?? '');
     $value = trim((string)($data['value'] ?? ''));
-    $map = ['admin' => 'ADMIN_PASSWORD', 'logs' => 'LOG_PASSWORD'];
+    $map = ['admin' => 'ADMIN_PASSWORD'];
     if (!isset($map[$target]) || strlen($value) < 8) {
       http_response_code(400);
       echo json_encode(['ok' => false, 'error' => 'Invalid target or password too short (min 8)']);
