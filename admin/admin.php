@@ -770,7 +770,8 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
       apiPost({action: 'save_all_prompts', system: payload.system, profiles: payload.profiles}, function(err) {
         saveAllBtn.disabled = false;
         if (err) { status.innerHTML = '<span style="color:#A32D2D">Помилка: ' + err.message + '</span>'; return; }
-        status.textContent = '✔ Збережено';
+        status.textContent = '✔ Збережено · бекап створено';
+        loadBackups();
       });
     });
   }
