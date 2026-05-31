@@ -377,8 +377,9 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
 
     <div class="card" style="margin-top:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:14px 18px">
       <button type="button" class="btn-mini muted" id="restore_prompts_defaults_btn">&#8617; Відновити за замовчуванням</button>
-      <div style="display:flex;align-items:center;gap:12px">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
         <div class="small" id="save_all_prompts_status" style="min-width:180px;text-align:right"></div>
+        <button type="button" class="btn-mini" id="save_as_default_btn">&#9733; Зберегти як за замовчуванням</button>
         <button type="button" class="btn-mini danger" id="save_all_prompts_btn">&#9654; Зберегти промти</button>
       </div>
     </div>
@@ -735,33 +736,59 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
     };
   }
 
-  // Зберегти промти (system + профіль + бекап prompts.json)
-  var saveAllBtn = document.getElementById('save_all_prompts_btn');
-  if (saveAllBtn) {
-    saveAllBtn.addEventListener('click', function() {
-      var status = document.getElementById('save_all_prompts_status');
-      var errors = validatePromptFields();
-      if (errors.length) {
-        status.innerHTML = '<span style="color:#A32D2D">Виправте помилки:<br>' + errors.join('<br>') + '</span>';
-        return;
-      }
-      var systemText = (document.getElementById('system_default_override').value || '').trim();
-      if (!systemText) { status.textContent = 'System prompt не може бути порожнім'; return; }
-      var fields = readPromptFields();
-      var currentProfiles = { user: Object.assign({
+  function collectPromptPayload() {
+    var fields = readPromptFields();
+    return {
+      system: (document.getElementById('system_default_override').value || '').trim(),
+      profiles: { user: Object.assign({
         headlines_count:   Number(document.getElementById('lim_headlines').value || 4),
         leads_count:       Number(document.getElementById('lim_leads').value || 2),
         article_max_chars: Number(document.getElementById('lim_article').value || 3000),
         facebook_max_chars:Number(document.getElementById('lim_fb').value || 400),
         lead_min_chars:    Number(document.getElementById('lim_lead_min').value || 150),
         lead_max_chars:    Number(document.getElementById('lim_lead_max').value || 180)
-      }, fields) };
-      saveAllBtn.disabled = true;
-      status.textContent = 'Збереження…';
-      apiPost({action: 'save_all_prompts', system: systemText, profiles: currentProfiles}, function(err) {
+      }, fields) }
+    };
+  }
+
+  function promptSaveGuard() {
+    var errors = validatePromptFields();
+    var systemText = (document.getElementById('system_default_override').value || '').trim();
+    if (!systemText) errors.unshift('• System prompt не може бути порожнім');
+    return errors;
+  }
+
+  // ▶ Зберегти промти — зберігає в settings_store.php (runtime, без бекапу)
+  var saveAllBtn = document.getElementById('save_all_prompts_btn');
+  if (saveAllBtn) {
+    saveAllBtn.addEventListener('click', function() {
+      var status = document.getElementById('save_all_prompts_status');
+      var errors = promptSaveGuard();
+      if (errors.length) { status.innerHTML = '<span style="color:#A32D2D">' + errors.join('<br>') + '</span>'; return; }
+      var payload = collectPromptPayload();
+      saveAllBtn.disabled = true; status.textContent = 'Збереження…';
+      apiPost({action: 'save_all_prompts', system: payload.system, profiles: payload.profiles}, function(err) {
         saveAllBtn.disabled = false;
         if (err) { status.innerHTML = '<span style="color:#A32D2D">Помилка: ' + err.message + '</span>'; return; }
-        status.textContent = '✔ Збережено · бекап створено';
+        status.textContent = '✔ Збережено';
+      });
+    });
+  }
+
+  // ★ Зберегти як за замовчуванням — зберігає в settings_store.php + prompts.json (з бекапом)
+  var saveAsDefaultBtn = document.getElementById('save_as_default_btn');
+  if (saveAsDefaultBtn) {
+    saveAsDefaultBtn.addEventListener('click', function() {
+      var status = document.getElementById('save_all_prompts_status');
+      var errors = promptSaveGuard();
+      if (errors.length) { status.innerHTML = '<span style="color:#A32D2D">' + errors.join('<br>') + '</span>'; return; }
+      if (!confirm('Зберегти поточний system prompt та всі параметри як нові значення за замовчуванням?\n\nСтворюється резервна копія poточного prompts.json.')) return;
+      var payload = collectPromptPayload();
+      saveAsDefaultBtn.disabled = true; status.textContent = 'Збереження…';
+      apiPost({action: 'save_all_as_default', system: payload.system, profiles: payload.profiles}, function(err) {
+        saveAsDefaultBtn.disabled = false;
+        if (err) { status.innerHTML = '<span style="color:#A32D2D">Помилка: ' + err.message + '</span>'; return; }
+        status.textContent = '★ Збережено як за замовчуванням · бекап створено';
         loadBackups();
       });
     });
@@ -838,15 +865,20 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
     }
     var html = '<table style="width:100%;border-collapse:collapse;font-size:11px">';
     html += '<tr><th style="text-align:left;padding:4px 8px 4px 0;border-bottom:1px solid #e8e2d4;color:#8a8278">Дата і час</th>';
-    html += '<th style="text-align:left;padding:4px 0;border-bottom:1px solid #e8e2d4;color:#8a8278">Дія</th></tr>';
+    html += '<th style="text-align:left;padding:4px 0;border-bottom:1px solid #e8e2d4;color:#8a8278">Дії</th></tr>';
     backups.forEach(function(b) {
       html += '<tr>';
       html += '<td style="padding:6px 8px 6px 0;color:#1a1714">' + b.label + '</td>';
-      html += '<td style="padding:6px 0"><button type="button" class="btn-mini muted" data-restore="' + b.name + '">Відновити</button></td>';
+      html += '<td style="padding:6px 0;white-space:nowrap;display:flex;gap:6px">'
+        + '<button type="button" class="btn-mini muted" data-restore="' + b.name + '">Відновити</button>'
+        + '<button type="button" class="btn-mini muted" data-dl="' + b.name + '">&#8595; JSON</button>'
+        + '<button type="button" class="btn-mini danger" data-del="' + b.name + '">&#215; Видалити</button>'
+        + '</td>';
       html += '</tr>';
     });
     html += '</table>';
     el.innerHTML = html;
+
     el.querySelectorAll('[data-restore]').forEach(function(btn) {
       btn.addEventListener('click', function() {
         var name = btn.getAttribute('data-restore');
@@ -855,6 +887,34 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
         apiPost({action:'restore_prompt_backup', name: name}, function(err) {
           if (err) { status.innerHTML = '<span style="color:#A32D2D">Помилка: ' + err.message + '</span>'; return; }
           status.textContent = 'Відновлено ✔ · Перезавантажте сторінку щоб побачити зміни';
+          loadBackups();
+        });
+      });
+    });
+
+    el.querySelectorAll('[data-dl]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var name = btn.getAttribute('data-dl');
+        apiPost({action:'get_prompt_backup', name: name}, function(err, d) {
+          if (err || !d || !d.content) { alert('Помилка: ' + (err ? err.message : 'порожньо')); return; }
+          var blob = new Blob([JSON.stringify(d.content, null, 2)], {type:'application/json'});
+          var url = URL.createObjectURL(blob);
+          var a = document.createElement('a');
+          a.href = url; a.download = name + '.json';
+          document.body.appendChild(a); a.click();
+          document.body.removeChild(a); URL.revokeObjectURL(url);
+        });
+      });
+    });
+
+    el.querySelectorAll('[data-del]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var name = btn.getAttribute('data-del');
+        var status = document.getElementById('backup_restore_status');
+        if (!confirm('Видалити бекап ' + name + '?')) return;
+        apiPost({action:'delete_prompt_backup', name: name}, function(err) {
+          if (err) { status.innerHTML = '<span style="color:#A32D2D">Помилка: ' + err.message + '</span>'; return; }
+          status.textContent = 'Видалено ✔';
           loadBackups();
         });
       });

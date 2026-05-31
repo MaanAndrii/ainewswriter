@@ -122,38 +122,46 @@ if ($method === 'POST') {
     exit;
   }
 
-  if ($action === 'save_all_prompts') {
+  // Валідація і витягування полів для save_all_prompts / save_all_as_default
+  function extract_prompt_payload(array $data): array|string {
     $systemText = trim((string)($data['system'] ?? ''));
     $profiles   = $data['profiles'] ?? null;
-    if ($systemText === '') {
-      http_response_code(400);
-      echo json_encode(['ok' => false, 'error' => 'system must be non-empty']);
-      exit;
-    }
-    if (!is_array($profiles)) {
-      http_response_code(400);
-      echo json_encode(['ok' => false, 'error' => 'profiles must be object']);
-      exit;
-    }
+    if ($systemText === '') return 'system must be non-empty';
+    if (!is_array($profiles)) return 'profiles must be object';
     $profileErr = validate_prompt_profiles_payload($profiles);
-    if ($profileErr !== null) {
-      http_response_code(400);
-      echo json_encode(['ok' => false, 'error' => $profileErr]);
-      exit;
-    }
-    // 1. Зберегти в runtime settings_store.php
+    if ($profileErr !== null) return $profileErr;
+    return ['system' => $systemText, 'profiles' => $profiles];
+  }
+
+  // ▶ Зберегти промти — тільки runtime (settings_store.php)
+  if ($action === 'save_all_prompts') {
+    $res = extract_prompt_payload($data);
+    if (is_string($res)) { http_response_code(400); echo json_encode(['ok'=>false,'error'=>$res]); exit; }
     $current = load_settings();
     save_settings([
       'models'                         => $current['models'] ?? [],
       'system_prompt_custom'           => (string)($current['system_prompt_custom'] ?? ''),
-      'system_prompt_default_override' => $systemText,
-      'prompt_profiles'                => $profiles,
+      'system_prompt_default_override' => $res['system'],
+      'prompt_profiles'                => $res['profiles'],
     ]);
-    // 2. Зберегти в prompts.json (автоматичний бекап)
-    $profilesUser = $profiles['user'] ?? [];
+    echo json_encode(['ok' => true], JSON_UNESCAPED_UNICODE);
+    exit;
+  }
+
+  // ★ Зберегти як за замовчуванням — runtime + prompts.json (з бекапом)
+  if ($action === 'save_all_as_default') {
+    $res = extract_prompt_payload($data);
+    if (is_string($res)) { http_response_code(400); echo json_encode(['ok'=>false,'error'=>$res]); exit; }
+    $current = load_settings();
+    save_settings([
+      'models'                         => $current['models'] ?? [],
+      'system_prompt_custom'           => (string)($current['system_prompt_custom'] ?? ''),
+      'system_prompt_default_override' => $res['system'],
+      'prompt_profiles'                => $res['profiles'],
+    ]);
     $newDefaults = [
-      'system_prompts'        => ['default' => $systemText],
-      'user_prompt_profiles'  => ['default' => $profilesUser],
+      'system_prompts'       => ['default' => $res['system']],
+      'user_prompt_profiles' => ['default' => $res['profiles']['user'] ?? []],
     ];
     if (save_prompts_to_json($newDefaults)) {
       echo json_encode(['ok' => true], JSON_UNESCAPED_UNICODE);
@@ -161,6 +169,25 @@ if ($method === 'POST') {
       http_response_code(500);
       echo json_encode(['ok' => false, 'error' => 'Не вдалося записати prompts.json — перевірте права на файл']);
     }
+    exit;
+  }
+
+  if ($action === 'get_prompt_backup') {
+    $name = preg_replace('/[^a-z0-9_]/i', '', (string)($data['name'] ?? ''));
+    $file = dirname(__DIR__) . '/storage/prompt_backups/' . $name . '.json';
+    if (!file_exists($file)) { http_response_code(404); echo json_encode(['ok'=>false,'error'=>'Бекап не знайдено']); exit; }
+    $content = json_decode(file_get_contents($file), true);
+    if (!is_array($content)) { http_response_code(422); echo json_encode(['ok'=>false,'error'=>'Файл пошкоджений']); exit; }
+    echo json_encode(['ok' => true, 'content' => $content], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+  }
+
+  if ($action === 'delete_prompt_backup') {
+    $name = preg_replace('/[^a-z0-9_]/i', '', (string)($data['name'] ?? ''));
+    $file = dirname(__DIR__) . '/storage/prompt_backups/' . $name . '.json';
+    if (!file_exists($file)) { http_response_code(404); echo json_encode(['ok'=>false,'error'=>'Бекап не знайдено']); exit; }
+    @unlink($file);
+    echo json_encode(['ok' => true], JSON_UNESCAPED_UNICODE);
     exit;
   }
 
