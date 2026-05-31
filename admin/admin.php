@@ -814,6 +814,37 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
     });
   }
 
+  // Спільна функція заповнення форми з даних відновлення
+  function applyRestoredPrompts(d, statusMsg) {
+    if (d && d.prompt_system) document.getElementById('system_default_override').value = d.prompt_system;
+    if (d && d.prompt_profiles && d.prompt_profiles.user) {
+      var p = d.prompt_profiles.user;
+      function sv(id, v) { var el = document.getElementById(id); if (el) el.value = v || ''; }
+      function sl(id, arr) { sv(id, (arr || []).join('\n---\n')); }
+      sv('pf_json_rule',            p.json_rule);
+      sv('pf_requirements_title',   p.requirements_title);
+      sv('pf_input_title',          p.input_title);
+      sv('pf_extra_block_title',    p.extra_block_title);
+      sv('pf_news_fields_on',       p.news_fields_on);
+      sv('pf_news_requirements_on', p.news_requirements_on);
+      sv('pf_tone_prefix',          p.tone_prefix);
+      sl('pf_tone_short_rules', ['neutral','intriguing','emotional','seo'].map(function(k){ return (p.tone_short_rules || {})[k] || ''; }));
+      sv('pf_depth_prefix',         p.depth_prefix);
+      sl('pf_depth_short_rules',    p.depth_short_rules);
+      sv('pf_source_ref_rule',      p.source_ref_rule);
+      sv('pf_fb_checkbox_on',       p.fb_checkbox_on);
+      sl('pf_fb_style_rules',       p.fb_style_rules);
+      if (p.headlines_count)    document.getElementById('lim_headlines').value = p.headlines_count;
+      if (p.leads_count)        document.getElementById('lim_leads').value     = p.leads_count;
+      if (p.article_max_chars)  document.getElementById('lim_article').value   = p.article_max_chars;
+      if (p.facebook_max_chars) document.getElementById('lim_fb').value        = p.facebook_max_chars;
+      if (p.lead_min_chars)     document.getElementById('lim_lead_min').value  = p.lead_min_chars;
+      if (p.lead_max_chars)     document.getElementById('lim_lead_max').value  = p.lead_max_chars;
+    }
+    var st = document.getElementById('save_all_prompts_status');
+    if (st) st.textContent = statusMsg || 'Відновлено ✔';
+  }
+
   // Відновити за замовчуванням
   var restorePromptsBtn = document.getElementById('restore_prompts_defaults_btn');
   if (restorePromptsBtn) {
@@ -821,37 +852,7 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
       if (!confirm('Скинути system prompt та всі складові user-промту до значень за замовчуванням?')) return;
       apiPost({action:'restore_default_prompts'}, function(err, d){
         if (err) { alert('Не вдалося відновити: ' + err.message); return; }
-        if (d && d.prompt_system) document.getElementById('system_default_override').value = d.prompt_system;
-        if (d && d.prompt_profiles && d.prompt_profiles.user) {
-          var p = d.prompt_profiles.user;
-          function setVal(id, v) { var el = document.getElementById(id); if (el) el.value = v || ''; }
-          function setLines(id, arr) { setVal(id, (arr || []).join('\n---\n')); }
-          function setToneMap(id, m) {
-            var lines = ['neutral','intriguing','emotional','seo'].map(function(k){ return k + ': ' + (m[k] || ''); });
-            setVal(id, lines.join('\n'));
-          }
-          setVal('pf_json_rule',            p.json_rule);
-          setVal('pf_requirements_title',   p.requirements_title);
-          setVal('pf_input_title',          p.input_title);
-          setVal('pf_extra_block_title',    p.extra_block_title);
-          setVal('pf_news_fields_on',       p.news_fields_on);
-          setVal('pf_news_requirements_on', p.news_requirements_on);
-          setVal('pf_tone_prefix',          p.tone_prefix);
-          setLines('pf_tone_short_rules', ['neutral','intriguing','emotional','seo'].map(function(k){ return (p.tone_short_rules || {})[k] || ''; }));
-          setVal('pf_depth_prefix',         p.depth_prefix);
-          setLines('pf_depth_short_rules',  p.depth_short_rules);
-          setVal('pf_source_ref_rule',      p.source_ref_rule);
-          setVal('pf_fb_checkbox_on',       p.fb_checkbox_on);
-          setLines('pf_fb_style_rules',     p.fb_style_rules);
-          if (p.headlines_count)   document.getElementById('lim_headlines').value  = p.headlines_count;
-          if (p.leads_count)       document.getElementById('lim_leads').value       = p.leads_count;
-          if (p.article_max_chars) document.getElementById('lim_article').value     = p.article_max_chars;
-          if (p.facebook_max_chars)document.getElementById('lim_fb').value          = p.facebook_max_chars;
-          if (p.lead_min_chars)    document.getElementById('lim_lead_min').value    = p.lead_min_chars;
-          if (p.lead_max_chars)    document.getElementById('lim_lead_max').value    = p.lead_max_chars;
-        }
-        var saveAllStatus = document.getElementById('save_all_prompts_status');
-        if (saveAllStatus) saveAllStatus.textContent = 'Відновлено за замовчуванням ✔';
+        applyRestoredPrompts(d, 'Відновлено за замовчуванням ✔');
       });
     });
   }
@@ -884,10 +885,11 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
       btn.addEventListener('click', function() {
         var name = btn.getAttribute('data-restore');
         var status = document.getElementById('backup_restore_status');
-        if (!confirm('Відновити prompts.json зі збереженої копії ' + name + '?\n\nПоточний стан буде збережено як новий бекап.')) return;
-        apiPost({action:'restore_prompt_backup', name: name}, function(err) {
+        if (!confirm('Відновити промт зі збереженої копії ' + name + '?\n\nПоточний стан буде збережено як новий бекап.')) return;
+        apiPost({action:'restore_prompt_backup', name: name}, function(err, d) {
           if (err) { status.innerHTML = '<span style="color:#A32D2D">Помилка: ' + err.message + '</span>'; return; }
-          status.textContent = 'Відновлено ✔ · Перезавантажте сторінку щоб побачити зміни';
+          applyRestoredPrompts(d, 'Відновлено з бекапу ✔');
+          status.textContent = 'Відновлено з бекапу ✔ · Форму оновлено';
           loadBackups();
         });
       });

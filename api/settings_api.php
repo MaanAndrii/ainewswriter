@@ -286,7 +286,7 @@ if ($method === 'POST') {
       echo json_encode(['ok' => false, 'error' => 'Бекап не знайдено']);
       exit;
     }
-    $raw  = file_get_contents($file);
+    $raw    = file_get_contents($file);
     $parsed = json_decode($raw, true);
     if (!is_array($parsed)) {
       http_response_code(422);
@@ -299,13 +299,27 @@ if ($method === 'POST') {
       echo json_encode(['ok' => false, 'error' => 'Файл бекапу пошкоджений: ' . $err]);
       exit;
     }
-    // зберігаємо через save_prompts_to_json — це зробить ще один бекап поточного стану
+    // 1. Зберігаємо prompts.json (поточний стан стане новим бекапом)
     if (!save_prompts_to_json($parsed)) {
       http_response_code(500);
       echo json_encode(['ok' => false, 'error' => 'Не вдалося записати prompts.json']);
       exit;
     }
-    echo json_encode(['ok' => true], JSON_UNESCAPED_UNICODE);
+    // 2. Застосовуємо до runtime settings_store.php
+    $systemPrompt   = trim((string)($parsed['system_prompts']['default'] ?? get_default_system_prompt()));
+    $profilesUser   = $parsed['user_prompt_profiles']['default'] ?? get_default_prompt_profiles()['user'] ?? [];
+    $current = load_settings();
+    save_settings([
+      'models'                         => $current['models'] ?? [],
+      'system_prompt_custom'           => '',
+      'system_prompt_default_override' => $systemPrompt,
+      'prompt_profiles'                => ['user' => $profilesUser],
+    ]);
+    echo json_encode([
+      'ok'             => true,
+      'prompt_system'  => $systemPrompt,
+      'prompt_profiles'=> ['user' => $profilesUser],
+    ], JSON_UNESCAPED_UNICODE);
     exit;
   }
 
