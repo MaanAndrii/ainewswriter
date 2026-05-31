@@ -122,6 +122,48 @@ if ($method === 'POST') {
     exit;
   }
 
+  if ($action === 'save_all_prompts') {
+    $systemText = trim((string)($data['system'] ?? ''));
+    $profiles   = $data['profiles'] ?? null;
+    if ($systemText === '') {
+      http_response_code(400);
+      echo json_encode(['ok' => false, 'error' => 'system must be non-empty']);
+      exit;
+    }
+    if (!is_array($profiles)) {
+      http_response_code(400);
+      echo json_encode(['ok' => false, 'error' => 'profiles must be object']);
+      exit;
+    }
+    $profileErr = validate_prompt_profiles_payload($profiles);
+    if ($profileErr !== null) {
+      http_response_code(400);
+      echo json_encode(['ok' => false, 'error' => $profileErr]);
+      exit;
+    }
+    // 1. Зберегти в runtime settings_store.php
+    $current = load_settings();
+    save_settings([
+      'models'                         => $current['models'] ?? [],
+      'system_prompt_custom'           => (string)($current['system_prompt_custom'] ?? ''),
+      'system_prompt_default_override' => $systemText,
+      'prompt_profiles'                => $profiles,
+    ]);
+    // 2. Зберегти в prompts.json (автоматичний бекап)
+    $profilesUser = $profiles['user'] ?? [];
+    $newDefaults = [
+      'system_prompts'        => ['default' => $systemText],
+      'user_prompt_profiles'  => ['default' => $profilesUser],
+    ];
+    if (save_prompts_to_json($newDefaults)) {
+      echo json_encode(['ok' => true], JSON_UNESCAPED_UNICODE);
+    } else {
+      http_response_code(500);
+      echo json_encode(['ok' => false, 'error' => 'Не вдалося записати prompts.json — перевірте права на файл']);
+    }
+    exit;
+  }
+
   if ($action === 'save_as_default_prompts') {
     $current = load_settings();
     $systemPrompt = trim((string)(
