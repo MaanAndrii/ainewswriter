@@ -264,6 +264,7 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
           <div><label class="small">Inp $/1M</label><input type="number" id="m_inp" step="0.01" value="3.00"></div>
           <div><label class="small">Out $/1M</label><input type="number" id="m_out" step="0.01" value="15.00"></div>
           <div><label class="small">Max tokens</label><input type="number" id="m_max_tokens" step="256" min="256" max="32000" value="8000"></div>
+          <div style="display:flex;align-items:center;gap:7px;padding-top:18px"><input type="checkbox" id="m_paid" style="width:15px;height:15px;accent-color:#8a6a20"><label class="small" for="m_paid" style="margin:0;cursor:pointer">Платна</label></div>
         </div>
         <div class="row" style="margin-top:8px">
           <div></div>
@@ -273,7 +274,7 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
           </div>
         </div>
         <table id="models_table" style="margin-top:10px">
-          <tr><th>Порядок</th><th>ID</th><th>Назва</th><th>Provider</th><th>Inp</th><th>Out</th><th>Max tok</th><th>Вкл</th><th>Дії</th></tr>
+          <tr><th>Порядок</th><th>ID</th><th>Назва</th><th>Provider</th><th>Inp</th><th>Out</th><th>Max tok</th><th>Платна</th><th>Вкл</th><th>Дії</th></tr>
           <tbody></tbody>
         </table>
         <div class="small" id="models_status" style="margin-top:6px"></div>
@@ -603,6 +604,7 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
       inp:        Number(document.getElementById('m_inp').value || 0),
       out:        Number(document.getElementById('m_out').value || 0),
       max_tokens: Math.max(256, Math.min(32000, parseInt(document.getElementById('m_max_tokens').value || 8000, 10))),
+      paid:    document.getElementById('m_paid').checked || false,
       enabled: editIndex >= 0 && models[editIndex] ? (models[editIndex].enabled !== false) : true
     };
   }
@@ -613,6 +615,7 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
     document.getElementById('m_inp').value = '3.00';
     document.getElementById('m_out').value = '15.00';
     document.getElementById('m_max_tokens').value = '8000';
+    document.getElementById('m_paid').checked = false;
     editIndex = -1;
     document.getElementById('m_add').textContent = 'Додати модель';
     document.getElementById('m_cancel').style.display = 'none';
@@ -645,6 +648,7 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
         + '<td>'+Number(m.inp).toFixed(2)+'</td>'
         + '<td>'+Number(m.out).toFixed(2)+'</td>'
         + '<td>'+(m.max_tokens||8000)+'</td>'
+        + '<td style="text-align:center">'+(m.paid?'<span title="Платна" style="color:#8a6a20;font-size:13px">$</span>':'')+'</td>'
         + '<td style="text-align:center"><input type="checkbox" '+(enabled?'checked':'')+' data-toggle="'+i+'" title="Вмикати/вимикати модель"></td>'
         + '<td style="white-space:nowrap"><button type="button" class="btn-icon" title="Редагувати" data-edit="'+i+'">✏</button> <button type="button" class="btn-icon danger" title="Видалити" data-del="'+i+'">✕</button></td>'
         + '</tr>';
@@ -1007,7 +1011,7 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
     document.getElementById('m_inp').value = Number(m.inp || 0).toFixed(2);
     document.getElementById('m_out').value = Number(m.out || 0).toFixed(2);
     document.getElementById('m_max_tokens').value = m.max_tokens || 8000;
-    // web_search auto-set by provider on save
+    document.getElementById('m_paid').checked = m.paid === true;
     document.getElementById('m_add').textContent = 'Зберегти зміни';
     document.getElementById('m_cancel').style.display = 'inline-block';
   }
