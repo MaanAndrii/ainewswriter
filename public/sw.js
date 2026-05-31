@@ -1,7 +1,8 @@
-const CACHE = 'newswriter-v5';
-const STATIC = [
-  '/public/assets/newswriter.css',
-  '/public/assets/newswriter.js',
+const VERSION = '{{APP_VERSION}}';
+const CACHE   = 'newswriter-v' + VERSION;
+const STATIC  = [
+  '/public/assets/newswriter.css?v=' + VERSION,
+  '/public/assets/newswriter.js?v='  + VERSION,
   '/public/assets/fonts/fonts.css',
   '/public/assets/fonts/roboto-400.ttf',
   '/public/assets/fonts/roboto-500.ttf',
@@ -32,7 +33,7 @@ self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/admin/')) return;
 
-  // Network-first: завжди беремо свіжу версію, кеш — лише резерв
+  // Network-first: свіжа версія з мережі, кеш — лише резерв при офлайн
   e.respondWith(
     fetch(e.request)
       .then(res => {
@@ -44,4 +45,11 @@ self.addEventListener('fetch', e => {
       })
       .catch(() => caches.match(e.request))
   );
+});
+
+// Повідомляємо відкриті вкладки про активацію нового SW
+self.addEventListener('activate', () => {
+  self.clients.matchAll({ type: 'window' }).then(clients => {
+    clients.forEach(client => client.postMessage({ type: 'SW_UPDATED' }));
+  });
 });
