@@ -521,17 +521,40 @@ function callAPI(prompt, model, systemPromptOverride, expectNews, expectFacebook
 
   var accText = '';
   var metaReceived = null;
+  var hasChunks = false;
 
   var output = document.getElementById('output');
-  var streamBox = document.createElement('div');
-  streamBox.className = 'stream-preview';
-  var cursor = document.createElement('div');
-  cursor.className = 'stream-cursor';
-  streamBox.appendChild(cursor);
-  output.innerHTML = '';
-  output.appendChild(streamBox);
 
-  // Повертає: 'continue' | 'done' (маркер [DONE]) | 'error' (reject вже викликано)
+  // ── Status box ────────────────────────────────────────────────────────────
+  var modelLabel = (MODEL_PRICES[model] && MODEL_PRICES[model].label) ? MODEL_PRICES[model].label : model;
+  var statusBox = document.createElement('div');
+  statusBox.className = 'status-box';
+  statusBox.innerHTML =
+    '<div class="status-spinner"></div>' +
+    '<div class="status-content">' +
+      '<div class="status-text">Відправляю завдання…</div>' +
+      '<div class="status-meta">' +
+        '<span class="status-elapsed">0 сек</span>' +
+        '<span class="status-model">' + esc(modelLabel) + '</span>' +
+      '</div>' +
+    '</div>';
+  output.innerHTML = '';
+  output.appendChild(statusBox);
+
+  var elapsedSec = 0;
+  var elapsedTimer = setInterval(function () {
+    elapsedSec++;
+    var el = statusBox.querySelector('.status-elapsed');
+    if (el) el.textContent = elapsedSec + ' сек';
+  }, 1000);
+
+  function setStatus(text) {
+    var el = statusBox.querySelector('.status-text');
+    if (el) el.textContent = text;
+  }
+  function stopTimer() { clearInterval(elapsedTimer); }
+
+  // ── Chunk processor ───────────────────────────────────────────────────────
   function processChunk(raw) {
     if (!raw || raw.indexOf('data: ') !== 0) return 'continue';
     var evPayload = raw.substring(6);
@@ -539,26 +562,26 @@ function callAPI(prompt, model, systemPromptOverride, expectNews, expectFacebook
     try {
       var ev = JSON.parse(evPayload);
       if (ev.error) { reject(new Error(ev.error)); return 'error'; }
-      if (ev.reset) { accText = ''; streamBox.textContent = ''; return 'continue'; }
+      if (ev.reset) { accText = ''; hasChunks = false; return 'continue'; }
       if (ev.meta)  { metaReceived = ev; return 'continue'; }
-      if (ev.delta != null) {
+      if (ev.delta != null && ev.delta !== '') {
         accText += ev.delta;
-        var preview = accText.length > 600 ? '…' + accText.slice(-600) : accText;
-        streamBox.textContent = preview;
-        var nc = document.createElement('div');
-        nc.className = 'stream-cursor';
-        streamBox.appendChild(nc);
+        if (!hasChunks) { hasChunks = true; setStatus('Отримую відповідь…'); }
       }
     } catch(e) {}
     return 'continue';
   }
 
+  // ── Polling ───────────────────────────────────────────────────────────────
   function startPolling(jobId) {
     var afterId  = 0;
-    var maxWait  = 300000; // 5 хвилин
+    var maxWait  = 300000;
     var elapsed  = 0;
     var interval = 400;
     var stopped  = false;
+    var lastStatus = '';
+
+    setStatus('Завдання відправлено…');
 
     function poll() {
       if (stopped) return;
@@ -570,32 +593,36 @@ function callAPI(prompt, model, systemPromptOverride, expectNews, expectFacebook
         .then(function(r) { return r.json(); })
         .then(function(data) {
           if (stopped) return;
-          if (data.error) { stopped = true; output.innerHTML = ''; reject(new Error(data.error)); return; }
+          if (data.error) { stopped = true; stopTimer(); output.innerHTML = ''; reject(new Error(data.error)); return; }
+
+          var srvStatus = data.status || '';
+          if (srvStatus !== lastStatus) {
+            lastStatus = srvStatus;
+            if (srvStatus === 'pending')  setStatus('Завдання в черзі…');
+            if (srvStatus === 'running' && !hasChunks) setStatus('Модель формує відповідь…');
+          }
 
           var chunks = data.chunks || [];
           for (var i = 0; i < chunks.length; i++) {
             var res = processChunk(chunks[i]);
-            if (res === 'error') { stopped = true; return; }
-            if (res === 'done')  { stopped = true; onComplete(); return; }
+            if (res === 'error') { stopped = true; stopTimer(); return; }
+            if (res === 'done')  { stopped = true; stopTimer(); onComplete(); return; }
           }
           if (data.next_after !== undefined) afterId = data.next_after;
 
-          if ((data.status || '') === 'failed') {
-            stopped = true; output.innerHTML = '';
+          if (srvStatus === 'failed') {
+            stopped = true; stopTimer(); output.innerHTML = '';
             reject(new Error('Помилка виконання запиту'));
             return;
           }
 
-          // Job is done server-side but [DONE] marker was not in the chunks window —
-          // treat accumulated text as the final response instead of polling forever.
-          if ((data.status || '') === 'done') {
-            stopped = true; onComplete(); return;
+          if (srvStatus === 'done') {
+            stopped = true; stopTimer(); onComplete(); return;
           }
 
           elapsed += interval;
           if (elapsed >= maxWait) {
-            stopped = true;
-            output.innerHTML = '';
+            stopped = true; stopTimer(); output.innerHTML = '';
             reject(new Error('Перевищено час очікування відповіді'));
             return;
           }
@@ -603,8 +630,7 @@ function callAPI(prompt, model, systemPromptOverride, expectNews, expectFacebook
         })
         .catch(function(err) {
           if (stopped) return;
-          stopped = true;
-          output.innerHTML = '';
+          stopped = true; stopTimer(); output.innerHTML = '';
           reject(new Error(err.message || 'Помилка мережі'));
         });
     }
@@ -674,6 +700,7 @@ function callAPI(prompt, model, systemPromptOverride, expectNews, expectFacebook
     // Step 2: poll for job output
     startPolling(result.job_id);
   }).catch(function(err) {
+    stopTimer();
     output.innerHTML = '';
     reject(new Error(err.message || 'Помилка мережі'));
   });

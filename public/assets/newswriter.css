@@ -111,29 +111,13 @@ input[type=range] { width:100%; accent-color:var(--red); cursor:pointer; }
  .modal pre{white-space:pre-wrap;font-family:'Roboto Mono',monospace;font-size:12px;line-height:1.6;background:#faf8f3;border:1px solid var(--bdl);padding:12px;border-radius:3px;}
  .modal-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
  .modal-h b{font-family:'Roboto Mono',monospace;font-size:11px;letter-spacing:.1em;}
-.stream-preview {
-  font-family: monospace;
-  font-size: 11px;
-  color: #999;
-  padding: 16px;
-  white-space: pre-wrap;
-  word-break: break-all;
-  max-height: 300px;
-  overflow: hidden;
-  background: #1a1714;
-  border-radius: 6px;
-  border: 1px solid #333;
-}
-
-.stream-cursor::after {
-  content: '▋';
-  animation: blink 1s step-end infinite;
-  color: #c8a96e;
-}
-
-@keyframes blink {
-  50% { opacity: 0; }
-}
+.status-box { display:flex; align-items:center; gap:16px; padding:22px 20px; background:#fff; border:1px solid var(--bd); border-radius:4px; }
+.status-spinner { width:18px; height:18px; border:2px solid var(--bdl); border-top-color:var(--red); border-radius:50%; animation:spin .8s linear infinite; flex-shrink:0; }
+.status-content { display:flex; flex-direction:column; gap:5px; }
+.status-text { font-family:'Roboto Mono',monospace; font-size:12px; font-weight:600; color:var(--ink); letter-spacing:.04em; }
+.status-meta { display:flex; gap:14px; font-family:'Roboto Mono',monospace; font-size:10px; color:var(--ink3); letter-spacing:.08em; }
+.status-elapsed { color:var(--gold); }
+.status-model { opacity:.8; }
 
 .history-item {
   background: #fff;
