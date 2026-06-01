@@ -29,13 +29,7 @@ if ($method === 'POST') {
       echo json_encode(['ok' => false, 'error' => $validationError]);
       exit;
     }
-    $current = load_settings();
-    save_settings([
-      'models' => $models,
-      'system_prompt_custom' => (string)($current['system_prompt_custom'] ?? ''),
-      'system_prompt_default_override' => (string)($current['system_prompt_default_override'] ?? ''),
-      'prompt_profiles' => $current['prompt_profiles'] ?? get_default_prompt_profiles(),
-    ]);
+    update_settings(['models' => $models]);
     echo json_encode(['ok' => true]);
     exit;
   }
@@ -67,13 +61,7 @@ if ($method === 'POST') {
       echo json_encode(['ok' => false, 'error' => $profileErr]);
       exit;
     }
-    $current = load_settings();
-    save_settings([
-      'models' => $current['models'] ?? [],
-      'system_prompt_custom' => (string)($current['system_prompt_custom'] ?? ''),
-      'system_prompt_default_override' => (string)($current['system_prompt_default_override'] ?? ''),
-      'prompt_profiles' => $profiles,
-    ]);
+    update_settings(['prompt_profiles' => $profiles]);
     echo json_encode(['ok' => true]);
     exit;
   }
@@ -85,21 +73,16 @@ if ($method === 'POST') {
       echo json_encode(['ok' => false, 'error' => 'limits must be object']);
       exit;
     }
-    $current = load_settings();
+    $current  = load_settings();
     $profiles = $current['prompt_profiles'] ?? get_default_prompt_profiles();
     if (!isset($profiles['user']) || !is_array($profiles['user'])) $profiles['user'] = [];
-    $profiles['user']['headlines_count'] = max(1, (int)($limits['headlines_count'] ?? 4));
-    $profiles['user']['leads_count'] = max(1, (int)($limits['leads_count'] ?? 2));
-    $profiles['user']['article_max_chars'] = max(300, (int)($limits['article_max_chars'] ?? 3000));
-    $profiles['user']['facebook_max_chars'] = max(50, (int)($limits['facebook_max_chars'] ?? 400));
-    $profiles['user']['lead_min_chars'] = max(50, (int)($limits['lead_min_chars'] ?? 150));
-    $profiles['user']['lead_max_chars'] = max(50, (int)($limits['lead_max_chars'] ?? 180));
-    save_settings([
-      'models' => $current['models'] ?? [],
-      'system_prompt_custom' => (string)($current['system_prompt_custom'] ?? ''),
-      'system_prompt_default_override' => (string)($current['system_prompt_default_override'] ?? ''),
-      'prompt_profiles' => $profiles,
-    ]);
+    $profiles['user']['headlines_count']    = max(1,   (int)($limits['headlines_count']    ?? 4));
+    $profiles['user']['leads_count']        = max(1,   (int)($limits['leads_count']        ?? 2));
+    $profiles['user']['article_max_chars']  = max(300, (int)($limits['article_max_chars']  ?? 3000));
+    $profiles['user']['facebook_max_chars'] = max(50,  (int)($limits['facebook_max_chars'] ?? 400));
+    $profiles['user']['lead_min_chars']     = max(50,  (int)($limits['lead_min_chars']     ?? 150));
+    $profiles['user']['lead_max_chars']     = max(50,  (int)($limits['lead_max_chars']     ?? 180));
+    update_settings(['prompt_profiles' => $profiles]);
     echo json_encode(['ok' => true]);
     exit;
   }
@@ -111,13 +94,7 @@ if ($method === 'POST') {
       echo json_encode(['ok' => false, 'error' => 'value must be non-empty']);
       exit;
     }
-    $current = load_settings();
-    save_settings([
-      'models' => $current['models'] ?? [],
-      'system_prompt_custom' => (string)($current['system_prompt_custom'] ?? ''),
-      'system_prompt_default_override' => $text,
-      'prompt_profiles' => $current['prompt_profiles'] ?? get_default_prompt_profiles(),
-    ]);
+    update_settings(['system_prompt_default_override' => $text]);
     echo json_encode(['ok' => true]);
     exit;
   }
@@ -137,13 +114,7 @@ if ($method === 'POST') {
   if ($action === 'save_all_prompts') {
     $res = extract_prompt_payload($data);
     if (is_string($res)) { http_response_code(400); echo json_encode(['ok'=>false,'error'=>$res]); exit; }
-    $current = load_settings();
-    save_settings([
-      'models'                         => $current['models'] ?? [],
-      'system_prompt_custom'           => (string)($current['system_prompt_custom'] ?? ''),
-      'system_prompt_default_override' => $res['system'],
-      'prompt_profiles'                => $res['profiles'],
-    ]);
+    update_settings(['system_prompt_default_override' => $res['system'], 'prompt_profiles' => $res['profiles']]);
     $newDefaults = [
       'system_prompts'       => ['default' => $res['system']],
       'user_prompt_profiles' => ['default' => $res['profiles']['user'] ?? []],
@@ -161,13 +132,7 @@ if ($method === 'POST') {
   if ($action === 'save_all_as_default') {
     $res = extract_prompt_payload($data);
     if (is_string($res)) { http_response_code(400); echo json_encode(['ok'=>false,'error'=>$res]); exit; }
-    $current = load_settings();
-    save_settings([
-      'models'                         => $current['models'] ?? [],
-      'system_prompt_custom'           => (string)($current['system_prompt_custom'] ?? ''),
-      'system_prompt_default_override' => $res['system'],
-      'prompt_profiles'                => $res['profiles'],
-    ]);
+    update_settings(['system_prompt_default_override' => $res['system'], 'prompt_profiles' => $res['profiles']]);
     $newDefaults = [
       'system_prompts'       => ['default' => $res['system']],
       'user_prompt_profiles' => ['default' => $res['profiles']['user'] ?? []],
@@ -221,16 +186,11 @@ if ($method === 'POST') {
     exit;
   }
 
-  if ($action === 'restore_default_prompts') {    $current = load_settings();
+  if ($action === 'restore_default_prompts') {
     $defaults = load_prompts_from_json();
     $systemDefault = trim((string)($defaults['system_prompts']['default'] ?? get_default_system_prompt()));
     $profilesDefault = $defaults['user_prompt_profiles']['default'] ?? get_default_prompt_profiles();
-    save_settings([
-      'models' => $current['models'] ?? [],
-      'system_prompt_custom' => '',
-      'system_prompt_default_override' => $systemDefault,
-      'prompt_profiles' => ['user' => $profilesDefault],
-    ]);
+    update_settings(['system_prompt_custom' => '', 'system_prompt_default_override' => $systemDefault, 'prompt_profiles' => ['user' => $profilesDefault]]);
     echo json_encode(['ok' => true, 'prompt_system' => $systemDefault, 'prompt_profiles' => ['user' => $profilesDefault]], JSON_UNESCAPED_UNICODE);
     exit;
   }
@@ -308,13 +268,7 @@ if ($method === 'POST') {
     // 2. Застосовуємо до runtime settings_store.php
     $systemPrompt   = trim((string)($parsed['system_prompts']['default'] ?? get_default_system_prompt()));
     $profilesUser   = $parsed['user_prompt_profiles']['default'] ?? get_default_prompt_profiles()['user'] ?? [];
-    $current = load_settings();
-    save_settings([
-      'models'                         => $current['models'] ?? [],
-      'system_prompt_custom'           => '',
-      'system_prompt_default_override' => $systemPrompt,
-      'prompt_profiles'                => ['user' => $profilesUser],
-    ]);
+    update_settings(['system_prompt_custom' => '', 'system_prompt_default_override' => $systemPrompt, 'prompt_profiles' => ['user' => $profilesUser]]);
     echo json_encode([
       'ok'             => true,
       'prompt_system'  => $systemPrompt,
@@ -383,11 +337,10 @@ if ($method === 'POST') {
                     ? (string)$payload['system_prompt_default_override']
                     : (string)($current['system_prompt_default_override'] ?? '');
 
-    save_settings([
-      'models'       => $newModels,
-      'system_prompt_custom' => (string)($current['system_prompt_custom'] ?? ''),
+    update_settings([
+      'models'                         => $newModels,
       'system_prompt_default_override' => $newOverride,
-      'prompt_profiles' => $newProfiles,
+      'prompt_profiles'                => $newProfiles,
     ]);
 
     if (isset($payload['prompts_json']) && is_array($payload['prompts_json'])) {
