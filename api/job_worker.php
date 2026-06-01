@@ -13,6 +13,8 @@ if (php_sapi_name() !== 'cli') {
 }
 
 define('TIMEOUT', 120);
+// DeepSeek R1 streams large reasoning blocks — needs extra time
+define('TIMEOUT_DEEPSEEK', 360);
 
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
@@ -63,7 +65,7 @@ function w_calc_cost(array $usage, array $modelMeta): float
     return ($inp * (float)($modelMeta['inp'] ?? 0) + $out * (float)($modelMeta['out'] ?? 0)) / 1_000_000;
 }
 
-function w_non_stream(string $url, array $headers, string $payload): array
+function w_non_stream(string $url, array $headers, string $payload, int $timeout = TIMEOUT): array
 {
     $ch = curl_init($url);
     curl_setopt_array($ch, [
@@ -71,7 +73,7 @@ function w_non_stream(string $url, array $headers, string $payload): array
         CURLOPT_POST           => true,
         CURLOPT_POSTFIELDS     => $payload,
         CURLOPT_HTTPHEADER     => $headers,
-        CURLOPT_TIMEOUT        => TIMEOUT,
+        CURLOPT_TIMEOUT        => $timeout,
     ]);
     $resp    = (string)curl_exec($ch);
     $code    = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -145,6 +147,7 @@ if (!$modelMeta) {
 $provider     = (string)$modelMeta['provider'];
 $keys         = $settings['keys'] ?? [];
 $useWebSearch = in_array($provider, ['anthropic', 'gemini'], true);
+$curlTimeout  = ($provider === 'deepseek') ? TIMEOUT_DEEPSEEK : TIMEOUT;
 $maxTokens    = (int)$job['max_tokens'];
 $prompt           = (string)$job['prompt_text'];
 $source           = (string)$job['source_text'];
@@ -190,7 +193,7 @@ for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
         CURLOPT_POST           => true,
         CURLOPT_POSTFIELDS     => $payload,
         CURLOPT_HTTPHEADER     => $req['headers'],
-        CURLOPT_TIMEOUT        => TIMEOUT,
+        CURLOPT_TIMEOUT        => $curlTimeout,
         CURLOPT_WRITEFUNCTION  => function ($ch, $chunk) use (&$accText, &$accChunks, &$streamError, &$state, $providerObj, $db, $jobId) {
             $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             $accChunks .= $chunk;
@@ -233,8 +236,11 @@ for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
     curl_close($ch);
 
     if ($curlErr) {
-        fail_job($db, $jobId, 'cURL: ' . $curlErr);
-        sqlite_log_request(['date' => date('Y-m-d'), 'time' => date('H:i:s'), 'model' => $model, 'provider' => $provider, 'error' => 'cURL: ' . $curlErr, 'prompt_len' => w_strlen($prompt)]);
+        $errMsg = stripos($curlErr, 'timed out') !== false
+            ? 'Перевищено час очікування (' . $curlTimeout . 'с). Модель відповідає надто повільно — спробуйте ще раз або оберіть іншу модель.'
+            : 'cURL: ' . $curlErr;
+        fail_job($db, $jobId, $errMsg);
+        sqlite_log_request(['date' => date('Y-m-d'), 'time' => date('H:i:s'), 'model' => $model, 'provider' => $provider, 'error' => $errMsg, 'prompt_len' => w_strlen($prompt)]);
         exit(1);
     }
 
@@ -298,7 +304,7 @@ if (!w_valid_json($accText) && $streamOutputTokens < 7500) {
     $retryReq = $providerObj->buildRequest($model, w_retry_prompt($prompt), $systemPrompt, false, $maxTokens);
     $retryPl  = json_encode($retryReq['body'], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
     if ($retryPl !== false) {
-        $rc = w_non_stream($retryReq['url'], $retryReq['headers'], $retryPl);
+        $rc = w_non_stream($retryReq['url'], $retryReq['headers'], $retryPl, $curlTimeout);
         if (!$rc['curl_error'] && $rc['code'] === 200) {
             $retryResult = json_decode($rc['response'], true) ?: [];
             $retryParsed = $providerObj->parseResponse($retryResult);
