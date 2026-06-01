@@ -253,16 +253,24 @@ function get_auth_password($envName, $fallback) {
   return $pwd !== '' ? $pwd : $fallback;
 }
 
-function get_runtime_keys() {
+function get_provider_env_map(): array {
   return [
-    'anthropic' => env_str('ANTHROPIC_API_KEY', ''),
-    'xai'       => env_str('XAI_API_KEY', ''),
-    'gemini'    => env_str('GEMINI_API_KEY', ''),
-    'mistral'   => env_str('MISTRAL_API_KEY', ''),
-    'openai'    => env_str('OPENAI_API_KEY', ''),
-    'deepseek'  => env_str('DEEPSEEK_API_KEY', ''),
-    'groq'      => env_str('GROQ_API_KEY', ''),
+    'anthropic' => 'ANTHROPIC_API_KEY',
+    'xai'       => 'XAI_API_KEY',
+    'gemini'    => 'GEMINI_API_KEY',
+    'mistral'   => 'MISTRAL_API_KEY',
+    'openai'    => 'OPENAI_API_KEY',
+    'deepseek'  => 'DEEPSEEK_API_KEY',
+    'groq'      => 'GROQ_API_KEY',
   ];
+}
+
+function get_runtime_keys(): array {
+  $keys = [];
+  foreach (get_provider_env_map() as $provider => $envName) {
+    $keys[$provider] = env_str($envName, '');
+  }
+  return $keys;
 }
 
 function get_default_settings() {

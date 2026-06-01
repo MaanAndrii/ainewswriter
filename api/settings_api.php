@@ -43,7 +43,7 @@ if ($method === 'POST') {
   if ($action === 'save_key') {
     $provider = (string)($data['provider'] ?? '');
     $value = trim((string)($data['value'] ?? ''));
-    $map = ['anthropic' => 'ANTHROPIC_API_KEY', 'xai' => 'XAI_API_KEY', 'gemini' => 'GEMINI_API_KEY', 'mistral' => 'MISTRAL_API_KEY', 'openai' => 'OPENAI_API_KEY', 'deepseek' => 'DEEPSEEK_API_KEY', 'groq' => 'GROQ_API_KEY'];
+    $map = get_provider_env_map();
     if (!isset($map[$provider]) || $value === '') {
       http_response_code(400);
       echo json_encode(['ok' => false, 'error' => 'Invalid provider or empty value']);
@@ -396,7 +396,7 @@ if ($method === 'POST') {
 
     $importedKeys = 0;
     if (isset($payload['api_keys']) && is_array($payload['api_keys'])) {
-      $keyMap = ['anthropic' => 'ANTHROPIC_API_KEY', 'xai' => 'XAI_API_KEY', 'gemini' => 'GEMINI_API_KEY', 'mistral' => 'MISTRAL_API_KEY', 'openai' => 'OPENAI_API_KEY', 'deepseek' => 'DEEPSEEK_API_KEY', 'groq' => 'GROQ_API_KEY'];
+      $keyMap = get_provider_env_map();
       $toSave = [];
       foreach ($keyMap as $provider => $envKey) {
         $val = trim((string)($payload['api_keys'][$provider] ?? ''));

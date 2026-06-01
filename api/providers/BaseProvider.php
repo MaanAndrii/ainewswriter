@@ -2,17 +2,16 @@
 /**
  * BaseProvider — базовий інтерфейс для всіх LLM-провайдерів.
  *
- * Кожен провайдер реалізує три методи:
- *   buildRequest()       — формує URL, заголовки і тіло запиту
- *   processStreamEvent() — обробляє один SSE-евент, повертає delta-текст або null
- *   parseResponse()      — розбирає повну non-streaming відповідь
+ * Кожен провайдер реалізує два методи:
+ *   buildRequest()  — формує URL, заголовки і тіло запиту (non-streaming)
+ *   parseResponse() — розбирає повну відповідь
  *
  * Спільна логіка (normalizeError) живе тут.
  */
 abstract class BaseProvider
 {
     /**
-     * Формує запит до API.
+     * Формує non-streaming запит до API.
      *
      * @return array{url: string, headers: string[], body: array}
      */
@@ -20,19 +19,8 @@ abstract class BaseProvider
         string $model,
         string $prompt,
         string $systemPrompt,
-        bool   $streamMode,
         int    $maxTokens = 8000
     ): array;
-
-    /**
-     * Обробляє один розібраний SSE-евент під час стрімінгу.
-     * Оновлює $state за посиланням (usage, web_search_used, та провайдер-специфічні поля).
-     *
-     * @param  array $ev    Розібраний JSON-об'єкт з рядка "data: ..."
-     * @param  array $state Спільний стан стрімінгу (usage, web_search_used, ...)
-     * @return string|null  Delta-текст для відправки клієнту, або null (внутрішній евент)
-     */
-    abstract public function processStreamEvent(array $ev, array &$state): ?string;
 
     /**
      * Розбирає повну відповідь API (non-streaming).
@@ -65,19 +53,5 @@ abstract class BaseProvider
         }
 
         return $msg !== '' ? $msg : 'Помилка API';
-    }
-
-    /** Початковий стан для стрімінгу — однаковий для всіх провайдерів. */
-    public static function initialStreamState(): array
-    {
-        return [
-            'usage' => [
-                'input_tokens'                => 0,
-                'output_tokens'               => 0,
-                'cache_creation_input_tokens' => 0,
-                'cache_read_input_tokens'     => 0,
-            ],
-            'web_search_used' => false,
-        ];
     }
 }

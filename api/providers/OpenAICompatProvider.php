@@ -3,9 +3,9 @@ require_once __DIR__ . '/BaseProvider.php';
 
 /**
  * OpenAICompatProvider — єдиний клас для всіх OpenAI-сумісних провайдерів:
- * xAI (Grok), Mistral, OpenAI, DeepSeek.
+ * xAI (Grok), Mistral, OpenAI, DeepSeek, Groq.
  *
- * Щоб додати новий провайдер з OpenAI-сумісним API — лише рядок у URLS і ENV_NAMES.
+ * Щоб додати новий провайдер — рядок у URLS і ENV_NAMES.
  */
 class OpenAICompatProvider extends BaseProvider
 {
@@ -25,9 +25,6 @@ class OpenAICompatProvider extends BaseProvider
         'groq'     => 'GROQ_API_KEY',
     ];
 
-    // Провайдери що підтримують stream_options.include_usage
-    private const STREAM_USAGE_PROVIDERS = ['xai', 'openai', 'deepseek'];
-
     public function __construct(
         private string $provider,
         private string $key
@@ -40,7 +37,7 @@ class OpenAICompatProvider extends BaseProvider
         }
     }
 
-    public function buildRequest(string $model, string $prompt, string $systemPrompt, bool $streamMode, int $maxTokens = 8000): array
+    public function buildRequest(string $model, string $prompt, string $systemPrompt, int $maxTokens = 8000): array
     {
         $messages = [];
         if ($systemPrompt !== '') {
@@ -48,45 +45,19 @@ class OpenAICompatProvider extends BaseProvider
         }
         $messages[] = ['role' => 'user', 'content' => $prompt];
 
-        $body = [
-            'model'      => $model,
-            'messages'   => $messages,
-            'max_tokens' => $maxTokens,
-            'temperature' => 0.4,
-        ];
-
-        if ($streamMode) {
-            $body['stream'] = true;
-            if (in_array($this->provider, self::STREAM_USAGE_PROVIDERS, true)) {
-                $body['stream_options'] = ['include_usage' => true];
-            }
-        }
-
         return [
             'url'     => self::URLS[$this->provider] ?? '',
             'headers' => [
                 'Content-Type: application/json',
                 'Authorization: Bearer ' . $this->key,
             ],
-            'body' => $body,
+            'body' => [
+                'model'       => $model,
+                'messages'    => $messages,
+                'max_tokens'  => $maxTokens,
+                'temperature' => 0.4,
+            ],
         ];
-    }
-
-    public function processStreamEvent(array $ev, array &$state): ?string
-    {
-        $delta = null;
-
-        if (!empty($ev['choices'][0]['delta']['content'])) {
-            $delta = (string)$ev['choices'][0]['delta']['content'];
-        }
-
-        if (isset($ev['usage'])) {
-            $u = $ev['usage'];
-            if (isset($u['prompt_tokens']))     $state['usage']['input_tokens']  = (int)$u['prompt_tokens'];
-            if (isset($u['completion_tokens'])) $state['usage']['output_tokens'] = (int)$u['completion_tokens'];
-        }
-
-        return $delta !== '' ? $delta : null;
     }
 
     public function parseResponse(array $result): array

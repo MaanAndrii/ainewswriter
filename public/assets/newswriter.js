@@ -21,24 +21,11 @@ function storeCopy(text) {
 }
 function doCopy(btn, id) {
   var text = copyStore[id] || '';
-  var ta = document.createElement('textarea');
-  ta.value = text;
-  ta.style.cssText = 'position:fixed;left:-9999px;top:-9999px;font-size:12px';
-  document.body.appendChild(ta);
-  ta.focus();
-  ta.select();
-  var ok = false;
-  try { ok = document.execCommand('copy'); } catch (e) {}
-  document.body.removeChild(ta);
-  if (!ok && navigator.clipboard) {
-    navigator.clipboard.writeText(text).then(function () {
-      showOk(btn);
-    }).catch(function () {
-      showFail(btn);
-    });
-    return;
-  }
-  if (ok) showOk(btn); else showFail(btn);
+  navigator.clipboard.writeText(text).then(function () {
+    showOk(btn);
+  }).catch(function () {
+    showFail(btn);
+  });
 }
 function showOk(btn) {
   btn.textContent = '\u2713 скопійовано';
@@ -581,7 +568,7 @@ function callAPI(prompt, model, systemPromptOverride, expectNews, expectFacebook
       var ev = JSON.parse(evPayload);
       if (ev.error)  { reject(new Error(ev.error)); return 'error'; }
       if (ev.status) { setStatus(ev.status); return 'continue'; }
-      if (ev.reset)  { accText = ''; hasChunks = false; return 'continue'; }
+      if (ev.reset)  { accText = ''; hasChunks = false; metaReceived = null; return 'continue'; }
       if (ev.meta)   { metaReceived = ev; return 'continue'; }
       if (ev.delta != null && ev.delta !== '') {
         accText += ev.delta;
@@ -802,6 +789,8 @@ function doDeepen() {
     'Текст недостатньо перероблено. Зроби значно глибший рерайт — переформулюй більшість речень, змінюй структуру, використовуй синоніми. Мінімум 20% змін.');
   callAPI(prompt, model, getVal('systemPromptOverride'), makeNews, fbCheck, 1,
     function (data) {
+      if (btn) btn.disabled = false;
+      if (sp)  sp.style.display = 'none';
       if (data._usage) showCost(data._usage, data._model || model, data._webSearchUsed);
       copyStore = {}; copyIdx = 0;
       renderResults(data, source, makeNews, fbCheck, depth);
@@ -872,8 +861,8 @@ function normalizeQuotes(s) {
 
 function renderResults(data, source, makeNews, fbCheck, depth) {
   // Normalize quotes in all text fields before rendering
-  if (Array.isArray(data.headlines)) data.headlines.forEach(function(h) { if (h) h.text = normalizeQuotes(h.text); });
-  if (Array.isArray(data.leads))     data.leads.forEach(function(l)     { if (l) l.text = normalizeQuotes(l.text); });
+  if (Array.isArray(data.headlines)) data.headlines.forEach(function(h) { if (h && typeof h === 'object') { h.text = normalizeQuotes(h.text || ''); } });
+  if (Array.isArray(data.leads))     data.leads.forEach(function(l)     { if (l && typeof l === 'object') { l.text = normalizeQuotes(l.text || ''); } });
   if (data.article)  data.article  = normalizeQuotes(data.article);
   if (data.facebook) data.facebook = normalizeQuotes(data.facebook);
   var article  = data.article || '';
@@ -893,10 +882,13 @@ function renderResults(data, source, makeNews, fbCheck, depth) {
     var heads = data.headlines || [];
     for (var i = 0; i < heads.length; i++) {
       var h = heads[i];
+      if (!h) continue;
+      var hText = typeof h === 'object' ? (h.text || '') : String(h);
+      var hTone = typeof h === 'object' ? (h.tone || '') : '';
       html += '<div class="h-card">'
-        + '<div class="h-tag" style="color:' + (TONE_COLORS[h.tone] || '#8a8278') + '">' + esc(h.tone) + '</div>'
-        + '<div class="h-text">' + esc(h.text) + '</div>'
-        + makeCopyBtn(h.text)
+        + '<div class="h-tag" style="color:' + (TONE_COLORS[hTone] || '#8a8278') + '">' + esc(hTone) + '</div>'
+        + '<div class="h-text">' + esc(hText) + '</div>'
+        + makeCopyBtn(hText)
         + '</div>';
     }
     html += '</div></div>';
@@ -906,15 +898,17 @@ function renderResults(data, source, makeNews, fbCheck, depth) {
     html += '<div><div class="sec-title">Ліди</div>';
     var leads = data.leads || [];
     for (var i = 0; i < leads.length; i++) {
-      var l   = leads[i];
-      var len = (l.text || '').length;
+      var l = leads[i];
+      if (!l) continue;
+      var lText = typeof l === 'object' ? (l.text || '') : String(l);
+      var len = lText.length;
       var lok = len >= 150 && len <= 200;
       var lc  = lok ? '#2a5a30' : '#8a6a20';
       var lt  = lok ? '\u2713' : (len < 150 ? '(замало, норма 150-200)' : '(забагато, норма 150-200)');
       html += '<div class="lead-card">'
-        + '<div class="lead-text">' + esc(l.text) + '</div>'
+        + '<div class="lead-text">' + esc(lText) + '</div>'
         + '<div class="lead-len" style="color:' + lc + '">' + len + ' символів ' + lt + '</div>'
-        + makeCopyBtn(l.text)
+        + makeCopyBtn(lText)
         + '</div>';
     }
     html += '</div>';
