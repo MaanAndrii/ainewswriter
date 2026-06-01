@@ -860,6 +860,11 @@ function normalizeQuotes(s) {
 }
 
 function renderResults(data, source, makeNews, fbCheck, depth) {
+  var _profile  = (PROMPT_PROFILES && PROMPT_PROFILES.user) ? PROMPT_PROFILES.user : {};
+  var leadMin   = Math.max(50,  parseInt(_profile.lead_min_chars    || 150,  10));
+  var leadMax   = Math.max(50,  parseInt(_profile.lead_max_chars    || 180,  10));
+  var artMax    = Math.max(300, parseInt(_profile.article_max_chars || 3000, 10));
+  var leadNorm  = leadMin + '–' + leadMax;
   // Normalize quotes in all text fields before rendering
   if (Array.isArray(data.headlines)) data.headlines.forEach(function(h) { if (h && typeof h === 'object') { h.text = normalizeQuotes(h.text || ''); } });
   if (Array.isArray(data.leads))     data.leads.forEach(function(l)     { if (l && typeof l === 'object') { l.text = normalizeQuotes(l.text || ''); } });
@@ -902,9 +907,9 @@ function renderResults(data, source, makeNews, fbCheck, depth) {
       if (!l) continue;
       var lText = typeof l === 'object' ? (l.text || '') : String(l);
       var len = lText.length;
-      var lok = len >= 150 && len <= 200;
+      var lok = len >= leadMin && len <= leadMax;
       var lc  = lok ? '#2a5a30' : '#8a6a20';
-      var lt  = lok ? '\u2713' : (len < 150 ? '(замало, норма 150-200)' : '(забагато, норма 150-200)');
+      var lt  = lok ? '\u2713' : (len < leadMin ? '(замало, норма ' + leadNorm + ')' : '(забагато, норма ' + leadNorm + ')');
       html += '<div class="lead-card">'
         + '<div class="lead-text">' + esc(lText) + '</div>'
         + '<div class="lead-len" style="color:' + lc + '">' + len + ' символів ' + lt + '</div>'
@@ -932,7 +937,7 @@ function renderResults(data, source, makeNews, fbCheck, depth) {
     html += '<div><div class="sec-title">Текст новини</div>'
       + '<div class="art-block">'
       + '<div class="art-text">' + esc(article) + '</div>'
-      + '<div class="char-row" style="color:' + (charLen > 3000 ? '#b5401a' : '#8a8278') + '">' + charLen + ' / 3000 символів' + (charLen > 3000 ? ' \u2014 перевищено!' : '') + '</div>'
+      + '<div class="char-row" style="color:' + (charLen > artMax ? '#b5401a' : '#8a8278') + '">' + charLen + ' / ' + artMax + ' символів' + (charLen > artMax ? ' \u2014 перевищено!' : '') + '</div>'
       + simBar
       + makeCopyBtn(article)
       + '</div></div>';

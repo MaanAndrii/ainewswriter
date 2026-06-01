@@ -357,6 +357,19 @@ function save_settings($settings) {
 }
 
 /**
+ * Оновлює тільки передані поля settings, решту залишає незміненою.
+ */
+function update_settings(array $patch): void {
+  $current = load_settings();
+  save_settings(array_merge([
+    'models'                         => $current['models'] ?? [],
+    'system_prompt_custom'           => (string)($current['system_prompt_custom'] ?? ''),
+    'system_prompt_default_override' => (string)($current['system_prompt_default_override'] ?? ''),
+    'prompt_profiles'                => $current['prompt_profiles'] ?? get_default_prompt_profiles(),
+  ], $patch));
+}
+
+/**
  * Збереження останніх N відповідей API у JSON-файл (для діагностики в адмінці).
  */
 function save_api_response($entry) {
