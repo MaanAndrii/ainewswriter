@@ -229,6 +229,10 @@ function loadModelSettings() {
         var btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'mdl-btn' + (mdl.id === selId ? ' active' : '');
+        var price = MODEL_PRICES[mdl.id] || {};
+        var inp = Number(price.inp || mdl.inp || 0);
+        var out = Number(price.out || mdl.out || 0);
+        btn.title = 'Вхід: $' + inp.toFixed(2) + ' / 1M · Вихід: $' + out.toFixed(2) + ' / 1M';
         var span = document.createElement('span');
         span.textContent = mdl.label || mdl.id;
         btn.appendChild(span);
