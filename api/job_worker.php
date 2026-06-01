@@ -3,7 +3,7 @@
  * job_worker.php — фоновий CLI-воркер для async job queue.
  * Запускається через job_submit.php: php job_worker.php <job_id>
  *
- * Читає завдання з async_jobs, викликає LLM API (streaming),
+ * Читає завдання з async_jobs, викликає LLM API (non-streaming),
  * зберігає SSE-чанки в async_job_chunks, логує в requests/generations.
  */
 
@@ -13,8 +13,6 @@ if (php_sapi_name() !== 'cli') {
 }
 
 define('TIMEOUT', 120);
-// DeepSeek R1 streams large reasoning blocks — needs extra time
-define('TIMEOUT_DEEPSEEK', 360);
 
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
@@ -147,7 +145,7 @@ if (!$modelMeta) {
 $provider     = (string)$modelMeta['provider'];
 $keys         = $settings['keys'] ?? [];
 $useWebSearch = in_array($provider, ['anthropic', 'gemini'], true);
-$curlTimeout  = ($provider === 'deepseek') ? TIMEOUT_DEEPSEEK : TIMEOUT;
+$curlTimeout  = isset($modelMeta['timeout']) && $modelMeta['timeout'] > 0 ? (int)$modelMeta['timeout'] : TIMEOUT;
 $maxTokens    = (int)$job['max_tokens'];
 $prompt           = (string)$job['prompt_text'];
 $source           = (string)$job['source_text'];
@@ -162,78 +160,29 @@ try {
     exit(1);
 }
 
-$req     = $providerObj->buildRequest($model, $prompt, $systemPrompt, true, $maxTokens);
+$req     = $providerObj->buildRequest($model, $prompt, $systemPrompt, false, $maxTokens);
 $payload = json_encode($req['body'], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
 if ($payload === false) {
     fail_job($db, $jobId, 'Не вдалось сформувати запит (encoding error)');
     exit(1);
 }
 
-// ── Streaming call (з одним авто-повтором при 429) ───────────────────────────
+// ── Non-streaming call (з одним авто-повтором при 429) ───────────────────────
 
 $accText       = '';
-$accChunks     = '';
-$streamError   = null;
-$state         = BaseProvider::initialStreamState();
 $httpCodeFinal = 0;
 $curlErr       = '';
+$rawResponse   = '';
 $timeStart     = microtime(true);
 $timeEnd       = $timeStart;
 $maxAttempts   = 2;
 
 for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
-    $accText     = '';
-    $accChunks   = '';
-    $streamError = null;
-    $state       = BaseProvider::initialStreamState();
-
-    $ch = curl_init($req['url']);
-    curl_setopt_array($ch, [
-        CURLOPT_RETURNTRANSFER => false,
-        CURLOPT_POST           => true,
-        CURLOPT_POSTFIELDS     => $payload,
-        CURLOPT_HTTPHEADER     => $req['headers'],
-        CURLOPT_TIMEOUT        => $curlTimeout,
-        CURLOPT_WRITEFUNCTION  => function ($ch, $chunk) use (&$accText, &$accChunks, &$streamError, &$state, $providerObj, $db, $jobId) {
-            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $accChunks .= $chunk;
-
-            if ($httpCode !== 0 && $httpCode !== 200) {
-                return strlen($chunk);
-            }
-
-            while (($pos = strpos($accChunks, "\n")) !== false) {
-                $line      = rtrim(substr($accChunks, 0, $pos), "\r");
-                $accChunks = substr($accChunks, $pos + 1);
-
-                if (!str_starts_with($line, 'data: ')) continue;
-                $dataStr = substr($line, 6);
-                if ($dataStr === '[DONE]' || trim($dataStr) === '') continue;
-
-                $ev = json_decode($dataStr, true);
-                if (!is_array($ev)) continue;
-
-                if (isset($ev['error'])) {
-                    $streamError = (string)($ev['error']['message'] ?? (is_string($ev['error']) ? $ev['error'] : 'Stream error'));
-                    return strlen($chunk);
-                }
-
-                $delta = $providerObj->processStreamEvent($ev, $state);
-                if ($delta !== null && $delta !== '') {
-                    $accText .= $delta;
-                    write_chunk($db, $jobId, 'data: ' . json_encode(['delta' => $delta], JSON_UNESCAPED_UNICODE));
-                }
-            }
-
-            return strlen($chunk);
-        },
-    ]);
-
-    curl_exec($ch);
-    $httpCodeFinal = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $rc            = w_non_stream($req['url'], $req['headers'], $payload, $curlTimeout);
     $timeEnd       = microtime(true);
-    $curlErr       = curl_error($ch);
-    curl_close($ch);
+    $httpCodeFinal = $rc['code'];
+    $curlErr       = $rc['curl_error'];
+    $rawResponse   = $rc['response'];
 
     if ($curlErr) {
         $errMsg = stripos($curlErr, 'timed out') !== false
@@ -246,8 +195,8 @@ for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
 
     // Авто-повтор при rate limit (429)
     if ($httpCodeFinal === 429 && $attempt < $maxAttempts) {
-        $errResult = json_decode($accChunks, true) ?: [];
-        $apiMsg    = $providerObj->normalizeError($errResult, $accChunks);
+        $errResult = json_decode($rawResponse, true) ?: [];
+        $apiMsg    = $providerObj->normalizeError($errResult, $rawResponse);
         $retrySec  = 10;
         if (preg_match('/try again in ([0-9]+(?:\.[0-9]+)?)s/i', $apiMsg, $rm)) {
             $retrySec = min((int)ceil((float)$rm[1]) + 2, 65);
@@ -261,8 +210,8 @@ for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
 }
 
 if ($httpCodeFinal !== 200) {
-    $errResult = json_decode($accChunks, true) ?: [];
-    $apiMsg    = $providerObj->normalizeError($errResult, $accChunks);
+    $errResult = json_decode($rawResponse, true) ?: [];
+    $apiMsg    = $providerObj->normalizeError($errResult, $rawResponse);
     if ($httpCodeFinal === 413) {
         $apiMsg = 'Запит завеликий для моделі ' . $model . '. Скоротіть вхідний текст або оберіть іншу модель.';
     } elseif ($apiMsg === 'Помилка API') {
@@ -270,37 +219,20 @@ if ($httpCodeFinal !== 200) {
     }
     fail_job($db, $jobId, $apiMsg);
     sqlite_log_request(['date' => date('Y-m-d'), 'time' => date('H:i:s'), 'model' => $model, 'provider' => $provider, 'error' => $apiMsg, 'code' => $httpCodeFinal, 'prompt_len' => w_strlen($prompt)]);
-    save_api_response(['ts' => date('c'), 'type' => 'error', 'provider' => $provider, 'model' => $model, 'code' => $httpCodeFinal, 'body' => mb_substr($accChunks, 0, 8000)]);
+    save_api_response(['ts' => date('c'), 'type' => 'error', 'provider' => $provider, 'model' => $model, 'code' => $httpCodeFinal, 'body' => mb_substr($rawResponse, 0, 8000)]);
     exit(1);
 }
 
-if ($streamError !== null) {
-    fail_job($db, $jobId, $streamError);
-    sqlite_log_request(['date' => date('Y-m-d'), 'time' => date('H:i:s'), 'model' => $model, 'provider' => $provider, 'error' => $streamError]);
-    exit(1);
-}
-
-// Flush any data that remained in the buffer without a trailing \n
-if (trim($accChunks) !== '') {
-    foreach (explode("\n", $accChunks) as $line) {
-        $line = rtrim($line, "\r");
-        if (!str_starts_with($line, 'data: ')) continue;
-        $dataStr = substr($line, 6);
-        if ($dataStr === '[DONE]' || trim($dataStr) === '') continue;
-        $ev = json_decode($dataStr, true);
-        if (!is_array($ev) || isset($ev['error'])) continue;
-        $delta = $providerObj->processStreamEvent($ev, $state);
-        if ($delta !== null && $delta !== '') {
-            $accText .= $delta;
-            write_chunk($db, $jobId, 'data: ' . json_encode(['delta' => $delta], JSON_UNESCAPED_UNICODE));
-        }
-    }
-}
+$result  = json_decode($rawResponse, true) ?: [];
+$parsed  = $providerObj->parseResponse($result);
+$accText = trim($parsed['text']);
+$usage   = $parsed['usage'];
+$webSearch = $parsed['web_search_used'] ?? false;
 
 // ── Retry if invalid JSON ─────────────────────────────────────────────────────
 
-$streamOutputTokens = (int)($state['usage']['output_tokens'] ?? 0);
-if (!w_valid_json($accText) && $streamOutputTokens < 7500) {
+$outputTokens = (int)($usage['output_tokens'] ?? 0);
+if (!w_valid_json($accText) && $outputTokens < 7500) {
     $retryReq = $providerObj->buildRequest($model, w_retry_prompt($prompt), $systemPrompt, false, $maxTokens);
     $retryPl  = json_encode($retryReq['body'], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
     if ($retryPl !== false) {
@@ -310,20 +242,20 @@ if (!w_valid_json($accText) && $streamOutputTokens < 7500) {
             $retryParsed = $providerObj->parseResponse($retryResult);
             if (trim($retryParsed['text']) !== '') {
                 write_chunk($db, $jobId, 'data: ' . json_encode(['reset' => true], JSON_UNESCAPED_UNICODE));
-                write_chunk($db, $jobId, 'data: ' . json_encode(['delta' => $retryParsed['text']], JSON_UNESCAPED_UNICODE));
                 $accText = $retryParsed['text'];
                 $ru = $retryParsed['usage'];
-                $state['usage']['input_tokens']  = ($state['usage']['input_tokens']  ?? 0) + ($ru['input_tokens']  ?? 0);
-                $state['usage']['output_tokens'] = ($state['usage']['output_tokens'] ?? 0) + ($ru['output_tokens'] ?? 0);
+                $usage['input_tokens']  = ($usage['input_tokens']  ?? 0) + ($ru['input_tokens']  ?? 0);
+                $usage['output_tokens'] = ($usage['output_tokens'] ?? 0) + ($ru['output_tokens'] ?? 0);
             }
         }
     }
 }
 
+// Write single delta chunk with full text
+write_chunk($db, $jobId, 'data: ' . json_encode(['delta' => $accText], JSON_UNESCAPED_UNICODE));
+
 // ── Finalize ──────────────────────────────────────────────────────────────────
 
-$usage       = $state['usage'];
-$webSearch   = $state['web_search_used'];
 $durationSec = max(0, $timeEnd - $timeStart);
 $cost        = w_calc_cost($usage, $modelMeta);
 $cacheStatus = ((int)($usage['cache_read_input_tokens'] ?? 0) > 0) ? 'cache-hit'
