@@ -160,7 +160,7 @@ try {
     exit(1);
 }
 
-$req     = $providerObj->buildRequest($model, $prompt, $systemPrompt, false, $maxTokens);
+$req     = $providerObj->buildRequest($model, $prompt, $systemPrompt, $maxTokens);
 $payload = json_encode($req['body'], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
 if ($payload === false) {
     fail_job($db, $jobId, 'Не вдалось сформувати запит (encoding error)');
@@ -233,7 +233,7 @@ $webSearch = $parsed['web_search_used'] ?? false;
 
 $outputTokens = (int)($usage['output_tokens'] ?? 0);
 if (!w_valid_json($accText) && $outputTokens < 7500) {
-    $retryReq = $providerObj->buildRequest($model, w_retry_prompt($prompt), $systemPrompt, false, $maxTokens);
+    $retryReq = $providerObj->buildRequest($model, w_retry_prompt($prompt), $systemPrompt, $maxTokens);
     $retryPl  = json_encode($retryReq['body'], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
     if ($retryPl !== false) {
         $rc = w_non_stream($retryReq['url'], $retryReq['headers'], $retryPl, $curlTimeout);

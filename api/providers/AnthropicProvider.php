@@ -12,7 +12,7 @@ class AnthropicProvider extends BaseProvider
         }
     }
 
-    public function buildRequest(string $model, string $prompt, string $systemPrompt, bool $streamMode, int $maxTokens = 8000): array
+    public function buildRequest(string $model, string $prompt, string $systemPrompt, int $maxTokens = 8000): array
     {
         $body = [
             'model'      => $model,
@@ -32,10 +32,6 @@ class AnthropicProvider extends BaseProvider
             $body['tools'] = [['type' => 'web_search_20250305', 'name' => 'web_search']];
         }
 
-        if ($streamMode) {
-            $body['stream'] = true;
-        }
-
         return [
             'url'     => 'https://api.anthropic.com/v1/messages',
             'headers' => [
@@ -46,39 +42,6 @@ class AnthropicProvider extends BaseProvider
             ],
             'body' => $body,
         ];
-    }
-
-    public function processStreamEvent(array $ev, array &$state): ?string
-    {
-        $type = $ev['type'] ?? '';
-
-        if ($type === 'message_start') {
-            $u = $ev['message']['usage'] ?? [];
-            $state['usage']['input_tokens']                = (int)($u['input_tokens'] ?? 0);
-            $state['usage']['cache_creation_input_tokens'] = (int)($u['cache_creation_input_tokens'] ?? 0);
-            $state['usage']['cache_read_input_tokens']     = (int)($u['cache_read_input_tokens'] ?? 0);
-            return null;
-        }
-
-        if ($type === 'content_block_start') {
-            if (($ev['content_block']['type'] ?? '') === 'tool_use') {
-                $state['web_search_used'] = true;
-            }
-            return null;
-        }
-
-        if ($type === 'content_block_delta') {
-            $delta = ($ev['delta']['type'] ?? '') === 'text_delta' ? ($ev['delta']['text'] ?? '') : '';
-            return $delta !== '' ? $delta : null;
-        }
-
-        if ($type === 'message_delta') {
-            $u = $ev['usage'] ?? [];
-            $state['usage']['output_tokens'] = (int)($u['output_tokens'] ?? $state['usage']['output_tokens']);
-            return null;
-        }
-
-        return null;
     }
 
     public function parseResponse(array $result): array

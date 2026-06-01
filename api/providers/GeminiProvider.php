@@ -12,7 +12,7 @@ class GeminiProvider extends BaseProvider
         }
     }
 
-    public function buildRequest(string $model, string $prompt, string $systemPrompt, bool $streamMode, int $maxTokens = 8000): array
+    public function buildRequest(string $model, string $prompt, string $systemPrompt, int $maxTokens = 8000): array
     {
         $text = ($systemPrompt !== '' ? $systemPrompt . "\n\n" : '') . $prompt;
 
@@ -25,44 +25,12 @@ class GeminiProvider extends BaseProvider
             $body['tools'] = [['google_search' => (object)[]]];
         }
 
-        $endpoint = $streamMode
-            ? ':streamGenerateContent?alt=sse&key='
-            : ':generateContent?key=';
-
         return [
             'url'     => 'https://generativelanguage.googleapis.com/v1beta/models/'
-                       . rawurlencode($model) . $endpoint . rawurlencode($this->key),
+                       . rawurlencode($model) . ':generateContent?key=' . rawurlencode($this->key),
             'headers' => ['Content-Type: application/json'],
             'body'    => $body,
         ];
-    }
-
-    public function processStreamEvent(array $ev, array &$state): ?string
-    {
-        // Gemini streaming повертає повний накопичений текст у кожному чанку.
-        // Відстежуємо байтовий офсет і відправляємо лише новий приріст.
-        $fullText = $ev['candidates'][0]['content']['parts'][0]['text'] ?? '';
-        $delta    = null;
-
-        if ($fullText !== '') {
-            $prevLen = $state['gemini_prev_len'] ?? 0;
-            $new     = substr($fullText, $prevLen);
-            if ($new !== '') {
-                $state['gemini_prev_len'] = $prevLen + strlen($new);
-                $delta = $new;
-            }
-        }
-
-        if (!empty($ev['candidates'][0]['groundingMetadata'])) {
-            $state['web_search_used'] = true;
-        }
-
-        if (isset($ev['usageMetadata'])) {
-            $state['usage']['input_tokens']  = (int)($ev['usageMetadata']['promptTokenCount'] ?? 0);
-            $state['usage']['output_tokens'] = (int)($ev['usageMetadata']['candidatesTokenCount'] ?? 0);
-        }
-
-        return $delta;
     }
 
     public function parseResponse(array $result): array
