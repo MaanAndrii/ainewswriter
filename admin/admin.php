@@ -220,6 +220,16 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
 .api-entry-body.open{display:block}
 .api-entry-body pre{font-family:'Roboto Mono',monospace;font-size:10px;white-space:pre-wrap;word-break:break-all;max-height:300px;overflow-y:auto}
 .site-footer{background:#1a1714;color:#6a6460;font-family:'Roboto Mono',monospace;font-size:10px;letter-spacing:.12em;text-align:center;padding:10px 24px;border-top:2px solid #b5401a}.site-footer a{color:#6a6460;text-decoration:none}.site-footer a:hover{color:#f5f2eb}
+/* Models table row colors by provider */
+.mdl-row-anthropic > td { background:#fdf5f2; }
+.mdl-row-xai       > td { background:#f5f5f5; }
+.mdl-row-gemini    > td { background:#f0f5ff; }
+.mdl-row-mistral   > td { background:#fff4ec; }
+.mdl-row-openai    > td { background:#f0fbf5; }
+.mdl-row-deepseek  > td { background:#f3f0ff; }
+.mdl-row-groq      > td { background:#fff0ee; }
+/* sticky header for models table */
+#models_table thead tr th { position:sticky; top:0; background:#2a2520; color:#f5f2eb; z-index:1; }
 </style>
 </head>
 <body>
@@ -268,6 +278,7 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
           <div><label class="small">Inp $/1M</label><input type="number" id="m_inp" step="0.01" value="3.00"></div>
           <div><label class="small">Out $/1M</label><input type="number" id="m_out" step="0.01" value="15.00"></div>
           <div><label class="small">Max tokens</label><input type="number" id="m_max_tokens" step="256" min="256" max="32000" value="8000"></div>
+          <div><label class="small">Тайм-аут (с)</label><input type="number" id="m_timeout" min="30" max="600" step="10" value="120"></div>
         </div>
         <div class="row" style="margin-top:8px">
           <div></div>
@@ -277,7 +288,9 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
           </div>
         </div>
         <table id="models_table" style="margin-top:10px">
-          <tr><th>Порядок</th><th>ID</th><th>Назва</th><th>Provider</th><th>Inp</th><th>Out</th><th>Max tok</th><th>Вкл</th><th>Дії</th></tr>
+          <thead>
+            <tr><th>Порядок</th><th>ID</th><th>Назва</th><th>Provider</th><th>Inp</th><th>Out</th><th>Max tok</th><th>Тайм-аут</th><th>Вкл</th><th>Дії</th></tr>
+          </thead>
           <tbody></tbody>
         </table>
         <div class="small" id="models_status" style="margin-top:6px"></div>
@@ -635,6 +648,7 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
       inp:        Number(document.getElementById('m_inp').value || 0),
       out:        Number(document.getElementById('m_out').value || 0),
       max_tokens: Math.max(256, Math.min(32000, parseInt(document.getElementById('m_max_tokens').value || 8000, 10))),
+      timeout: Math.max(30, Math.min(600, parseInt(document.getElementById('m_timeout').value || 120, 10))),
       enabled: editIndex >= 0 && models[editIndex] ? (models[editIndex].enabled !== false) : true
     };
   }
@@ -645,6 +659,7 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
     document.getElementById('m_inp').value = '3.00';
     document.getElementById('m_out').value = '15.00';
     document.getElementById('m_max_tokens').value = '8000';
+    document.getElementById('m_timeout').value = '120';
     editIndex = -1;
     document.getElementById('m_add').textContent = 'Додати модель';
     document.getElementById('m_cancel').style.display = 'none';
@@ -669,7 +684,7 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
     for (var i=0;i<models.length;i++){
       var m = models[i];
       var enabled = (m.enabled !== false);
-      html += '<tr draggable="true" data-row="'+i+'" style="opacity:'+(enabled?'1':'0.45')+'">'
+      html += '<tr draggable="true" data-row="'+i+'" class="mdl-row-'+esc(m.provider)+'" style="opacity:'+(enabled?'1':'0.45')+'">'
         + '<td style="font-family:Roboto Mono,monospace;cursor:grab" class="drag-handle">☰</td>'
         + '<td style="font-family:Roboto Mono,monospace">'+esc(m.id)+'</td>'
         + '<td>'+esc(m.label)+'</td>'
@@ -677,6 +692,7 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
         + '<td>'+Number(m.inp).toFixed(2)+'</td>'
         + '<td>'+Number(m.out).toFixed(2)+'</td>'
         + '<td>'+(m.max_tokens||8000)+'</td>'
+        + '<td>'+(m.timeout||120)+'с</td>'
         + '<td style="text-align:center"><input type="checkbox" '+(enabled?'checked':'')+' data-toggle="'+i+'" title="Вмикати/вимикати модель"></td>'
         + '<td style="white-space:nowrap"><button type="button" class="btn-icon" title="Редагувати" data-edit="'+i+'">✏</button> <button type="button" class="btn-icon danger" title="Видалити" data-del="'+i+'">✕</button></td>'
         + '</tr>';
@@ -1052,6 +1068,7 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
     document.getElementById('m_inp').value = Number(m.inp || 0).toFixed(2);
     document.getElementById('m_out').value = Number(m.out || 0).toFixed(2);
     document.getElementById('m_max_tokens').value = m.max_tokens || 8000;
+    document.getElementById('m_timeout').value = m.timeout || 120;
     document.getElementById('m_add').textContent = 'Зберегти зміни';
     document.getElementById('m_cancel').style.display = 'inline-block';
   }

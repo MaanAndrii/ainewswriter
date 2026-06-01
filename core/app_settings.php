@@ -292,6 +292,7 @@ function normalize_settings($settings) {
       'inp'        => (float)($m['inp'] ?? 3.0),
       'out'        => (float)($m['out'] ?? 15.0),
       'max_tokens' => isset($m['max_tokens']) ? max(256, min(32000, (int)$m['max_tokens'])) : 8000,
+      'timeout'    => isset($m['timeout']) ? max(30, min(600, (int)$m['timeout'])) : 120,
       'enabled'    => isset($m['enabled']) ? (bool)$m['enabled'] : true,
     ];
   }
