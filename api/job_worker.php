@@ -234,7 +234,7 @@ for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
 
     if ($curlErr) {
         fail_job($db, $jobId, 'cURL: ' . $curlErr);
-        sqlite_log_request(['date' => date('Y-m-d'), 'time' => date('H:i:s'), 'model' => $model, 'provider' => $provider, 'error' => 'cURL: ' . $curlErr]);
+        sqlite_log_request(['date' => date('Y-m-d'), 'time' => date('H:i:s'), 'model' => $model, 'provider' => $provider, 'error' => 'cURL: ' . $curlErr, 'prompt_len' => w_strlen($prompt)]);
         exit(1);
     }
 
@@ -257,9 +257,13 @@ for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
 if ($httpCodeFinal !== 200) {
     $errResult = json_decode($accChunks, true) ?: [];
     $apiMsg    = $providerObj->normalizeError($errResult, $accChunks);
-    if ($apiMsg === 'Помилка API') $apiMsg = 'Помилка API (HTTP ' . $httpCodeFinal . ')';
+    if ($httpCodeFinal === 413) {
+        $apiMsg = 'Запит завеликий для моделі ' . $model . '. Скоротіть вхідний текст або оберіть іншу модель.';
+    } elseif ($apiMsg === 'Помилка API') {
+        $apiMsg = 'Помилка API (HTTP ' . $httpCodeFinal . ')';
+    }
     fail_job($db, $jobId, $apiMsg);
-    sqlite_log_request(['date' => date('Y-m-d'), 'time' => date('H:i:s'), 'model' => $model, 'provider' => $provider, 'error' => $apiMsg, 'code' => $httpCodeFinal]);
+    sqlite_log_request(['date' => date('Y-m-d'), 'time' => date('H:i:s'), 'model' => $model, 'provider' => $provider, 'error' => $apiMsg, 'code' => $httpCodeFinal, 'prompt_len' => w_strlen($prompt)]);
     save_api_response(['ts' => date('c'), 'type' => 'error', 'provider' => $provider, 'model' => $model, 'code' => $httpCodeFinal, 'body' => mb_substr($accChunks, 0, 8000)]);
     exit(1);
 }
