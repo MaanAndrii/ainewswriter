@@ -225,6 +225,13 @@ if ($httpCodeFinal !== 200) {
 
 $result  = json_decode($rawResponse, true) ?: [];
 $parsed  = $providerObj->parseResponse($result);
+
+if (!empty($parsed['error'])) {
+    fail_job($db, $jobId, (string)$parsed['error']);
+    sqlite_log_request(['date' => date('Y-m-d'), 'time' => date('H:i:s'), 'model' => $model, 'provider' => $provider, 'error' => $parsed['error'], 'prompt_len' => w_strlen($prompt)]);
+    exit(1);
+}
+
 $accText = trim($parsed['text']);
 $usage   = $parsed['usage'];
 $webSearch = $parsed['web_search_used'] ?? false;
@@ -249,6 +256,11 @@ if (!w_valid_json($accText) && $outputTokens < 7500) {
             }
         }
     }
+}
+
+if ($accText === '') {
+    fail_job($db, $jobId, 'Модель повернула порожню відповідь. Спробуйте ще раз або оберіть іншу модель.');
+    exit(1);
 }
 
 // Write single delta chunk with full text

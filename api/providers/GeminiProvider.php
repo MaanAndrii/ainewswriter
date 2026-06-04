@@ -35,7 +35,24 @@ class GeminiProvider extends BaseProvider
 
     public function parseResponse(array $result): array
     {
-        $text          = (string)($result['candidates'][0]['content']['parts'][0]['text'] ?? '');
+        // API-level error returned with HTTP 200 (Gemini billing/quota quirk)
+        if (isset($result['error'])) {
+            return ['text' => '', 'error' => (string)($result['error']['message'] ?? 'Gemini API error'), 'usage' => [], 'web_search_used' => false];
+        }
+
+        // Collect text from all parts (not just parts[0])
+        $parts = $result['candidates'][0]['content']['parts'] ?? [];
+        $textParts = array_filter($parts, static fn($p) => isset($p['text']));
+        $text = implode('', array_column($textParts, 'text'));
+
+        // Safety / policy block — finishReason is set but content is empty
+        if ($text === '') {
+            $reason = $result['candidates'][0]['finishReason'] ?? '';
+            if ($reason !== '' && $reason !== 'STOP') {
+                return ['text' => '', 'error' => 'Gemini відхилив запит (' . $reason . ')', 'usage' => [], 'web_search_used' => false];
+            }
+        }
+
         $webSearchUsed = !empty($result['candidates'][0]['groundingMetadata']);
 
         return [
