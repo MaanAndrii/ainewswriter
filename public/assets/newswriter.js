@@ -580,12 +580,14 @@ function callAPI(prompt, model, systemPromptOverride, expectNews, expectFacebook
 
   // ── Polling ───────────────────────────────────────────────────────────────
   function startPolling(jobId) {
-    var afterId  = 0;
-    var maxWait  = 300000;
-    var elapsed  = 0;
-    var interval = 400;
-    var stopped  = false;
-    var lastStatus = '';
+    var afterId          = 0;
+    var maxWait          = 300000;
+    var elapsed          = 0;
+    var interval         = 400;
+    var stopped          = false;
+    var lastStatus       = '';
+    var netErrCount      = 0;
+    var maxNetErr        = 3;
 
     setStatus('Завдання відправлено…');
 
@@ -599,6 +601,7 @@ function callAPI(prompt, model, systemPromptOverride, expectNews, expectFacebook
         .then(function(r) { return r.json(); })
         .then(function(data) {
           if (stopped) return;
+          netErrCount = 0;
           if (data.error) { stopped = true; stopTimer(); output.innerHTML = ''; reject(new Error(data.error)); return; }
 
           var srvStatus = data.status || '';
@@ -636,8 +639,15 @@ function callAPI(prompt, model, systemPromptOverride, expectNews, expectFacebook
         })
         .catch(function(err) {
           if (stopped) return;
-          stopped = true; stopTimer(); output.innerHTML = '';
-          reject(new Error(err.message || 'Помилка мережі'));
+          netErrCount++;
+          if (netErrCount >= maxNetErr) {
+            stopped = true; stopTimer(); output.innerHTML = '';
+            reject(new Error(err.message || 'Помилка мережі'));
+            return;
+          }
+          // Transient network hiccup — retry after a short pause
+          setStatus('Збій мережі, повтор…');
+          setTimeout(poll, 2000);
         });
     }
 
