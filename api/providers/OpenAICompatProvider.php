@@ -46,18 +46,26 @@ class OpenAICompatProvider extends BaseProvider
         $messages[] = ['role' => 'user', 'content' => $prompt];
 
         $body = [
-            'model'      => $model,
-            'messages'   => $messages,
-            'max_tokens' => $maxTokens,
+            'model'    => $model,
+            'messages' => $messages,
         ];
+
+        // OpenAI o-series (o1, o3, o4, o1-mini, o3-mini, o4-mini …):
+        // - uses max_completion_tokens, not max_tokens (400 error otherwise)
+        // - does not support temperature (fixed internally at 1)
+        $isOpenAIReasoning = $this->provider === 'openai' && (bool)preg_match('/^o\d/i', $model);
+
+        if ($isOpenAIReasoning) {
+            $body['max_completion_tokens'] = $maxTokens;
+        } else {
+            $body['max_tokens']  = $maxTokens;
+            $body['temperature'] = 0.4;
+        }
 
         // DeepSeek V4 models have thinking enabled by default; disable it so
         // temperature is respected and reasoning tokens are not wasted.
         if ($this->provider === 'deepseek') {
-            $body['thinking']    = ['type' => 'disabled'];
-            $body['temperature'] = 0.4;
-        } else {
-            $body['temperature'] = 0.4;
+            $body['thinking'] = ['type' => 'disabled'];
         }
 
         return [
