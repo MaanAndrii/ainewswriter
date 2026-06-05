@@ -45,18 +45,28 @@ class OpenAICompatProvider extends BaseProvider
         }
         $messages[] = ['role' => 'user', 'content' => $prompt];
 
+        $body = [
+            'model'      => $model,
+            'messages'   => $messages,
+            'max_tokens' => $maxTokens,
+        ];
+
+        // DeepSeek V4 models have thinking enabled by default; disable it so
+        // temperature is respected and reasoning tokens are not wasted.
+        if ($this->provider === 'deepseek') {
+            $body['thinking']    = ['type' => 'disabled'];
+            $body['temperature'] = 0.4;
+        } else {
+            $body['temperature'] = 0.4;
+        }
+
         return [
             'url'     => self::URLS[$this->provider] ?? '',
             'headers' => [
                 'Content-Type: application/json',
                 'Authorization: Bearer ' . $this->key,
             ],
-            'body' => [
-                'model'       => $model,
-                'messages'    => $messages,
-                'max_tokens'  => $maxTokens,
-                'temperature' => 0.4,
-            ],
+            'body' => $body,
         ];
     }
 
@@ -66,11 +76,6 @@ class OpenAICompatProvider extends BaseProvider
         $text    = is_array($content)
             ? implode('', array_column($content, 'text'))
             : (string)$content;
-
-        // DeepSeek-R1 поміщає «міркування» в <think>...</think> перед відповіддю
-        if ($this->provider === 'deepseek') {
-            $text = (string)preg_replace('/<think>.*?<\/think>/s', '', $text);
-        }
 
         $u = $result['usage'] ?? [];
 
