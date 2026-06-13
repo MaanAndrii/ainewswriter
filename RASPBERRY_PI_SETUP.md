@@ -4,6 +4,20 @@
 
 ---
 
+## Швидке розгортання (один скрипт)
+
+Якщо хочете пропустити ручні кроки — скористайтесь `install.sh`:
+
+```bash
+git clone https://github.com/<user>/<repo>.git ainewswriter
+cd ainewswriter
+sudo bash install.sh
+```
+
+Скрипт виконає всі кроки 1–6 автоматично. Нижче — детальний опис кожного кроку для розуміння або ручного налаштування.
+
+---
+
 ## 0) Що потрібно
 
 - Raspberry Pi OS (Debian-based)
