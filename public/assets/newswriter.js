@@ -21,11 +21,31 @@ function storeCopy(text) {
 }
 function doCopy(btn, id) {
   var text = copyStore[id] || '';
-  navigator.clipboard.writeText(text).then(function () {
-    showOk(btn);
-  }).catch(function () {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function () {
+      showOk(btn);
+    }).catch(function () {
+      execCopy(btn, text);
+    });
+  } else {
+    execCopy(btn, text);
+  }
+}
+function execCopy(btn, text) {
+  try {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    var ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    if (ok) { showOk(btn); } else { showFail(btn); }
+  } catch (e) {
     showFail(btn);
-  });
+  }
 }
 function showOk(btn) {
   btn.textContent = '\u2713 скопійовано';
