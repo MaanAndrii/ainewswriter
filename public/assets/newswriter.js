@@ -35,11 +35,12 @@ function execCopy(btn, text) {
   try {
     var ta = document.createElement('textarea');
     ta.value = text;
-    ta.style.position = 'fixed';
-    ta.style.opacity = '0';
+    ta.setAttribute('readonly', '');
+    ta.style.cssText = 'position:fixed;top:0;left:-9999px;width:2em;height:2em;opacity:0';
     document.body.appendChild(ta);
     ta.focus();
     ta.select();
+    ta.setSelectionRange(0, 99999);
     var ok = document.execCommand('copy');
     document.body.removeChild(ta);
     if (ok) { showOk(btn); } else { showFail(btn); }
