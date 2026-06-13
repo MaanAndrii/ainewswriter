@@ -209,6 +209,8 @@ function loadModelSettings() {
 
     var paidProviders = d.paid_providers || [];
     if (d.post_processing) POST_PROCESSING = d.post_processing;
+    if (d.ai_timeout_sec)    window._aiTimeoutMs = d.ai_timeout_sec * 1000;
+    if (d.input_max_chars)   window._inputMaxChars = d.input_max_chars;
 
     SYSTEM_PROMPT_DEFAULT = d.prompt_system || '';
     PROMPT_PROFILES = d.prompt_profiles || {};
@@ -602,7 +604,7 @@ function callAPI(prompt, model, systemPromptOverride, expectNews, expectFacebook
   // ── Polling ───────────────────────────────────────────────────────────────
   function startPolling(jobId) {
     var afterId          = 0;
-    var maxWait          = 300000;
+    var maxWait          = window._aiTimeoutMs || 300000;
     var elapsed          = 0;
     var interval         = 400;
     var stopped          = false;

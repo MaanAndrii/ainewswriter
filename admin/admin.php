@@ -332,6 +332,10 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
           <div><label class="small">Мін. символів ліду</label><input type="number" id="lim_lead_min" min="50" max="500" value="<?= (int)($pp['lead_min_chars'] ?? 150) ?>"></div>
           <div><label class="small">Макс. символів ліду</label><input type="number" id="lim_lead_max" min="50" max="500" value="<?= (int)($pp['lead_max_chars'] ?? 180) ?>"></div>
         </div>
+        <div class="row" style="margin-top:8px">
+          <div><label class="small">Ліміт вхідного тексту (символів)</label><input type="number" id="lim_input_max" min="1000" max="200000" value="<?= (int)($pp['input_max_chars'] ?? 30000) ?>"></div>
+          <div><label class="small">Таймаут відповіді AI (сек)</label><input type="number" id="lim_ai_timeout" min="30" max="600" value="<?= (int)($pp['ai_timeout_sec'] ?? 300) ?>"></div>
+        </div>
         <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
           <button type="button" class="btn-mini" id="save_prompt_limits_btn">Зберегти параметри</button>
         </div>
@@ -418,7 +422,9 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
       <button class="btn-mini" id="log-filter-btn" style="padding:7px 14px">Фільтрувати</button>
       <button class="btn-mini muted" id="log-clear-btn">Скинути</button>
       <button class="btn-mini" id="log-reload-btn" style="margin-left:auto">&#8635; Оновити</button>
+      <button class="btn-mini" id="btn-clear-logs" style="background:#b5401a;color:#fff;border-color:#b5401a;margin-left:8px">Очистити всі логи</button>
     </div>
+    <div id="clear-logs-status" style="font-size:12px;color:#8a8278;margin-bottom:8px;display:none"></div>
     <div class="card" style="padding:0;overflow:hidden;margin-bottom:14px">
       <div id="log-table-wrap" style="overflow-x:auto">
         <div style="padding:28px;text-align:center;font-family:Roboto Mono,monospace;font-size:11px;color:#8a8278">Перейдіть на вкладку «Логи» для завантаження</div>
@@ -601,6 +607,10 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
         <tr><td style="padding:5px 0;color:#8a8278">Розмір файлу</td><td><?= fmt_bytes($si['sqlite']['size']) ?></td></tr>
         <tr><td style="padding:5px 0;color:#8a8278">Записів у логах</td><td><?= number_format($si['sqlite']['requests'], 0, '.', ' ') ?></td></tr>
         <tr><td style="padding:5px 0;color:#8a8278">Збережених генерацій</td><td><?= number_format($si['sqlite']['generations'], 0, '.', ' ') ?></td></tr>
+        <tr><td colspan="2" style="padding:8px 0 0">
+          <button class="btn-mini" id="btn-clear-history" style="background:#b5401a;color:#fff;border-color:#b5401a">Очистити всю історію генерацій</button>
+          <span id="clear-history-status" style="font-size:12px;color:#8a8278;margin-left:8px"></span>
+        </td></tr>
       </table>
     </div>
 
@@ -797,7 +807,9 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
         article_max_chars: Number(document.getElementById('lim_article').value || 3000),
         facebook_max_chars:Number(document.getElementById('lim_fb').value || 400),
         lead_min_chars:    Number(document.getElementById('lim_lead_min').value || 150),
-        lead_max_chars:    Number(document.getElementById('lim_lead_max').value || 180)
+        lead_max_chars:    Number(document.getElementById('lim_lead_max').value || 180),
+        input_max_chars:   Number(document.getElementById('lim_input_max').value || 30000),
+        ai_timeout_sec:    Number(document.getElementById('lim_ai_timeout').value || 300)
       }, fields) }
     };
   }
@@ -857,7 +869,9 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
         article_max_chars:Number(document.getElementById('lim_article').value || 3000),
         facebook_max_chars:Number(document.getElementById('lim_fb').value || 400),
         lead_min_chars:   Number(document.getElementById('lim_lead_min').value || 150),
-        lead_max_chars:   Number(document.getElementById('lim_lead_max').value || 180)
+        lead_max_chars:   Number(document.getElementById('lim_lead_max').value || 180),
+        input_max_chars:  Number(document.getElementById('lim_input_max').value  || 30000),
+        ai_timeout_sec:   Number(document.getElementById('lim_ai_timeout').value  || 300)
       }}, function(err){
         if (err) { status.textContent = 'Помилка: ' + err.message; return; }
         status.textContent = 'Параметри збережено ✔';
@@ -1479,6 +1493,37 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
         status.textContent = msg;
         // Reload page to show updated data
         setTimeout(function(){ window.location.reload(); }, 1200);
+      });
+    });
+  }
+
+  // Clear logs
+  var btnClearLogs = document.getElementById('btn-clear-logs');
+  if (btnClearLogs) {
+    btnClearLogs.addEventListener('click', function() {
+      if (!confirm('Видалити всі логи запитів? Цю дію не можна скасувати.')) return;
+      btnClearLogs.disabled = true;
+      apiPost({ action: 'clear_logs' }, function(err, d) {
+        btnClearLogs.disabled = false;
+        var st = document.getElementById('clear-logs-status');
+        if (err) { if (st) { st.textContent = 'Помилка: ' + err.message; st.style.display = ''; } return; }
+        if (st) { st.textContent = 'Логи очищено ✔'; st.style.display = ''; setTimeout(function(){ st.style.display = 'none'; }, 3000); }
+        loadLogs('');
+      });
+    });
+  }
+
+  // Clear history
+  var btnClearHistory = document.getElementById('btn-clear-history');
+  if (btnClearHistory) {
+    btnClearHistory.addEventListener('click', function() {
+      if (!confirm('Видалити всю історію генерацій? Цю дію не можна скасувати.')) return;
+      btnClearHistory.disabled = true;
+      apiPost({ action: 'clear_history' }, function(err, d) {
+        btnClearHistory.disabled = false;
+        var st = document.getElementById('clear-history-status');
+        if (err) { if (st) { st.textContent = 'Помилка: ' + err.message; } return; }
+        if (st) { st.textContent = 'Історію очищено ✔'; setTimeout(function(){ st.textContent = ''; }, 3000); }
       });
     });
   }
