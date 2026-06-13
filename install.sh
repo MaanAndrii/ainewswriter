@@ -52,6 +52,18 @@ find "${APP_DIR}" -type f -exec chmod 644 {} \;
 chmod 755 "${APP_DIR}/install.sh"
 mkdir -p "${APP_DIR}/storage"
 chown "${WEB_USER}:${WEB_USER}" "${APP_DIR}/storage"
+
+# Якщо проєкт у домашній директорії — додаємо право traverse для www-data,
+# інакше nginx/PHP-FPM отримають "Permission denied" при доступі до файлів.
+_parent="${APP_DIR%/*}"
+while [[ "$_parent" != "/" && "$_parent" != "" ]]; do
+    if [[ ! -x "$_parent" ]] || ! sudo -u "${WEB_USER}" test -x "$_parent" 2>/dev/null; then
+        chmod o+x "$_parent"
+        info "Додано o+x для ${_parent} (потрібно nginx/PHP-FPM)"
+    fi
+    _parent="${_parent%/*}"
+done
+
 ok "Права встановлено"
 
 step "3/7  Конфігурація nginx"
