@@ -71,7 +71,7 @@ server {
     }
 
     location / {
-        try_files \$uri /index.php\$is_args\$args;
+        try_files \$uri \$uri/ /index.php?\$query_string;
     }
 
     location ~ \\.php\$ {
@@ -79,9 +79,7 @@ server {
         fastcgi_read_timeout 300;
         fastcgi_send_timeout 300;
         fastcgi_index index.php;
-        include fastcgi_params;
-        fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
-        fastcgi_param PATH_INFO \$fastcgi_path_info;
+        include fastcgi.conf;
     }
 
     location ~* \\.(env|log|md|sh)\$ {
