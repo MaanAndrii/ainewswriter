@@ -53,7 +53,15 @@ php -S localhost:8080
 
 ### Продакшн (nginx + PHP-FPM)
 
-Дивіться [RASPBERRY_PI_SETUP.md](RASPBERRY_PI_SETUP.md) — повна покрокова інструкція.
+```bash
+git clone <repo-url> ainewswriter
+cd ainewswriter
+sudo bash install.sh
+```
+
+Скрипт автоматично встановлює пакети, налаштовує nginx і PHP-FPM, виставляє права та перезапускає сервіси. Після завершення виводить локальну IP-адресу та нагадування про перший вхід.
+
+Детальний опис кожного кроку — у [RASPBERRY_PI_SETUP.md](RASPBERRY_PI_SETUP.md).
 
 ---
 
