@@ -86,17 +86,12 @@ server {
         try_files \$uri \$uri/ /index.php?\$query_string;
     }
 
-    location = /index.php {
+    location ~ \\.php\$ {
         fastcgi_pass unix:${FPM_SOCK};
         fastcgi_read_timeout 300;
         fastcgi_send_timeout 300;
-        include fastcgi_params;
-        fastcgi_param SCRIPT_FILENAME ${APP_DIR}/index.php;
-        fastcgi_param DOCUMENT_ROOT   ${APP_DIR};
-    }
-
-    location ~ \\.php\$ {
-        return 404;
+        fastcgi_index index.php;
+        include fastcgi.conf;
     }
 
     location ~* \\.(env|log|md|sh)\$ {
