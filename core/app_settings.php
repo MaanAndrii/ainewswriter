@@ -151,10 +151,7 @@ function get_default_prompt_profiles() {
  */
 function get_default_models() {
     $prompts = load_prompts_from_json();
-    return $prompts['default_settings']['models'] ?? [
-        ['id' => 'claude-haiku-4-5-20251001', 'label' => 'Haiku 4.5 — швидко / дешево', 'provider' => 'anthropic', 'inp' => 1.00, 'out' => 5.00],
-        ['id' => 'claude-sonnet-4-6', 'label' => 'Sonnet 4.6 — баланс / рекомендовано', 'provider' => 'anthropic', 'inp' => 3.00, 'out' => 15.00],
-    ];
+    return $prompts['default_settings']['models'] ?? [];
 }
 
 /**
