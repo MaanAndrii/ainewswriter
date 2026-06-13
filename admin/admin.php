@@ -240,9 +240,8 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
     <button type="button" class="tab-btn" data-tab="prompts">Промти і параметри</button>
     <button type="button" class="tab-btn" data-tab="postprocess">Постобробка</button>
     <button type="button" class="tab-btn" data-tab="stats">Статистика</button>
-    <button type="button" class="tab-btn" data-tab="security">Безпека</button>
     <button type="button" class="tab-btn" data-tab="logs">Логи</button>
-    <button type="button" class="tab-btn" data-tab="io">Імпорт / Експорт</button>
+    <button type="button" class="tab-btn" data-tab="settings">Налаштування</button>
     <button type="button" class="tab-btn" data-tab="system">Система</button>
   </div>
 
@@ -411,17 +410,6 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
     </div>
   </section>
 
-  <section class="tab-pane" data-pane="security">
-    <div class="card">
-      <div class="ttl">Безпека</div>
-      <label class="lbl">Паролі доступу</label>
-      <table>
-        <tr><th>Зона</th><th>Новий пароль</th><th>Дія</th></tr>
-        <tr><td>Адмін-панель</td><td><input type="password" id="pwd_admin" placeholder="мінімум 8 символів"></td><td><button type="button" class="btn-mini" data-save-password="admin">Зберегти</button></td></tr>
-      </table>
-      <div class="small" id="password_status" style="margin-top:6px"></div>
-    </div>
-  </section>
 
   <section class="tab-pane" data-pane="logs">
     <div id="log-cards" class="log-cards"></div>
@@ -514,17 +502,32 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
     </div>
   </aside>
 
-  <section class="tab-pane" data-pane="io">
+  <section class="tab-pane" data-pane="settings">
     <div class="card">
-      <div class="ttl">Експорт налаштувань</div>
-      <p class="small" style="margin-bottom:12px">Завантажує JSON-файл з моделями, промтами та параметрами генерації. <strong>API-ключі не включаються.</strong></p>
+      <div class="ttl">Паролі доступу</div>
+      <table>
+        <tr><th>Зона</th><th>Новий пароль</th><th>Дія</th></tr>
+        <tr><td>Адмін-панель</td><td><input type="password" id="pwd_admin" placeholder="мінімум 8 символів"></td><td><button type="button" class="btn-mini" data-save-password="admin">Зберегти</button></td></tr>
+      </table>
+      <div class="small" id="password_status" style="margin-top:6px"></div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="ttl">Експорт</div>
+      <p class="small" style="margin-bottom:12px">Оберіть що включити до файлу резервної копії.</p>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">
+        <label style="font-size:13px"><input type="checkbox" id="exp_settings" checked> Налаштування (моделі, промти, параметри)</label>
+        <label style="font-size:13px"><input type="checkbox" id="exp_api_keys"> API-ключі</label>
+        <label style="font-size:13px"><input type="checkbox" id="exp_logs"> Логи запитів (<span id="exp_logs_count">…</span>)</label>
+        <label style="font-size:13px"><input type="checkbox" id="exp_history"> Історія генерацій (<span id="exp_history_count">…</span>)</label>
+      </div>
       <button type="button" class="btn" id="btn_export">⬇ Завантажити backup.json</button>
       <div class="small" id="export_status" style="margin-top:8px"></div>
     </div>
 
     <div class="card" style="margin-top:16px">
-      <div class="ttl">Імпорт налаштувань</div>
-      <p class="small" style="margin-bottom:12px">Оберіть раніше збережений <code>backup.json</code>. Можна вибірково відновити лише потрібні розділи.</p>
+      <div class="ttl">Імпорт</div>
+      <p class="small" style="margin-bottom:12px">Оберіть раніше збережений файл резервної копії. Можна вибірково відновити лише потрібні розділи.</p>
 
       <label class="lbl">Файл backup.json</label>
       <input type="file" id="import_file" accept=".json" style="margin-bottom:12px">
@@ -540,8 +543,9 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
           <label style="font-size:13px"><input type="checkbox" id="imp_system" checked> System prompt (override)</label>
           <label style="font-size:13px"><input type="checkbox" id="imp_prompts_json" checked> prompts.json (системні шаблони)</label>
           <label style="font-size:13px"><input type="checkbox" id="imp_api_keys" checked> API-ключі (anthropic, xai, gemini, mistral, openai, deepseek, groq)</label>
+          <label style="font-size:13px"><input type="checkbox" id="imp_logs" checked> Логи запитів (<span id="imp_logs_count">0</span> зап.)</label>
+          <label style="font-size:13px"><input type="checkbox" id="imp_history" checked> Історія генерацій (<span id="imp_history_count">0</span> зап.)</label>
         </div>
-
         <button type="button" class="btn-mini danger" id="btn_import_confirm">Застосувати імпорт</button>
       </div>
 
@@ -1156,7 +1160,8 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
       var tab = this.getAttribute('data-tab');
       for (var i=0;i<tabBtns.length;i++) tabBtns[i].classList.toggle('active', tabBtns[i]===this);
       for (var j=0;j<panes.length;j++) panes[j].classList.toggle('active', panes[j].getAttribute('data-pane')===tab);
-      if (tab === 'logs') loadLogs(document.getElementById('log-date') ? document.getElementById('log-date').value : '');
+      if (tab === 'logs')     loadLogs(document.getElementById('log-date') ? document.getElementById('log-date').value : '');
+      if (tab === 'settings') loadExportCounts();
     });
   }
 
@@ -1327,14 +1332,31 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
 
   var importedPayload = null;
 
+  function loadExportCounts() {
+    apiPost({ action: 'get_export_counts' }, function(err, d) {
+      if (err) return;
+      var lc = document.getElementById('exp_logs_count');
+      var hc = document.getElementById('exp_history_count');
+      if (lc) lc.textContent = (d.logs_count || 0) + ' зап.';
+      if (hc) hc.textContent = (d.history_count || 0) + ' зап.';
+    });
+  }
+
   // EXPORT
   var btnExport = document.getElementById('btn_export');
   if (btnExport) {
     btnExport.addEventListener('click', function() {
       var status = document.getElementById('export_status');
       btnExport.disabled = true;
-      status.textContent = 'Завантаження...';
-      apiPost({ action: 'export_settings' }, function(err, d) {
+      status.textContent = 'Формую файл...';
+      var opts = {
+        action:           'export_settings',
+        include_settings: !!(document.getElementById('exp_settings') && document.getElementById('exp_settings').checked),
+        include_api_keys: !!(document.getElementById('exp_api_keys') && document.getElementById('exp_api_keys').checked),
+        include_logs:     !!(document.getElementById('exp_logs')     && document.getElementById('exp_logs').checked),
+        include_history:  !!(document.getElementById('exp_history')  && document.getElementById('exp_history').checked),
+      };
+      apiPost(opts, function(err, d) {
         btnExport.disabled = false;
         if (err) { status.textContent = 'Помилка: ' + err.message; return; }
         var json = JSON.stringify(d.data, null, 2);
@@ -1386,10 +1408,18 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
           var keyCount = Object.values(importedPayload.api_keys).filter(function(v){ return v && v.length > 0; }).length;
           lines.push('🔑 API-ключі: ' + keyCount + ' шт.');
         }
+        if (Array.isArray(importedPayload.requests_log))
+          lines.push('📋 Логи: ' + importedPayload.requests_log.length + ' зап.');
+        if (Array.isArray(importedPayload.generations_history))
+          lines.push('📚 Історія: ' + importedPayload.generations_history.length + ' зап.');
         summary.innerHTML = lines.join('<br>');
 
         var cnt = document.getElementById('imp_models_count');
         if (cnt) cnt.textContent = Array.isArray(importedPayload.models) ? importedPayload.models.length : 0;
+        var logsCount = document.getElementById('imp_logs_count');
+        if (logsCount) logsCount.textContent = Array.isArray(importedPayload.requests_log) ? importedPayload.requests_log.length : 0;
+        var histCount = document.getElementById('imp_history_count');
+        if (histCount) histCount.textContent = Array.isArray(importedPayload.generations_history) ? importedPayload.generations_history.length : 0;
 
         // show/hide checkboxes depending on what file contains
         document.getElementById('imp_models').closest('label').style.display    = Array.isArray(importedPayload.models) ? '' : 'none';
@@ -1397,6 +1427,8 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
         document.getElementById('imp_system').closest('label').style.display    = (importedPayload.system_prompt_default_override !== undefined) ? '' : 'none';
         document.getElementById('imp_prompts_json').closest('label').style.display = importedPayload.prompts_json ? '' : 'none';
         document.getElementById('imp_api_keys').closest('label').style.display = importedPayload.api_keys ? '' : 'none';
+        document.getElementById('imp_logs').closest('label').style.display     = Array.isArray(importedPayload.requests_log) ? '' : 'none';
+        document.getElementById('imp_history').closest('label').style.display  = Array.isArray(importedPayload.generations_history) ? '' : 'none';
 
         preview.style.display = '';
         status.textContent = '';
@@ -1425,6 +1457,10 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
         sel.prompts_json = importedPayload.prompts_json;
       if (document.getElementById('imp_api_keys').checked && importedPayload.api_keys)
         sel.api_keys = importedPayload.api_keys;
+      if (document.getElementById('imp_logs').checked    && Array.isArray(importedPayload.requests_log))
+        sel.requests_log = importedPayload.requests_log;
+      if (document.getElementById('imp_history').checked && Array.isArray(importedPayload.generations_history))
+        sel.generations_history = importedPayload.generations_history;
 
       var status = document.getElementById('import_status');
       btnImport.disabled = true;
@@ -1438,6 +1474,8 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
         if (res.models_count !== undefined)  msg += ' · моделей: ' + res.models_count;
         if (res.has_prompts_json) msg += ' · prompts.json оновлено';
         if (res.keys_imported)    msg += ' · ключів: ' + res.keys_imported;
+        if (res.logs_imported)    msg += ' · логів: ' + res.logs_imported;
+        if (res.history_imported) msg += ' · історія: ' + res.history_imported;
         status.textContent = msg;
         // Reload page to show updated data
         setTimeout(function(){ window.location.reload(); }, 1200);

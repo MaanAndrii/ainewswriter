@@ -37,6 +37,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         'restore_prompt_backup'        => 'handle_restore_prompt_backup',
         'export_settings'              => 'handle_export_settings',
         'import_settings'              => 'handle_import_settings',
+        'get_export_counts'            => 'handle_get_export_counts',
         'save_post_processing'         => 'handle_save_post_processing',
         'save_paid_providers'          => 'handle_save_paid_providers',
         'get_api_responses'            => 'handle_get_api_responses',
@@ -224,27 +225,74 @@ function handle_restore_prompt_backup(array $d): array {
 }
 
 function handle_export_settings(array $d): array {
-    $settings    = load_settings();
-    $promptsFile = dirname(__DIR__) . '/prompts.json';
-    $promptsData = file_exists($promptsFile) ? json_decode(file_get_contents($promptsFile), true) : [];
-    $defaults    = get_default_prompt_profiles();
-    $saved       = $settings['prompt_profiles'] ?? [];
-    if (!empty($saved['user']) && is_array($saved['user'])) {
-        $saved['user'] = array_merge($defaults['user'] ?? [], $saved['user']);
-    } else {
-        $saved = $defaults;
+    $inclSettings = !isset($d['include_settings']) || (bool)$d['include_settings'];
+    $inclKeys     = !isset($d['include_api_keys']) || (bool)$d['include_api_keys'];
+    $inclLogs     = isset($d['include_logs'])    && (bool)$d['include_logs'];
+    $inclHistory  = isset($d['include_history']) && (bool)$d['include_history'];
+
+    $export = [
+        '__version'     => 3,
+        '__exported_at' => date('c'),
+    ];
+
+    if ($inclSettings) {
+        $settings    = load_settings();
+        $promptsFile = dirname(__DIR__) . '/prompts.json';
+        $promptsData = file_exists($promptsFile) ? json_decode(file_get_contents($promptsFile), true) : [];
+        $defaults    = get_default_prompt_profiles();
+        $saved       = $settings['prompt_profiles'] ?? [];
+        if (!empty($saved['user']) && is_array($saved['user'])) {
+            $saved['user'] = array_merge($defaults['user'] ?? [], $saved['user']);
+        } else {
+            $saved = $defaults;
+        }
+        $export['models']                         = $settings['models'] ?? [];
+        $export['prompt_profiles']                = $saved;
+        $export['system_prompt_default_override'] = (string)($settings['system_prompt_default_override'] ?? '');
+        $export['prompts_json']                   = $promptsData;
+        $export['post_processing']                = get_post_processing();
+        $export['paid_providers']                 = get_paid_providers();
     }
-    return ['ok' => true, 'data' => [
-        '__version'                      => 2,
-        '__exported_at'                  => date('c'),
-        'models'                         => $settings['models'] ?? [],
-        'prompt_profiles'                => $saved,
-        'system_prompt_default_override' => (string)($settings['system_prompt_default_override'] ?? ''),
-        'prompts_json'                   => $promptsData,
-        'api_keys'                       => get_runtime_keys(),
-        'post_processing'                => get_post_processing(),
-        'paid_providers'                 => get_paid_providers(),
-    ]];
+
+    if ($inclKeys) {
+        $export['api_keys'] = get_runtime_keys();
+    }
+
+    if ($inclLogs || $inclHistory) {
+        $db = get_sqlite_db();
+        if ($inclLogs && $db) {
+            try {
+                $export['requests_log'] = $db->query(
+                    "SELECT created_at, date, time, model, provider,
+                            input_tokens, output_tokens, cache_write, cache_read,
+                            cost, duration, prompt_len, web_search, cache_status, error
+                     FROM requests ORDER BY id ASC"
+                )->fetchAll(PDO::FETCH_ASSOC);
+            } catch (Exception $e) { $export['requests_log'] = []; }
+        }
+        if ($inclHistory && $db) {
+            try {
+                $export['generations_history'] = $db->query(
+                    "SELECT created_at, model, provider, source_ref, input_text,
+                            extra_instructions, output_json, cost,
+                            input_tokens, output_tokens, web_search_used
+                     FROM generations ORDER BY id ASC"
+                )->fetchAll(PDO::FETCH_ASSOC);
+            } catch (Exception $e) { $export['generations_history'] = []; }
+        }
+    }
+
+    return ['ok' => true, 'data' => $export];
+}
+
+function handle_get_export_counts(array $d): array {
+    $db = get_sqlite_db();
+    $logs = 0; $history = 0;
+    if ($db) {
+        try { $logs    = (int)$db->query("SELECT COUNT(*) FROM requests")->fetchColumn();    } catch (Exception $e) {}
+        try { $history = (int)$db->query("SELECT COUNT(*) FROM generations")->fetchColumn(); } catch (Exception $e) {}
+    }
+    return ['ok' => true, 'logs' => $logs, 'history' => $history];
 }
 
 function handle_import_settings(array $d): array {
@@ -280,6 +328,55 @@ function handle_import_settings(array $d): array {
         }
         if ($toSave) { save_env_values($toSave); $importedKeys = count($toSave); }
     }
+    $logsImported    = 0;
+    $historyImported = 0;
+    $db = get_sqlite_db();
+    if ($db) {
+        if (isset($payload['requests_log']) && is_array($payload['requests_log'])) {
+            try {
+                $stmt = $db->prepare(
+                    "INSERT OR IGNORE INTO requests
+                     (created_at, date, time, model, provider, input_tokens, output_tokens,
+                      cache_write, cache_read, cost, duration, prompt_len, web_search, cache_status, error)
+                     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+                );
+                foreach ($payload['requests_log'] as $row) {
+                    if (!is_array($row)) continue;
+                    $stmt->execute([
+                        $row['created_at'] ?? '', $row['date'] ?? '', $row['time'] ?? '',
+                        $row['model'] ?? '', $row['provider'] ?? '',
+                        (int)($row['input_tokens'] ?? 0), (int)($row['output_tokens'] ?? 0),
+                        (int)($row['cache_write'] ?? 0), (int)($row['cache_read'] ?? 0),
+                        (float)($row['cost'] ?? 0), (float)($row['duration'] ?? 0),
+                        (int)($row['prompt_len'] ?? 0), (int)($row['web_search'] ?? 0),
+                        $row['cache_status'] ?? 'no-cache', $row['error'] ?? null,
+                    ]);
+                    $logsImported += $stmt->rowCount();
+                }
+            } catch (Exception $e) {}
+        }
+        if (isset($payload['generations_history']) && is_array($payload['generations_history'])) {
+            try {
+                $stmt = $db->prepare(
+                    "INSERT INTO generations
+                     (created_at, model, provider, source_ref, input_text,
+                      extra_instructions, output_json, cost, input_tokens, output_tokens, web_search_used)
+                     VALUES (?,?,?,?,?,?,?,?,?,?,?)"
+                );
+                foreach ($payload['generations_history'] as $row) {
+                    if (!is_array($row)) continue;
+                    $stmt->execute([
+                        $row['created_at'] ?? '', $row['model'] ?? '', $row['provider'] ?? '',
+                        $row['source_ref'] ?? '', $row['input_text'] ?? '',
+                        $row['extra_instructions'] ?? '', $row['output_json'] ?? '',
+                        (float)($row['cost'] ?? 0), (int)($row['input_tokens'] ?? 0),
+                        (int)($row['output_tokens'] ?? 0), (int)($row['web_search_used'] ?? 0),
+                    ]);
+                    $historyImported++;
+                }
+            } catch (Exception $e) {}
+        }
+    }
     return ['ok' => true, 'imported' => [
         'models_count'        => count($newModels),
         'has_prompts_json'    => isset($payload['prompts_json']),
@@ -288,6 +385,8 @@ function handle_import_settings(array $d): array {
         'keys_imported'       => $importedKeys,
         'has_post_processing' => isset($payload['post_processing']),
         'has_paid_providers'  => isset($payload['paid_providers']),
+        'logs_imported'       => $logsImported,
+        'history_imported'    => $historyImported,
     ]];
 }
 
