@@ -9,12 +9,13 @@
 Якщо хочете пропустити ручні кроки — скористайтесь `install.sh`:
 
 ```bash
+sudo apt install -y git
 git clone https://github.com/<user>/<repo>.git ainewswriter
 cd ainewswriter
 sudo bash install.sh
 ```
 
-Скрипт виконає всі кроки 1–6 автоматично. Нижче — детальний опис кожного кроку для розуміння або ручного налаштування.
+`git` потрібен для клонування до запуску скрипта. Скрипт виконає всі кроки 1–6 автоматично. Нижче — детальний опис кожного кроку для розуміння або ручного налаштування.
 
 ---
 
@@ -123,15 +124,18 @@ server {
 
     # Всі інші запити йдуть через роутер index.php
     location / {
-        try_files $uri /index.php;
+        try_files $uri /index.php$is_args$args;
     }
 
     # PHP через php-fpm
     location ~ \.php$ {
-        include snippets/fastcgi-php.conf;
         fastcgi_pass unix:/run/php/php8.4-fpm.sock;
         fastcgi_read_timeout 300;
         fastcgi_send_timeout 300;
+        fastcgi_index index.php;
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param PATH_INFO $fastcgi_path_info;
     }
 
     # Блокуємо прямий доступ до службових файлів

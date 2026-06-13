@@ -22,9 +22,16 @@ step() { echo -e "\n${BOLD}$*${NC}"; }
 APP_DIR="$(pwd)"
 WEB_USER="www-data"
 
+# ── Крок 0: git (потрібен для подальших git pull) ──────────────────────────────
+if ! command -v git &>/dev/null; then
+    info "Встановлення git..."
+    apt-get install -y -qq git
+    ok "git встановлено"
+fi
+
 step "1/7  Встановлення пакетів"
 apt-get update -qq
-PACKAGES=(nginx php-fpm php-cli php-curl php-mbstring php-sqlite3 git)
+PACKAGES=(nginx php-fpm php-cli php-curl php-mbstring php-sqlite3)
 apt-get install -y -qq "${PACKAGES[@]}"
 ok "Пакети встановлено"
 
@@ -64,14 +71,17 @@ server {
     }
 
     location / {
-        try_files \$uri /index.php;
+        try_files \$uri /index.php\$is_args\$args;
     }
 
     location ~ \\.php\$ {
-        include snippets/fastcgi-php.conf;
         fastcgi_pass unix:${FPM_SOCK};
         fastcgi_read_timeout 300;
         fastcgi_send_timeout 300;
+        fastcgi_index index.php;
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+        fastcgi_param PATH_INFO \$fastcgi_path_info;
     }
 
     location ~* \\.(env|log|md|sh)\$ {
@@ -103,7 +113,6 @@ fi
 
 step "5/7  OPCache"
 if [[ -f "${APP_DIR}/opcache.ini" && -d "${FPM_CONF_DIR}" ]]; then
-    # Підставити актуальну версію PHP у коментар всередині файлу
     sed "s|/etc/php/8\.[0-9]|/etc/php/${PHP_VER}|g" \
         "${APP_DIR}/opcache.ini" > "${FPM_CONF_DIR}/99-ainewswriter.ini"
     ok "OPCache конфіг скопійовано у ${FPM_CONF_DIR}/99-ainewswriter.ini"
@@ -116,6 +125,17 @@ systemctl restart "${FPM_SERVICE}"
 systemctl restart nginx
 ok "${FPM_SERVICE} перезапущено"
 ok "nginx перезапущено"
+
+# ── Перевірка сокета FPM ───────────────────────────────────────────────────────
+SOCK_WAIT=0
+while [[ ! -S "${FPM_SOCK}" && $SOCK_WAIT -lt 10 ]]; do
+    sleep 1; SOCK_WAIT=$((SOCK_WAIT + 1))
+done
+if [[ -S "${FPM_SOCK}" ]]; then
+    ok "PHP-FPM сокет готовий: ${FPM_SOCK}"
+else
+    warn "Сокет ${FPM_SOCK} не з'явився — перевірте: sudo journalctl -u ${FPM_SERVICE} -n 30"
+fi
 
 step "7/7  Перевірка синтаксису PHP"
 ERRORS=0
