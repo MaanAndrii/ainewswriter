@@ -4,13 +4,18 @@
  * запускає job_worker.php у фоні, повертає {ok:true, job_id:"..."}.
  */
 
-define('MAX_CHARS', 30000);
+// input limit loaded from settings after require_once app_settings.php
 
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
 ini_set('log_errors', 1);
 
 require_once __DIR__ . '/../core/app_settings.php';
+
+function get_input_max_chars(): int {
+    $s = load_settings();
+    return (int)(($s['prompt_profiles']['user']['input_max_chars'] ?? null) ?: 30000);
+}
 
 function js_send(int $code, array $payload): never
 {
@@ -39,8 +44,9 @@ if (empty($data['prompt'])) js_send(400, ['error' => 'Missing prompt']);
 
 $prompt    = trim((string)$data['prompt']);
 $promptLen = function_exists('mb_strlen') ? mb_strlen($prompt) : strlen($prompt);
-if ($promptLen > MAX_CHARS) {
-    js_send(400, ['error' => 'Текст занадто довгий (' . $promptLen . ' символів, ліміт ' . MAX_CHARS . ')']);
+$maxChars = get_input_max_chars();
+if ($promptLen > $maxChars) {
+    js_send(400, ['error' => 'Текст занадто довгий (' . $promptLen . ' символів, ліміт ' . $maxChars . ')']);
 }
 
 $source    = (string)($data['source']    ?? '');

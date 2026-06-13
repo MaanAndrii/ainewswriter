@@ -44,6 +44,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         'get_logs'                     => 'handle_get_logs',
         'get_history'                  => 'handle_get_history',
         'get_generation'               => 'handle_get_generation',
+        'clear_logs'                   => 'handle_clear_logs',
+        'clear_history'                => 'handle_clear_history',
     ];
 
     if (!isset($dispatch[$action])) {
@@ -66,6 +68,7 @@ $settings = load_settings();
 $models   = $settings['models'] ?? [];
 $keys     = get_runtime_keys();
 
+$pp_user = ($settings['prompt_profiles']['user'] ?? []);
 echo json_encode([
     'models'                  => $models,
     'paid_providers'          => get_paid_providers(),
@@ -76,6 +79,8 @@ echo json_encode([
     'prompt_default_override' => (string)($settings['system_prompt_default_override'] ?? ''),
     'prompt_profiles'         => $settings['prompt_profiles'] ?? get_default_prompt_profiles(),
     'prompt_profiles_default' => get_default_prompt_profiles(),
+    'input_max_chars'         => (int)($pp_user['input_max_chars'] ?? 30000),
+    'ai_timeout_sec'          => (int)($pp_user['ai_timeout_sec']  ?? 300),
 ], API_JSON_FLAGS);
 
 // ── Action handlers ───────────────────────────────────────────────────────────
@@ -117,8 +122,10 @@ function handle_save_prompt_limits(array $d): array {
     $profiles['user']['leads_count']        = max(1,   (int)($limits['leads_count']        ?? 2));
     $profiles['user']['article_max_chars']  = max(300, (int)($limits['article_max_chars']  ?? 3000));
     $profiles['user']['facebook_max_chars'] = max(50,  (int)($limits['facebook_max_chars'] ?? 400));
-    $profiles['user']['lead_min_chars']     = max(50,  (int)($limits['lead_min_chars']     ?? 150));
-    $profiles['user']['lead_max_chars']     = max(50,  (int)($limits['lead_max_chars']     ?? 180));
+    $profiles['user']['lead_min_chars']     = max(50,    (int)($limits['lead_min_chars']     ?? 150));
+    $profiles['user']['lead_max_chars']     = max(50,    (int)($limits['lead_max_chars']     ?? 180));
+    $profiles['user']['input_max_chars']    = max(1000,  (int)($limits['input_max_chars']    ?? 30000));
+    $profiles['user']['ai_timeout_sec']     = max(30,    min(600, (int)($limits['ai_timeout_sec'] ?? 300)));
     update_settings(['prompt_profiles' => $profiles]);
     return ['ok' => true];
 }
@@ -388,6 +395,28 @@ function handle_import_settings(array $d): array {
         'logs_imported'       => $logsImported,
         'history_imported'    => $historyImported,
     ]];
+}
+
+function handle_clear_logs(array $d): array {
+    $db = get_sqlite_db();
+    if (!$db) return _fail(503, 'SQLite недоступний');
+    try {
+        $db->exec('DELETE FROM requests');
+        return ['ok' => true, 'deleted' => true];
+    } catch (Exception $e) {
+        return _fail(500, $e->getMessage());
+    }
+}
+
+function handle_clear_history(array $d): array {
+    $db = get_sqlite_db();
+    if (!$db) return _fail(503, 'SQLite недоступний');
+    try {
+        $db->exec('DELETE FROM generations');
+        return ['ok' => true, 'deleted' => true];
+    } catch (Exception $e) {
+        return _fail(500, $e->getMessage());
+    }
 }
 
 function handle_save_post_processing(array $d): array {
