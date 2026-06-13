@@ -74,12 +74,17 @@ server {
         try_files \$uri \$uri/ /index.php?\$query_string;
     }
 
-    location ~ \\.php\$ {
+    location = /index.php {
         fastcgi_pass unix:${FPM_SOCK};
         fastcgi_read_timeout 300;
         fastcgi_send_timeout 300;
-        fastcgi_index index.php;
-        include fastcgi.conf;
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME ${APP_DIR}/index.php;
+        fastcgi_param DOCUMENT_ROOT   ${APP_DIR};
+    }
+
+    location ~ \\.php\$ {
+        return 404;
     }
 
     location ~* \\.(env|log|md|sh)\$ {
@@ -149,6 +154,17 @@ if [[ $ERRORS -eq 0 ]]; then
     ok "Синтаксис усіх PHP-файлів коректний"
 else
     warn "${ERRORS} файл(ів) з помилками — перевірте вище"
+fi
+
+# ── Самоперевірка HTTP ────────────────────────────────────────────────────────
+info "Перевірка HTTP..."
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 http://127.0.0.1/ 2>/dev/null || echo "000")
+if [[ "$HTTP_CODE" == "200" ]]; then
+    ok "HTTP 200 — сервер відповідає коректно"
+elif [[ "$HTTP_CODE" == "000" ]]; then
+    warn "curl не зміг підключитись — перевірте: sudo systemctl status nginx"
+else
+    warn "HTTP ${HTTP_CODE} — можлива проблема. Логи: sudo tail -n 30 /var/log/nginx/error.log"
 fi
 
 # ── Визначення IP ─────────────────────────────────────────────────────────────
