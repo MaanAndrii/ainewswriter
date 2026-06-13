@@ -103,6 +103,8 @@ server {
         deny all;
     }
 
+    client_max_body_size 64m;
+
     gzip on;
     gzip_types text/html text/css application/javascript application/json;
     gzip_min_length 1024;
