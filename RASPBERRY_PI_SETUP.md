@@ -140,6 +140,8 @@ server {
     location ~* \.(env|log|md)$ {
         deny all;
     }
+
+    client_max_body_size 64m;
 }
 ```
 
