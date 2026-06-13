@@ -22,7 +22,7 @@
 
 ```bash
 sudo apt update
-sudo apt install -y nginx php-fpm php-cli php-curl php-mbstring git
+sudo apt install -y nginx php-fpm php-cli php-curl php-mbstring php-sqlite3 git
 ```
 
 Перевірка сервісів:
@@ -194,20 +194,20 @@ sudo nginx -t
 sudo systemctl restart nginx
 ```
 
-## 6) Налаштувати локальні змінні (.env.local)
+## 6) Перший вхід та налаштування
 
-```bash
-sudo bash -c 'cat > /var/www/ainewswriter/.env.local <<EOF
-ADMIN_PASSWORD=change-me-now
-ANTHROPIC_API_KEY=
-XAI_API_KEY=
-EOF'
+Відкрийте адмін-панель у браузері:
 
-sudo chown www-data:www-data /var/www/ainewswriter/.env.local
-sudo chmod 600 /var/www/ainewswriter/.env.local
+```
+http://<IP_RASPBERRY>/admin
 ```
 
-За потреби можна задати інший шлях до env-файлу через змінну середовища `APP_ENV_FILE` у php-fpm service override.
+Увійдіть з паролем за замовчуванням **`change-me-now`**, потім:
+
+1. Вкладка **Безпека** — одразу змініть пароль
+2. Вкладка **Налаштування AI** — введіть API-ключі потрібних провайдерів
+
+Ключі та пароль зберігаються автоматично у файлі `.env.local` (gitignored, права `0600`).
 
 ---
 
@@ -220,9 +220,8 @@ sudo systemctl restart nginx
 
 Відкрийте в браузері:
 
-- `http://<IP_RASPBERRY>/` → автоматично перейде на редактор новин
-- `http://<IP_RASPBERRY>/admin/admin.php`
-- `http://<IP_RASPBERRY>/admin/log_viewer.php`
+- `http://<IP_RASPBERRY>/` → редактор новин
+- `http://<IP_RASPBERRY>/admin` → адмін-панель (ключі, моделі, логи, статистика)
 
 ---
 
