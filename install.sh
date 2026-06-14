@@ -187,6 +187,6 @@ echo
 echo -e "  Редактор:   ${BOLD}http://${LOCAL_IP}/${NC}"
 echo -e "  Адмін:      ${BOLD}http://${LOCAL_IP}/admin${NC}"
 echo
-echo -e "  ${YELLOW}${BOLD}Перший вхід: пароль  change-me-now${NC}"
+echo -e "  ${YELLOW}${BOLD}Перший вхід: пароль  admin${NC}"
 echo -e "  ${YELLOW}Одразу змініть пароль і введіть API-ключі в адмін-панелі.${NC}"
 echo
