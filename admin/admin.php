@@ -7,7 +7,7 @@ session_start();
 
 $auth_error = false;
 if (isset($_POST['pwd'])) {
-  if ($_POST['pwd'] === get_auth_password('ADMIN_PASSWORD', 'change-me-now')) {
+  if ($_POST['pwd'] === get_auth_password('ADMIN_PASSWORD', 'admin')) {
     $_SESSION['admin_auth'] = true;
     header('Location: /admin/admin.php');
     exit;
