@@ -8,6 +8,13 @@ var FB_STYLE_LABELS = ['Серйозний', 'Нейтральний', 'Друж
 var FB_STYLE_HINTS  = ['Стримано, без емодзі', 'Збалансований тон', 'Теплий тон, помірні емодзі', 'Легкий гумор без токсичності'];
 var TONE_LABELS  = { neutral: 'Нейтральний', intriguing: 'Інтригуючий', emotional: 'Емоційний', seo: 'SEO' };
 var TONE_COLORS  = { 'Нейтральний': '#4a7fa5', 'Інтригуючий': '#8a4a9a', 'Емоційний': '#b5401a', 'SEO': '#2a5a30' };
+
+function getTodayUkrainian() {
+  var months = ['січня','лютого','березня','квітня','травня','червня','липня','серпня','вересня','жовтня','листопада','грудня'];
+  var days   = ['неділя','понеділок','вівторок','середа','четвер','п’ятниця','субота'];
+  var d = new Date();
+  return d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear() + ' р., ' + days[d.getDay()];
+}
 var currentSource = '';
 var copyStore = {};
 var copyIdx = 0;
@@ -347,7 +354,7 @@ function buildPrompt(source, sourceRef, extra, fbCheck, fbStyle, tone, makeNews,
   var jsonFacebookField = fbCheck ? '\n  "facebook": "..."' : '';
   var jsonNewsFields = newsFields;
   if (jsonNewsFields && jsonFacebookField) jsonNewsFields = jsonNewsFields.replace(/[,\s]+$/, '') + ',';
-  return profile.json_rule + '\n{\n' + jsonNewsFields + jsonFacebookField + '\n}\n\n'
+  var result = profile.json_rule + '\n{\n' + jsonNewsFields + jsonFacebookField + '\n}\n\n'
     + profile.requirements_title + '\n'
     + (newsReqs ? ('- ' + newsReqs + '\n') : '')
     + (makeNews ? ('- ' + toneInstr + '\n') : '')
@@ -356,6 +363,7 @@ function buildPrompt(source, sourceRef, extra, fbCheck, fbStyle, tone, makeNews,
     + (fbLine ? ('- ' + fbLine + '\n') : '')
     + extraBlock + regenBlock + '\n'
     + (profile.input_title || 'ВХІДНИЙ МАТЕРІАЛ:') + '\n' + source;
+  return result.replaceAll('{{today}}', getTodayUkrainian());
 }
 // ── History ──
 function showHistoryPanel() {
