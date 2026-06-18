@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../core/app_settings.php';
+require_once __DIR__ . '/../version.php';
 
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate');
@@ -81,6 +82,7 @@ echo json_encode([
     'prompt_profiles_default' => get_default_prompt_profiles(),
     'input_max_chars'         => (int)($pp_user['input_max_chars'] ?? 30000),
     'ai_timeout_sec'          => (int)($pp_user['ai_timeout_sec']  ?? 300),
+    'app_version'             => defined('APP_VERSION') ? APP_VERSION : '',
 ], API_JSON_FLAGS);
 
 // ── Action handlers ───────────────────────────────────────────────────────────
