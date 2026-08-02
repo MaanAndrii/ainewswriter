@@ -9,7 +9,8 @@ define('SETTINGS_FILE', APP_ROOT . '/settings_store.php');
 define('DEFAULT_ENV_FILE', APP_ROOT . '/.env.local');
 define('MAX_ENV_FILE_SIZE', 1024 * 1024); // 1MB safety cap
 define('MAX_SETTINGS_FILE_SIZE', 1024 * 1024); // 1MB safety cap
-define('PROMPTS_FILE', APP_ROOT . '/prompts.json');
+define('PROMPTS_FILE',       APP_ROOT . '/prompts.json');
+define('PROMPTS_LOCAL_FILE', APP_ROOT . '/prompts.local.json');
 define('SQLITE_DB_FILE', APP_ROOT . '/storage/requests.db');
 define('PROVIDERS_ALL',        ['anthropic', 'xai', 'gemini', 'mistral', 'openai', 'deepseek', 'groq']);
 define('PROVIDERS_OAI_COMPAT', ['xai', 'mistral', 'openai', 'deepseek', 'groq']);
@@ -34,29 +35,50 @@ unset($_tz, $_envFile, $_line);
  * Завантаження промтів з JSON-файлу
  */
 function load_prompts_from_json() {
-    if (!file_exists(PROMPTS_FILE) || !is_readable(PROMPTS_FILE)) {
-        return get_fallback_prompts();
+    // Auto-migration: on first load after upgrade, snapshot prompts.json into
+    // prompts.local.json so existing user customizations survive future git pulls
+    if (!file_exists(PROMPTS_LOCAL_FILE) && file_exists(PROMPTS_FILE) && is_writable(dirname(PROMPTS_LOCAL_FILE))) {
+        @copy(PROMPTS_FILE, PROMPTS_LOCAL_FILE);
     }
 
-    $json = file_get_contents(PROMPTS_FILE);
-    if ($json === false) {
-        return get_fallback_prompts();
-    }
+    $base = _read_prompts_file(PROMPTS_FILE);
+    if ($base === null) return get_fallback_prompts();
 
-    $data = json_decode($json, true);
-    if (json_last_error() !== JSON_ERROR_NONE || !is_array($data)) {
-        error_log("Prompts JSON decode error: " . json_last_error_msg());
-        return get_fallback_prompts();
-    }
+    $local = file_exists(PROMPTS_LOCAL_FILE) ? _read_prompts_file(PROMPTS_LOCAL_FILE) : null;
+    $data  = $local ? deep_merge_prompts($base, $local) : $base;
 
-    // Перевірка обов'язкових полів
     $error = validate_prompts($data);
     if ($error !== null) {
         error_log("Prompts validation error: " . $error);
-        return get_fallback_prompts();
+        return $base ?: get_fallback_prompts();
     }
-
     return $data;
+}
+
+function _read_prompts_file(string $path): ?array {
+    if (!file_exists($path) || !is_readable($path)) return null;
+    $json = file_get_contents($path);
+    if ($json === false) return null;
+    $data = json_decode($json, true);
+    if (json_last_error() !== JSON_ERROR_NONE || !is_array($data)) {
+        error_log("Prompts JSON decode error in $path: " . json_last_error_msg());
+        return null;
+    }
+    return $data;
+}
+
+function deep_merge_prompts(array $base, array $override): array {
+    foreach ($override as $k => $v) {
+        // Skip empty overrides so they don't wipe defaults
+        if (is_string($v) && $v === '') continue;
+        if (is_array($v)  && empty($v))  continue;
+        if (isset($base[$k]) && is_array($base[$k]) && is_array($v) && !array_is_list($v) && !array_is_list($base[$k])) {
+            $base[$k] = deep_merge_prompts($base[$k], $v);
+        } else {
+            $base[$k] = $v;
+        }
+    }
+    return $base;
 }
 
 /**
