@@ -970,8 +970,10 @@ function renderResults(data, source, makeNews, fbCheck, depth, headlinesOnly) {
   // Headlines
   if (makeNews || headlinesOnly) {
     var headMin = 40, headMax = 90, headNorm = headMin + '–' + headMax;
-    var gridClass = headlinesOnly ? 'h-grid h-grid-single' : 'h-grid';
-    html += '<div><div class="sec-title">Заголовки</div><div class="' + gridClass + '">';
+    var gridStyle = headlinesOnly
+      ? 'display:grid;grid-template-columns:1fr;gap:10px'
+      : 'display:grid;grid-template-columns:1fr 1fr;gap:10px';
+    html += '<div><div class="sec-title">Заголовки</div><div style="' + gridStyle + '">';
     var heads = data.headlines || [];
     for (var i = 0; i < heads.length; i++) {
       var h = heads[i];
@@ -985,7 +987,7 @@ function renderResults(data, source, makeNews, fbCheck, depth, headlinesOnly) {
       html += '<div class="h-card">'
         + (hTone ? '<div class="h-tag" style="color:' + (TONE_COLORS[hTone] || '#8a8278') + '">' + esc(hTone) + '</div>' : '')
         + '<div class="h-text">' + esc(hText) + '</div>'
-        + '<div class="h-len" style="color:' + hCol + '">' + hLen + ' символів ' + hMark + '</div>'
+        + '<div style="font-family:\'Roboto Mono\',monospace;font-size:10px;margin-top:8px;padding-top:8px;border-top:1px dashed #d8d0be;color:' + hCol + '">' + hLen + ' символів ' + hMark + '</div>'
         + makeCopyBtn(hText)
         + '</div>';
     }
