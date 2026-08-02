@@ -70,17 +70,30 @@
       </div>
     </div>
 
-    <label class="cb-row">
-      <input type="checkbox" id="makeNews" checked>
-      <span class="cb-text"><strong>Робити новину</strong> (заголовки, ліди, текст)</span>
-    </label>
-    <label class="cb-row">
-      <input type="checkbox" id="fbCheck">
-      <span class="cb-text"><strong>Facebook-допис</strong> на основі матеріалу</span>
-    </label>
-    <label class="cb-row">
-      <input type="checkbox" id="headlinesOnly">
-      <span class="cb-text"><strong>Тільки заголовки</strong> (без ліду і тексту)</span>
+    <label class="lbl">Режим генерації</label>
+    <div class="mode-seg" id="modeSeg">
+      <button type="button" class="mode-btn active" data-mode="full">
+        <div class="mode-name">Повна</div>
+        <div class="mode-desc">Заголовки + ліди + текст</div>
+      </button>
+      <button type="button" class="mode-btn" data-mode="fb">
+        <div class="mode-name">Facebook</div>
+        <div class="mode-desc">Тільки допис</div>
+      </button>
+      <button type="button" class="mode-btn" data-mode="headlines">
+        <div class="mode-name">Заголовки</div>
+        <div class="mode-desc">Кілька варіантів</div>
+      </button>
+    </div>
+    <!-- прихована схема для сумісності зі старим кодом -->
+    <input type="hidden" id="_mode" value="full">
+    <input type="checkbox" id="makeNews" checked style="display:none">
+    <input type="checkbox" id="fbCheck" style="display:none">
+    <input type="checkbox" id="headlinesOnly" style="display:none">
+
+    <label class="cb-row" id="fbAddonWrap">
+      <input type="checkbox" id="fbAddon">
+      <span class="cb-text">+ <strong>Facebook-допис</strong> разом з новиною</span>
     </label>
 
     <div id="headlinesOnlyWrap" style="display:none">
@@ -150,30 +163,51 @@
 
 <script src="/public/assets/newswriter.js"></script>
 <script>
-// Взаємне вимкнення трьох чекбоксів — незалежний блок, гарантовано виконується
+// Сегментований перемикач режимів — Повна / Facebook / Заголовки
 (function () {
-  var m  = document.getElementById('makeNews');
-  var f  = document.getElementById('fbCheck');
+  var seg = document.getElementById('modeSeg');
+  var modeInput  = document.getElementById('_mode');
+  var mn = document.getElementById('makeNews');
+  var fb = document.getElementById('fbCheck');
   var ho = document.getElementById('headlinesOnly');
-  var w  = document.getElementById('headlinesOnlyWrap');
-  var fs = document.getElementById('fbStyleWrap');
-  if (!m || !f || !ho) return;
-  function updWrap() { if (w) w.style.display = ho.checked ? 'block' : 'none'; }
-  m.addEventListener('click', function () {
-    if (ho.checked) { ho.checked = false; updWrap(); }
-  });
-  f.addEventListener('click', function () {
-    if (ho.checked) { ho.checked = false; updWrap(); }
-  });
-  ho.addEventListener('click', function () {
-    if (ho.checked) {
-      m.checked = false;
-      f.checked = false;
-      if (fs) fs.style.display = 'none';
+  var addonWrap  = document.getElementById('fbAddonWrap');
+  var addon      = document.getElementById('fbAddon');
+  var fbStyleWrap = document.getElementById('fbStyleWrap');
+  var hoWrap      = document.getElementById('headlinesOnlyWrap');
+  if (!seg || !mn || !fb || !ho) return;
+
+  function applyMode(mode) {
+    modeInput.value = mode;
+    // hidden mirrors used by existing JS
+    mn.checked = (mode === 'full');
+    ho.checked = (mode === 'headlines');
+    fb.checked = (mode === 'fb') || (mode === 'full' && addon && addon.checked);
+    // visual state on buttons
+    var btns = seg.querySelectorAll('.mode-btn');
+    for (var i = 0; i < btns.length; i++) {
+      btns[i].classList.toggle('active', btns[i].getAttribute('data-mode') === mode);
     }
-    updWrap();
+    // conditional blocks
+    if (addonWrap)   addonWrap.style.display   = (mode === 'full') ? 'flex' : 'none';
+    if (fbStyleWrap) fbStyleWrap.style.display = fb.checked ? 'block' : 'none';
+    if (hoWrap)      hoWrap.style.display      = (mode === 'headlines') ? 'block' : 'none';
+  }
+
+  seg.addEventListener('click', function (e) {
+    var btn = e.target.closest('.mode-btn');
+    if (!btn) return;
+    applyMode(btn.getAttribute('data-mode'));
   });
-  updWrap();
+
+  if (addon) addon.addEventListener('change', function () {
+    fb.checked = (modeInput.value === 'fb') || (modeInput.value === 'full' && addon.checked);
+    if (fbStyleWrap) fbStyleWrap.style.display = fb.checked ? 'block' : 'none';
+  });
+
+  // Reset хук — коли викликається resetAll(), повертаємо стан до "full"
+  window.__resetMode = function () { if (addon) addon.checked = false; applyMode('full'); };
+
+  applyMode('full');
 })();
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(function(){});
