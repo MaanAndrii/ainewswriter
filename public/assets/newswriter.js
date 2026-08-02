@@ -1,3 +1,4 @@
+console.log('newswriter.js LOADED — build 9.5 with h-len + single-column');
 var MODEL_PRICES = {};
 var MODEL_META = {};
 var POST_PROCESSING = { quote_style: 'upper' };
@@ -969,11 +970,12 @@ function renderResults(data, source, makeNews, fbCheck, depth, headlinesOnly) {
   var html = '<div class="results">';
   // Headlines
   if (makeNews || headlinesOnly) {
+    console.log('renderResults: headlinesOnly=', headlinesOnly, 'makeNews=', makeNews);
     var headMin = 40, headMax = 90, headNorm = headMin + '–' + headMax;
     var gridStyle = headlinesOnly
       ? 'display:grid;grid-template-columns:1fr;gap:10px'
       : 'display:grid;grid-template-columns:1fr 1fr;gap:10px';
-    html += '<div><div class="sec-title">Заголовки</div><div style="' + gridStyle + '">';
+    html += '<div><div class="sec-title">Заголовки [v9.5 headlinesOnly=' + headlinesOnly + ']</div><div style="' + gridStyle + '">';
     var heads = data.headlines || [];
     for (var i = 0; i < heads.length; i++) {
       var h = heads[i];
