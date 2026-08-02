@@ -69,7 +69,11 @@ $settings = load_settings();
 $models   = $settings['models'] ?? [];
 $keys     = get_runtime_keys();
 
-$pp_user = ($settings['prompt_profiles']['user'] ?? []);
+$pp_defaults = get_default_prompt_profiles();
+$pp_user_defaults = $pp_defaults['user'] ?? [];
+$pp_user_saved    = $settings['prompt_profiles']['user'] ?? [];
+$pp_user          = array_merge($pp_user_defaults, $pp_user_saved);
+$pp_merged        = ['user' => $pp_user];
 echo json_encode([
     'models'                  => $models,
     'paid_providers'          => get_paid_providers(),
@@ -78,8 +82,8 @@ echo json_encode([
     'default_model'           => $models[0]['id'] ?? null,
     'prompt_system'           => resolve_system_prompt($settings),
     'prompt_default_override' => (string)($settings['system_prompt_default_override'] ?? ''),
-    'prompt_profiles'         => $settings['prompt_profiles'] ?? get_default_prompt_profiles(),
-    'prompt_profiles_default' => get_default_prompt_profiles(),
+    'prompt_profiles'         => $pp_merged,
+    'prompt_profiles_default' => $pp_defaults,
     'input_max_chars'         => (int)($pp_user['input_max_chars'] ?? 30000),
     'ai_timeout_sec'          => (int)($pp_user['ai_timeout_sec']  ?? 300),
     'app_version'             => defined('APP_VERSION') ? APP_VERSION : '',
