@@ -78,6 +78,15 @@
       <input type="checkbox" id="fbCheck">
       <span class="cb-text"><strong>Facebook-допис</strong> на основі матеріалу</span>
     </label>
+    <label class="cb-row">
+      <input type="checkbox" id="headlinesOnly">
+      <span class="cb-text"><strong>Тільки заголовки</strong> (без ліду і тексту)</span>
+    </label>
+
+    <div id="headlinesOnlyWrap" style="display:none">
+      <label class="lbl">Кількість заголовків</label>
+      <input type="number" id="headlinesOnlyCount" min="4" max="10" value="6" style="width:100%">
+    </div>
 
     <div id="fbStyleWrap" style="display:none">
       <label class="lbl">Стиль Facebook-допису</label>

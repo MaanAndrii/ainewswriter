@@ -141,17 +141,35 @@ if (fbSliderEl) {
     document.getElementById('fbStyleHint').textContent = FB_STYLE_HINTS[v] || FB_STYLE_HINTS[1];
   });
 }
-if (fbCheckEl) fbCheckEl.addEventListener('change', function(){ syncFbStyleUI(); syncActionButtons(); });
+if (fbCheckEl) fbCheckEl.addEventListener('change', function(){ syncFbStyleUI(); syncModeState('fbCheck'); syncActionButtons(); });
 syncFbStyleUI();
+var headlinesOnlyEl = document.getElementById('headlinesOnly');
+var headlinesOnlyWrap = document.getElementById('headlinesOnlyWrap');
+var makeNewsEl = document.getElementById('makeNews');
+function syncModeState(changedId) {
+  if (!headlinesOnlyEl) return;
+  if (changedId === 'headlinesOnly' && headlinesOnlyEl.checked) {
+    if (makeNewsEl) makeNewsEl.checked = false;
+    if (fbCheckEl)  { fbCheckEl.checked = false; syncFbStyleUI(); }
+  } else if ((changedId === 'makeNews' || changedId === 'fbCheck') && headlinesOnlyEl.checked) {
+    var otherOn = (changedId === 'makeNews' ? makeNewsEl.checked : (fbCheckEl && fbCheckEl.checked));
+    if (otherOn) headlinesOnlyEl.checked = false;
+  }
+  if (headlinesOnlyWrap) headlinesOnlyWrap.style.display = headlinesOnlyEl.checked ? 'block' : 'none';
+  if (makeNewsEl) makeNewsEl.disabled = headlinesOnlyEl.checked;
+  if (fbCheckEl)  fbCheckEl.disabled  = headlinesOnlyEl.checked;
+}
+if (headlinesOnlyEl) headlinesOnlyEl.addEventListener('change', function(){ syncModeState('headlinesOnly'); syncActionButtons(); });
 function syncActionButtons() {
-  var canRun = getCheck('makeNews') || getCheck('fbCheck');
+  var canRun = getCheck('makeNews') || getCheck('fbCheck') || getCheck('headlinesOnly');
   var processBtn = document.getElementById('btnProcess');
   if (processBtn) processBtn.disabled = !canRun;
   var testBtn = document.querySelector('button[onclick="showPromptPreview()"]');
   if (testBtn) testBtn.disabled = !canRun;
 }
 syncActionButtons();
-document.getElementById('makeNews').addEventListener('change', syncActionButtons);
+syncModeState('init');
+document.getElementById('makeNews').addEventListener('change', function(){ syncModeState('makeNews'); syncActionButtons(); });
 var advToggle = document.getElementById('advancedToggle');
 var advBody   = document.getElementById('advancedBody');
 var advIcon   = document.getElementById('advancedIcon');
@@ -221,6 +239,11 @@ function loadModelSettings() {
     if (d.app_version) {
       var fv = document.querySelector('.site-footer');
       if (fv) fv.innerHTML = fv.innerHTML.replace('{{APP_VERSION}}', d.app_version);
+    }
+    var _pp = d.prompt_profiles && d.prompt_profiles.user;
+    if (_pp && _pp.headlines_only_default_count) {
+      var _hoInput = document.getElementById('headlinesOnlyCount');
+      if (_hoInput) _hoInput.value = Math.max(4, Math.min(10, parseInt(_pp.headlines_only_default_count, 10) || 6));
     }
 
     SYSTEM_PROMPT_DEFAULT = d.prompt_system || '';
@@ -319,7 +342,7 @@ function normalizePromptProfile(profile) {
   return profile;
 }
 // ── Build prompt ──
-function buildPrompt(source, sourceRef, extra, fbCheck, fbStyle, tone, makeNews, depth, regenInstruction) {
+function buildPrompt(source, sourceRef, extra, fbCheck, fbStyle, tone, makeNews, depth, regenInstruction, headlinesOnly, headlinesCount) {
   var profile = (PROMPT_PROFILES && PROMPT_PROFILES.user) ? normalizePromptProfile(PROMPT_PROFILES.user) : {};
   if (!profile || !profile.json_rule || !profile.requirements_title) {
     throw new Error('Prompt profile is not configured. Open admin and save prompt JSON.');
@@ -327,6 +350,24 @@ function buildPrompt(source, sourceRef, extra, fbCheck, fbStyle, tone, makeNews,
   var toneLabel  = TONE_LABELS[tone] || 'Нейтральний';
   var toneShortMap = profile.tone_short_rules || {};
   var toneShort = toneShortMap[tone] || toneLabel;
+
+  if (headlinesOnly) {
+    var cnt = Math.max(4, Math.min(10, parseInt(headlinesCount || profile.headlines_only_default_count || 6, 10)));
+    var hoFields = profile.headlines_only_news_fields || '  "headlines": [{"text":"..."}]';
+    var hoReqs = String(profile.headlines_only_requirements || 'Згенеруй {{headlines_count}} варіантів заголовків. Тон: {{tone_short}}.')
+      .replaceAll('{{headlines_count}}', String(cnt))
+      .replaceAll('{{tone_label}}', toneLabel)
+      .replaceAll('{{tone_short}}', toneShort);
+    var hoExtraTitle = profile.extra_block_title || 'Додаткові інструкції / контекст:';
+    var hoExtra = extra ? '\n\n' + hoExtraTitle + '\n' + extra : '';
+    var hoRegen = regenInstruction ? '\n\nІНСТРУКЦІЇ ДЛЯ ПЕРЕГЕНЕРАЦІЇ:\n' + regenInstruction : '';
+    var hoResult = profile.json_rule + '\n{\n' + hoFields + '\n}\n\n'
+      + profile.requirements_title + '\n'
+      + '- ' + hoReqs + '\n'
+      + hoExtra + hoRegen + '\n'
+      + (profile.input_title || 'ВХІДНИЙ МАТЕРІАЛ:') + '\n' + source;
+    return hoResult.replaceAll('{{today}}', getTodayUkrainian());
+  }
 
   var extraTitle = profile.extra_block_title || 'Додаткові інструкції / контекст:';
   var extraBlock = extra            ? '\n\n' + extraTitle + '\n' + extra : '';
@@ -766,11 +807,13 @@ function showPromptPreview(){
   var extra     = getVal('extra');
   var makeNews  = getCheck('makeNews');
   var fbCheck   = getCheck('fbCheck');
+  var headlinesOnly  = getCheck('headlinesOnly');
+  var headlinesCount = parseInt((document.getElementById('headlinesOnlyCount') || {}).value || 6, 10);
   var tone      = getTone();
   var fbStyle   = getFbStyle();
   var depth     = getDepth();
   if (!source) { alert('Додайте вхідний матеріал'); return; }
-  var prompt = buildPrompt(source, sourceRef, extra, fbCheck, fbStyle, tone, makeNews, depth, null);
+  var prompt = buildPrompt(source, sourceRef, extra, fbCheck, fbStyle, tone, makeNews, depth, null, headlinesOnly, headlinesCount);
   var sys = normalizePromptText(SYSTEM_PROMPT_DEFAULT);
   document.getElementById('promptPreview').textContent = (sys ? (sys + '\n\n') : '') + prompt;
 
@@ -783,6 +826,8 @@ function runProcess(regenInstruction) {
   var extra     = getVal('extra');
   var makeNews  = getCheck('makeNews');
   var fbCheck   = getCheck('fbCheck');
+  var headlinesOnly  = getCheck('headlinesOnly');
+  var headlinesCount = parseInt((document.getElementById('headlinesOnlyCount') || {}).value || 6, 10);
   var tone      = getTone();
   var fbStyle   = getFbStyle();
   var depth     = getDepth();
@@ -799,13 +844,13 @@ function runProcess(regenInstruction) {
   } else {
     setBtn('btnRegen', 'spinRegen', 'regenBtnLbl', true, 'Перегенеровую\u2026');
   }
-  var prompt = buildPrompt(source, sourceRef, extra, fbCheck, fbStyle, tone, makeNews, depth, regenInstruction);
+  var prompt = buildPrompt(source, sourceRef, extra, fbCheck, fbStyle, tone, makeNews, depth, regenInstruction, headlinesOnly, headlinesCount);
   var systemPromptOverride = getVal('systemPromptOverride');
-  callAPI(prompt, model, systemPromptOverride, makeNews, fbCheck, 1,
+  callAPI(prompt, model, systemPromptOverride, (makeNews || headlinesOnly), fbCheck, 1,
     function (data) {
       if (data._usage) showCost(data._usage, data._model || model, data._webSearchUsed);
       copyStore = {}; copyIdx = 0;
-      renderResults(data, source, makeNews, fbCheck, depth);
+      renderResults(data, source, makeNews, fbCheck, depth, headlinesOnly);
       setBtn('btnProcess', 'spinProcess', 'btnProcessText', false, '\u25BA Обробити матеріал');
       setBtn('btnRegen',   'spinRegen',   'regenBtnLbl',    false, '\u21BA Застосувати правки');
     },
@@ -831,14 +876,15 @@ function doDeepen() {
   if (btn) btn.disabled = true;
   if (sp)  sp.style.display = 'block';
   var prompt = buildPrompt(source, sourceRef, extra, fbCheck, fbStyle, tone, makeNews, depth,
-    'Текст недостатньо перероблено. Зроби значно глибший рерайт — переформулюй більшість речень, змінюй структуру, використовуй синоніми. Мінімум 20% змін.');
+    'Текст недостатньо перероблено. Зроби значно глибший рерайт — переформулюй більшість речень, змінюй структуру, використовуй синоніми. Мінімум 20% змін.',
+    false, 0);
   callAPI(prompt, model, getVal('systemPromptOverride'), makeNews, fbCheck, 1,
     function (data) {
       if (btn) btn.disabled = false;
       if (sp)  sp.style.display = 'none';
       if (data._usage) showCost(data._usage, data._model || model, data._webSearchUsed);
       copyStore = {}; copyIdx = 0;
-      renderResults(data, source, makeNews, fbCheck, depth);
+      renderResults(data, source, makeNews, fbCheck, depth, false);
     },
     function (err) {
       alert('Помилка: ' + err.message);
@@ -861,6 +907,8 @@ function resetAll() {
   document.getElementById('extra').value     = '';
   document.getElementById('makeNews').checked = true;
   document.getElementById('fbCheck').checked   = false;
+  var _ho = document.getElementById('headlinesOnly');
+  if (_ho) { _ho.checked = false; syncModeState('headlinesOnly'); }
   document.getElementById('fbStyleSlider').value = 1;
   document.getElementById('fbStyleLabel').textContent = FB_STYLE_LABELS[1];
   document.getElementById('fbStyleHint').textContent = FB_STYLE_HINTS[1];
@@ -904,7 +952,7 @@ function normalizeQuotes(s) {
   return s;
 }
 
-function renderResults(data, source, makeNews, fbCheck, depth) {
+function renderResults(data, source, makeNews, fbCheck, depth, headlinesOnly) {
   var _profile  = (PROMPT_PROFILES && PROMPT_PROFILES.user) ? PROMPT_PROFILES.user : {};
   var leadMin   = Math.max(50,  parseInt(_profile.lead_min_chars    || 150,  10));
   var leadMax   = Math.max(50,  parseInt(_profile.lead_max_chars    || 180,  10));
@@ -927,7 +975,7 @@ function renderResults(data, source, makeNews, fbCheck, depth) {
   var deepLbl  = belowMin ? '\u26A0 Поглибити (нижче мінімуму)' : '\u2191 Поглибити рерайт';
   var html = '<div class="results">';
   // Headlines
-  if (makeNews) {
+  if (makeNews || headlinesOnly) {
     html += '<div><div class="sec-title">Заголовки</div><div class="h-grid">';
     var heads = data.headlines || [];
     for (var i = 0; i < heads.length; i++) {
