@@ -165,7 +165,17 @@ function get_default_system_prompt() {
 function get_default_prompt_profiles() {
   $prompts = load_prompts_from_json();
   $defaultProfile = $prompts['user_prompt_profiles']['default'] ?? [];
-  return ['user' => $defaultProfile];  // Обгортаємо в ["user" => [...]]
+  // Self-healing: fields that MUST have a non-empty default fall back to hardcoded
+  $hardFallback = [
+    'headlines_only_news_fields'   => '  "headlines": [{"text":"..."}]',
+    'headlines_only_requirements'  => "Згенеруй рівно {{headlines_count}} варіантів заголовків для матеріалу нижче.\n- Кожен заголовок — окрема подача: інший кут, акцент або формулювання; порядок слів має відрізнятися.\n- Тільки за фактами матеріалу: без домислів, без чисел і цитат, яких немає в оригіналі.\n- Довжина: 40–90 символів.\n- Без крапки в кінці. Без клікбейту, знаків оклику та ALL CAPS.\n- Українською мовою за чинним правописом 2019 р.\n- Тональність: {{tone_short}}.",
+    'headlines_only_default_count' => 6,
+  ];
+  foreach ($hardFallback as $k => $v) {
+    $cur = $defaultProfile[$k] ?? null;
+    if ($cur === null || (is_string($cur) && trim($cur) === '')) $defaultProfile[$k] = $v;
+  }
+  return ['user' => $defaultProfile];
 }
 
 /**

@@ -31,15 +31,21 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   const url = new URL(e.request.url);
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/admin/')) return;
 
-  // Network-first: свіжа версія з мережі, кеш — лише резерв при офлайн
+  // Bypass SW entirely for HTML and JS — always fetch fresh from network.
+  // Cache only fonts / css / manifest as offline fallback.
+  const isHtml = e.request.destination === 'document' || url.pathname === '/' || url.pathname.endsWith('.html');
+  const isJs   = url.pathname.endsWith('.js');
+  if (isHtml || isJs) return; // don't intercept — browser handles directly
+
   e.respondWith(
     fetch(e.request)
       .then(res => {
         if (res.ok) {
           const clone = res.clone();
-          caches.open(CACHE).then(c => c.put(e.request, clone));
+          caches.open(CACHE).then(c => { try { c.put(e.request, clone); } catch(_) {} });
         }
         return res;
       })
