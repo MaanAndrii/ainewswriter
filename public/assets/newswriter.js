@@ -149,15 +149,18 @@ var makeNewsEl = document.getElementById('makeNews');
 function syncModeState(changedId) {
   if (!headlinesOnlyEl) return;
   if (changedId === 'headlinesOnly' && headlinesOnlyEl.checked) {
-    if (makeNewsEl) makeNewsEl.checked = false;
-    if (fbCheckEl)  { fbCheckEl.checked = false; syncFbStyleUI(); }
+    if (makeNewsEl && makeNewsEl.checked) makeNewsEl.checked = false;
+    if (fbCheckEl && fbCheckEl.checked)   { fbCheckEl.checked = false; syncFbStyleUI(); }
   } else if ((changedId === 'makeNews' || changedId === 'fbCheck') && headlinesOnlyEl.checked) {
     var otherOn = (changedId === 'makeNews' ? makeNewsEl.checked : (fbCheckEl && fbCheckEl.checked));
     if (otherOn) headlinesOnlyEl.checked = false;
   }
   if (headlinesOnlyWrap) headlinesOnlyWrap.style.display = headlinesOnlyEl.checked ? 'block' : 'none';
-  if (makeNewsEl) makeNewsEl.disabled = headlinesOnlyEl.checked;
-  if (fbCheckEl)  fbCheckEl.disabled  = headlinesOnlyEl.checked;
+}
+var _hoSlider = document.getElementById('headlinesOnlyCount');
+var _hoLbl    = document.getElementById('headlinesOnlyCountLbl');
+if (_hoSlider && _hoLbl) {
+  _hoSlider.addEventListener('input', function(){ _hoLbl.textContent = _hoSlider.value; });
 }
 if (headlinesOnlyEl) headlinesOnlyEl.addEventListener('change', function(){ syncModeState('headlinesOnly'); syncActionButtons(); });
 function syncActionButtons() {
@@ -243,7 +246,10 @@ function loadModelSettings() {
     var _pp = d.prompt_profiles && d.prompt_profiles.user;
     if (_pp && _pp.headlines_only_default_count) {
       var _hoInput = document.getElementById('headlinesOnlyCount');
-      if (_hoInput) _hoInput.value = Math.max(4, Math.min(10, parseInt(_pp.headlines_only_default_count, 10) || 6));
+      var _hoLbl2  = document.getElementById('headlinesOnlyCountLbl');
+      var _hoVal   = Math.max(4, Math.min(10, parseInt(_pp.headlines_only_default_count, 10) || 6));
+      if (_hoInput) _hoInput.value = _hoVal;
+      if (_hoLbl2)  _hoLbl2.textContent = _hoVal;
     }
 
     SYSTEM_PROMPT_DEFAULT = d.prompt_system || '';
