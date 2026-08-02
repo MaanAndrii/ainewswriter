@@ -80,7 +80,7 @@ input[type=range] { width:100%; accent-color:var(--red); cursor:pointer; }
 .h-card { background:#fff; border:1px solid var(--bdl); border-radius:3px; padding:14px; position:relative; }
 .h-tag { font-family:'Roboto Mono',monospace; font-size:9px; letter-spacing:.15em; text-transform:uppercase; margin-bottom:7px; }
 .h-text { font-family:'Roboto',sans-serif; font-size:15px; line-height:1.4; font-weight:600; color:var(--ink); padding-right:80px; }
-.h-len { font-family:'Roboto Mono',monospace; font-size:10px; margin-top:6px; }
+.h-len { font-family:'Roboto Mono',monospace; font-size:10px; margin-top:8px; padding-top:8px; border-top:1px dashed var(--bdl); }
 .lead-card { background:#fff; border:1px solid var(--bdl); border-left:3px solid var(--gold); border-radius:3px; padding:14px 18px; position:relative; margin-bottom:10px; }
 .lead-num { font-family:'Roboto Mono',monospace; font-size:9px; color:var(--gold); letter-spacing:.15em; text-transform:uppercase; margin-bottom:7px; }
 .lead-text { font-size:14px; line-height:1.8; padding-right:80px; }
