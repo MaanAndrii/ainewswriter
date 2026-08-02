@@ -20,6 +20,25 @@ var copyStore = {};
 var copyIdx = 0;
 var SYSTEM_PROMPT_DEFAULT = '';
 var PROMPT_PROFILES = {};
+
+// Mutual exclusion for makeNews / fbCheck / headlinesOnly — called from inline onclick handlers
+window.__excl = function(which, el) {
+  var m  = document.getElementById('makeNews');
+  var f  = document.getElementById('fbCheck');
+  var ho = document.getElementById('headlinesOnly');
+  var w  = document.getElementById('headlinesOnlyWrap');
+  var fs = document.getElementById('fbStyleWrap');
+  if (which === 'headlinesOnly') {
+    if (ho && ho.checked) {
+      if (m) m.checked = false;
+      if (f) { f.checked = false; if (fs) fs.style.display = 'none'; }
+    }
+  } else if ((which === 'makeNews' || which === 'fbCheck') && el && el.checked) {
+    if (ho && ho.checked) ho.checked = false;
+  }
+  if (w) w.style.display = (ho && ho.checked) ? 'block' : 'none';
+  if (typeof syncActionButtons === 'function') syncActionButtons();
+};
 // ── Copy ──
 function storeCopy(text) {
   var id = 'c' + (copyIdx++);
@@ -153,22 +172,6 @@ function updateHeadlinesOnlyWrap() {
   var wrap = document.getElementById('headlinesOnlyWrap');
   if (wrap) wrap.style.display = (ho && ho.checked) ? 'block' : 'none';
 }
-document.addEventListener('change', function(e){
-  var t = e.target;
-  if (!t || t.type !== 'checkbox') return;
-  var ho = document.getElementById('headlinesOnly');
-  if (!ho) return;
-  if (t.id === 'headlinesOnly' && t.checked) {
-    var m = document.getElementById('makeNews');
-    var f = document.getElementById('fbCheck');
-    if (m) m.checked = false;
-    if (f) { f.checked = false; syncFbStyleUI(); }
-  } else if ((t.id === 'makeNews' || t.id === 'fbCheck') && t.checked && ho.checked) {
-    ho.checked = false;
-  }
-  updateHeadlinesOnlyWrap();
-  syncActionButtons();
-}, true);
 function syncActionButtons() {
   var canRun = getCheck('makeNews') || getCheck('fbCheck') || getCheck('headlinesOnly');
   var processBtn = document.getElementById('btnProcess');
