@@ -237,7 +237,7 @@ function loadModelSettings() {
     if (_pp && _pp.headlines_only_default_count) {
       var _hoInput = document.getElementById('headlinesOnlyCount');
       var _hoLbl2  = document.getElementById('headlinesOnlyCountLbl');
-      var _hoVal   = Math.max(4, Math.min(10, parseInt(_pp.headlines_only_default_count, 10) || 6));
+      var _hoVal   = Math.max(4, Math.min(20,parseInt(_pp.headlines_only_default_count, 10) || 6));
       if (_hoInput) _hoInput.value = _hoVal;
       if (_hoLbl2)  _hoLbl2.textContent = _hoVal;
     }
@@ -348,7 +348,7 @@ function buildPrompt(source, sourceRef, extra, fbCheck, fbStyle, tone, makeNews,
   var toneShort = toneShortMap[tone] || toneLabel;
 
   if (headlinesOnly) {
-    var cnt = Math.max(4, Math.min(10, parseInt(headlinesCount || profile.headlines_only_default_count || 6, 10)));
+    var cnt = Math.max(4, Math.min(20,parseInt(headlinesCount || profile.headlines_only_default_count || 6, 10)));
     var hoFields = profile.headlines_only_news_fields || '  "headlines": [{"text":"..."}]';
     var hoReqs = String(profile.headlines_only_requirements || 'Згенеруй {{headlines_count}} варіантів заголовків. Тон: {{tone_short}}.')
       .replaceAll('{{headlines_count}}', String(cnt))
@@ -969,16 +969,23 @@ function renderResults(data, source, makeNews, fbCheck, depth, headlinesOnly) {
   var html = '<div class="results">';
   // Headlines
   if (makeNews || headlinesOnly) {
-    html += '<div><div class="sec-title">Заголовки</div><div class="h-grid">';
+    var headMin = 40, headMax = 90, headNorm = headMin + '–' + headMax;
+    var gridClass = headlinesOnly ? 'h-grid h-grid-single' : 'h-grid';
+    html += '<div><div class="sec-title">Заголовки</div><div class="' + gridClass + '">';
     var heads = data.headlines || [];
     for (var i = 0; i < heads.length; i++) {
       var h = heads[i];
       if (!h) continue;
       var hText = typeof h === 'object' ? (h.text || '') : String(h);
       var hTone = typeof h === 'object' ? (h.tone || '') : '';
+      var hLen = hText.length;
+      var hOk  = hLen >= headMin && hLen <= headMax;
+      var hCol = hOk ? '#2a5a30' : '#8a6a20';
+      var hMark= hOk ? '✓' : (hLen < headMin ? '(замало, норма ' + headNorm + ')' : '(забагато, норма ' + headNorm + ')');
       html += '<div class="h-card">'
-        + '<div class="h-tag" style="color:' + (TONE_COLORS[hTone] || '#8a8278') + '">' + esc(hTone) + '</div>'
+        + (hTone ? '<div class="h-tag" style="color:' + (TONE_COLORS[hTone] || '#8a8278') + '">' + esc(hTone) + '</div>' : '')
         + '<div class="h-text">' + esc(hText) + '</div>'
+        + '<div class="h-len" style="color:' + hCol + '">' + hLen + ' символів ' + hMark + '</div>'
         + makeCopyBtn(hText)
         + '</div>';
     }

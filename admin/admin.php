@@ -412,7 +412,7 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
         <textarea id="pf_ho_requirements" rows="3"><?= pp_str($pp,'headlines_only_requirements') ?></textarea>
 
         <label class="lbl" style="margin-top:10px">Кількість за замовчуванням (4–10)</label>
-        <input type="number" id="pf_ho_default_count" min="4" max="10" value="<?= (int)($pp['headlines_only_default_count'] ?? 6) ?>" style="width:120px">
+        <input type="number" id="pf_ho_default_count" min="4" max="20" value="<?= (int)($pp['headlines_only_default_count'] ?? 6) ?>" style="width:120px">
       </div>
     </div>
 
@@ -817,7 +817,7 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
       facebook_when_disabled: 'omit',
       headlines_only_news_fields:    val('pf_ho_news_fields'),
       headlines_only_requirements:   val('pf_ho_requirements'),
-      headlines_only_default_count:  Math.max(4, Math.min(10, Number(document.getElementById('pf_ho_default_count').value || 6)))
+      headlines_only_default_count:  Math.max(4, Math.min(20, Number(document.getElementById('pf_ho_default_count').value || 6)))
     };
   }
 
