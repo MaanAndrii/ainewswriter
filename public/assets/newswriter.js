@@ -901,12 +901,7 @@ function resetAll() {
   document.getElementById('source').value    = '';
   document.getElementById('sourceRef').value = '';
   document.getElementById('extra').value     = '';
-  document.getElementById('makeNews').checked = true;
-  document.getElementById('fbCheck').checked   = false;
-  var _ho = document.getElementById('headlinesOnly');
-  if (_ho) _ho.checked = false;
-  var _how = document.getElementById('headlinesOnlyWrap');
-  if (_how) _how.style.display = 'none';
+  if (typeof window.__resetMode === 'function') window.__resetMode();
   document.getElementById('fbStyleSlider').value = 1;
   document.getElementById('fbStyleLabel').textContent = FB_STYLE_LABELS[1];
   document.getElementById('fbStyleHint').textContent = FB_STYLE_HINTS[1];
