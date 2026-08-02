@@ -40,15 +40,12 @@
       ],
       "facebook_when_disabled": "omit",
       "headlines_only_news_fields": "  \"headlines\": [{\"text\":\"...\"}]",
-      "headlines_only_requirements": "Згенеруй {{headlines_count}} різних варіантів заголовків для матеріалу нижче. Кожен — окрема подача (кут, акцент, формулювання), усі — за фактами матеріалу. Тон: {{tone_short}}.",
+      "headlines_only_requirements": "Згенеруй рівно {{headlines_count}} варіантів заголовків для матеріалу нижче.\n- Кожен заголовок — окрема подача: інший кут, акцент або формулювання; порядок слів має відрізнятися.\n- Тільки за фактами матеріалу: без домислів, без чисел і цитат, яких немає в оригіналі.\n- Довжина: 40–90 символів.\n- Без крапки в кінці. Без клікбейту, знаків оклику та ALL CAPS.\n- Українською мовою за чинним правописом 2019 р.\n- Тональність: {{tone_short}}.",
       "headlines_only_default_count": 6
     }
   },
   "default_settings": {
     "models": [],
-    "cors_allowed_origins": [
-      "http://localhost:3000",
-      "https://your-site.com"
-    ]
+    "cors_allowed_origins": ["http://localhost"]
   }
 }
