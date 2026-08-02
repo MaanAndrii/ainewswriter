@@ -143,44 +143,32 @@ if (fbSliderEl) {
 }
 if (fbCheckEl) fbCheckEl.addEventListener('change', function(){ syncFbStyleUI(); syncActionButtons(); });
 syncFbStyleUI();
-var headlinesOnlyEl   = document.getElementById('headlinesOnly');
-var headlinesOnlyWrap = document.getElementById('headlinesOnlyWrap');
-var makeNewsEl        = document.getElementById('makeNews');
 var _hoSlider = document.getElementById('headlinesOnlyCount');
 var _hoLbl    = document.getElementById('headlinesOnlyCountLbl');
 if (_hoSlider && _hoLbl) {
   _hoSlider.addEventListener('input', function(){ _hoLbl.textContent = _hoSlider.value; });
 }
 function updateHeadlinesOnlyWrap() {
-  if (headlinesOnlyWrap) headlinesOnlyWrap.style.display = (headlinesOnlyEl && headlinesOnlyEl.checked) ? 'block' : 'none';
+  var ho = document.getElementById('headlinesOnly');
+  var wrap = document.getElementById('headlinesOnlyWrap');
+  if (wrap) wrap.style.display = (ho && ho.checked) ? 'block' : 'none';
 }
-if (headlinesOnlyEl) {
-  headlinesOnlyEl.addEventListener('click', function(){
-    if (this.checked) {
-      if (makeNewsEl) makeNewsEl.checked = false;
-      if (fbCheckEl)  { fbCheckEl.checked = false; syncFbStyleUI(); }
-    }
-    updateHeadlinesOnlyWrap();
-    syncActionButtons();
-  });
-}
-if (makeNewsEl) {
-  makeNewsEl.addEventListener('click', function(){
-    if (this.checked && headlinesOnlyEl && headlinesOnlyEl.checked) {
-      headlinesOnlyEl.checked = false;
-      updateHeadlinesOnlyWrap();
-    }
-    syncActionButtons();
-  });
-}
-if (fbCheckEl) {
-  fbCheckEl.addEventListener('click', function(){
-    if (this.checked && headlinesOnlyEl && headlinesOnlyEl.checked) {
-      headlinesOnlyEl.checked = false;
-      updateHeadlinesOnlyWrap();
-    }
-  });
-}
+document.addEventListener('change', function(e){
+  var t = e.target;
+  if (!t || t.type !== 'checkbox') return;
+  var ho = document.getElementById('headlinesOnly');
+  if (!ho) return;
+  if (t.id === 'headlinesOnly' && t.checked) {
+    var m = document.getElementById('makeNews');
+    var f = document.getElementById('fbCheck');
+    if (m) m.checked = false;
+    if (f) { f.checked = false; syncFbStyleUI(); }
+  } else if ((t.id === 'makeNews' || t.id === 'fbCheck') && t.checked && ho.checked) {
+    ho.checked = false;
+  }
+  updateHeadlinesOnlyWrap();
+  syncActionButtons();
+}, true);
 function syncActionButtons() {
   var canRun = getCheck('makeNews') || getCheck('fbCheck') || getCheck('headlinesOnly');
   var processBtn = document.getElementById('btnProcess');

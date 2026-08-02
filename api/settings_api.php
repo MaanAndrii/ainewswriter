@@ -72,8 +72,14 @@ $keys     = get_runtime_keys();
 $pp_defaults = get_default_prompt_profiles();
 $pp_user_defaults = $pp_defaults['user'] ?? [];
 $pp_user_saved    = $settings['prompt_profiles']['user'] ?? [];
-$pp_user          = array_merge($pp_user_defaults, $pp_user_saved);
-$pp_merged        = ['user' => $pp_user];
+$pp_user = $pp_user_defaults;
+foreach ($pp_user_saved as $_pk => $_pv) {
+    if (is_string($_pv) && $_pv === '') continue;
+    if (is_array($_pv)  && empty($_pv))  continue;
+    $pp_user[$_pk] = $_pv;
+}
+unset($_pk, $_pv);
+$pp_merged = ['user' => $pp_user];
 echo json_encode([
     'models'                  => $models,
     'paid_providers'          => get_paid_providers(),
@@ -547,11 +553,11 @@ function save_prompts_json_response(array $res): array {
 }
 
 function save_prompts_to_json($prompts): bool {
-    $promptsFile = dirname(__DIR__) . '/prompts.json';
+    $localFile = defined('PROMPTS_LOCAL_FILE') ? PROMPTS_LOCAL_FILE : (dirname(__DIR__) . '/prompts.local.json');
     $json = json_encode($prompts, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     if ($json === false) return false;
-    backup_prompts_file($promptsFile);
-    return file_put_contents($promptsFile, $json, LOCK_EX) !== false;
+    backup_prompts_file($localFile);
+    return file_put_contents($localFile, $json, LOCK_EX) !== false;
 }
 
 function backup_prompts_file(string $promptsFile): void {

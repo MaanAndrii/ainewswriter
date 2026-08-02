@@ -1,5 +1,6 @@
 .env.local
 settings_store.php
+prompts.local.json
 storage/
 .claude/
 *.log
