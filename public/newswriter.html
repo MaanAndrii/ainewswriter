@@ -71,15 +71,15 @@
     </div>
 
     <label class="cb-row">
-      <input type="checkbox" id="makeNews" checked onchange="if(this.checked){var h=document.getElementById('headlinesOnly');if(h&&h.checked){h.checked=false;var w=document.getElementById('headlinesOnlyWrap');if(w)w.style.display='none';}}">
+      <input type="checkbox" id="makeNews" checked>
       <span class="cb-text"><strong>Робити новину</strong> (заголовки, ліди, текст)</span>
     </label>
     <label class="cb-row">
-      <input type="checkbox" id="fbCheck" onchange="if(this.checked){var h=document.getElementById('headlinesOnly');if(h&&h.checked){h.checked=false;var w=document.getElementById('headlinesOnlyWrap');if(w)w.style.display='none';}}">
+      <input type="checkbox" id="fbCheck">
       <span class="cb-text"><strong>Facebook-допис</strong> на основі матеріалу</span>
     </label>
     <label class="cb-row">
-      <input type="checkbox" id="headlinesOnly" onchange="if(this.checked){var m=document.getElementById('makeNews'),f=document.getElementById('fbCheck');if(m)m.checked=false;if(f){f.checked=false;var s=document.getElementById('fbStyleWrap');if(s)s.style.display='none';}}var w=document.getElementById('headlinesOnlyWrap');if(w)w.style.display=this.checked?'block':'none';">
+      <input type="checkbox" id="headlinesOnly">
       <span class="cb-text"><strong>Тільки заголовки</strong> (без ліду і тексту)</span>
     </label>
 

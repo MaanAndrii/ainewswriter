@@ -301,7 +301,9 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
 
   <section class="tab-pane" data-pane="prompts">
     <?php
-      $pp = $settings['prompt_profiles']['user'] ?? get_default_prompt_profiles()['user'];
+      $ppDefaults = get_default_prompt_profiles()['user'] ?? [];
+      $ppSaved    = $settings['prompt_profiles']['user'] ?? [];
+      $pp = array_merge($ppDefaults, $ppSaved);
       function pp_str($pp, $key, $def='') { return htmlspecialchars((string)($pp[$key] ?? $def)); }
       function pp_arr($pp, $key) { $v = $pp[$key] ?? []; return htmlspecialchars(implode("\n---\n", (array)$v)); }
       function pp_tone($pp) {
