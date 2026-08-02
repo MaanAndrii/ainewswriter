@@ -21,24 +21,6 @@ var copyIdx = 0;
 var SYSTEM_PROMPT_DEFAULT = '';
 var PROMPT_PROFILES = {};
 
-// Mutual exclusion for makeNews / fbCheck / headlinesOnly — called from inline onclick handlers
-window.__excl = function(which, el) {
-  var m  = document.getElementById('makeNews');
-  var f  = document.getElementById('fbCheck');
-  var ho = document.getElementById('headlinesOnly');
-  var w  = document.getElementById('headlinesOnlyWrap');
-  var fs = document.getElementById('fbStyleWrap');
-  if (which === 'headlinesOnly') {
-    if (ho && ho.checked) {
-      if (m) m.checked = false;
-      if (f) { f.checked = false; if (fs) fs.style.display = 'none'; }
-    }
-  } else if ((which === 'makeNews' || which === 'fbCheck') && el && el.checked) {
-    if (ho && ho.checked) ho.checked = false;
-  }
-  if (w) w.style.display = (ho && ho.checked) ? 'block' : 'none';
-  if (typeof syncActionButtons === 'function') syncActionButtons();
-};
 // ── Copy ──
 function storeCopy(text) {
   var id = 'c' + (copyIdx++);
@@ -922,7 +904,9 @@ function resetAll() {
   document.getElementById('makeNews').checked = true;
   document.getElementById('fbCheck').checked   = false;
   var _ho = document.getElementById('headlinesOnly');
-  if (_ho) { _ho.checked = false; syncModeState('headlinesOnly'); }
+  if (_ho) _ho.checked = false;
+  var _how = document.getElementById('headlinesOnlyWrap');
+  if (_how) _how.style.display = 'none';
   document.getElementById('fbStyleSlider').value = 1;
   document.getElementById('fbStyleLabel').textContent = FB_STYLE_LABELS[1];
   document.getElementById('fbStyleHint').textContent = FB_STYLE_HINTS[1];

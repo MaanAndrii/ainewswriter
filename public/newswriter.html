@@ -71,15 +71,15 @@
     </div>
 
     <label class="cb-row">
-      <input type="checkbox" id="makeNews" checked onclick="window.__excl&&window.__excl('makeNews',this)">
+      <input type="checkbox" id="makeNews" checked>
       <span class="cb-text"><strong>Робити новину</strong> (заголовки, ліди, текст)</span>
     </label>
     <label class="cb-row">
-      <input type="checkbox" id="fbCheck" onclick="window.__excl&&window.__excl('fbCheck',this)">
+      <input type="checkbox" id="fbCheck">
       <span class="cb-text"><strong>Facebook-допис</strong> на основі матеріалу</span>
     </label>
     <label class="cb-row">
-      <input type="checkbox" id="headlinesOnly" onclick="window.__excl&&window.__excl('headlinesOnly',this)">
+      <input type="checkbox" id="headlinesOnly">
       <span class="cb-text"><strong>Тільки заголовки</strong> (без ліду і тексту)</span>
     </label>
 
@@ -150,6 +150,31 @@
 
 <script src="/public/assets/newswriter.js"></script>
 <script>
+// Взаємне вимкнення трьох чекбоксів — незалежний блок, гарантовано виконується
+(function () {
+  var m  = document.getElementById('makeNews');
+  var f  = document.getElementById('fbCheck');
+  var ho = document.getElementById('headlinesOnly');
+  var w  = document.getElementById('headlinesOnlyWrap');
+  var fs = document.getElementById('fbStyleWrap');
+  if (!m || !f || !ho) return;
+  function updWrap() { if (w) w.style.display = ho.checked ? 'block' : 'none'; }
+  m.addEventListener('click', function () {
+    if (ho.checked) { ho.checked = false; updWrap(); }
+  });
+  f.addEventListener('click', function () {
+    if (ho.checked) { ho.checked = false; updWrap(); }
+  });
+  ho.addEventListener('click', function () {
+    if (ho.checked) {
+      m.checked = false;
+      f.checked = false;
+      if (fs) fs.style.display = 'none';
+    }
+    updWrap();
+  });
+  updWrap();
+})();
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(function(){});
   navigator.serviceWorker.addEventListener('message', function(e) {
