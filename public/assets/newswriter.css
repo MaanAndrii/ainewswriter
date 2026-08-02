@@ -37,7 +37,7 @@ input[type=range] { width:100%; accent-color:var(--red); cursor:pointer; }
 .mode-btn { display:flex; flex-direction:column; align-items:center; gap:3px; background:none; border:2px solid transparent; border-radius:6px; padding:5px 7px; cursor:pointer; transition:all .15s; font-family:inherit; }
 .mode-btn:hover { background:var(--bg); }
 .mode-btn.active { border-color:var(--red); background:var(--bg); }
-.mode-icon { width:34px; height:34px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:#fff; letter-spacing:-.3px; }
+.mode-icon { min-width:34px; height:34px; padding:0 8px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:#fff; letter-spacing:-.3px; box-sizing:border-box; }
 .mode-name { font-size:9px; color:var(--ink3); font-family:'Roboto Mono',monospace; letter-spacing:.03em; text-align:center; }
 .cb-text { font-size:13px; color:var(--ink2); line-height:1.5; }
 .cb-text strong { color:var(--ink); }
