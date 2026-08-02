@@ -1,4 +1,5 @@
-console.log('newswriter.js LOADED — build 9.5 with h-len + single-column');
+console.error('=== newswriter.js LOADED — build 9.7 ===');
+try { alert('newswriter.js v9.7 завантажено'); } catch(_){}
 var MODEL_PRICES = {};
 var MODEL_META = {};
 var POST_PROCESSING = { quote_style: 'upper' };
