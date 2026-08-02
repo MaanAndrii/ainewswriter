@@ -38,7 +38,10 @@
         "глибокий рерайт, перепиши більшість речень",
         "повна переробка структури при збереженні фактів"
       ],
-      "facebook_when_disabled": "omit"
+      "facebook_when_disabled": "omit",
+      "headlines_only_news_fields": "  \"headlines\": [{\"text\":\"...\"}]",
+      "headlines_only_requirements": "Згенеруй {{headlines_count}} різних варіантів заголовків для матеріалу нижче. Кожен — окрема подача (кут, акцент, формулювання), усі — за фактами матеріалу. Тон: {{tone_short}}.",
+      "headlines_only_default_count": 6
     }
   },
   "default_settings": {

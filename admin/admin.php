@@ -393,6 +393,19 @@ tr.drag-over td{background:#f0ebe3;outline:2px dashed #b8a98a}
       <label class="lbl" style="margin-top:10px">Стилі Facebook (0–3) <span class="small" style="font-weight:400">— 4 записи розділені <code>---</code>, для повзунка серйозний→гумористичний</span></label>
       <textarea id="pf_fb_style_rules" rows="4" style="font-family:var(--font-mono, monospace);font-size:12px"><?= pp_fb($pp) ?></textarea>
 
+      <div style="margin-top:20px;padding-top:16px;border-top:1px dashed #d8d0be">
+        <div class="ttl" style="margin-bottom:8px;font-size:13px">Режим «Тільки заголовки»</div>
+        <div class="small" style="margin-bottom:10px">Окремий короткий промт — тільки заголовки, без ліду й тексту статті.</div>
+
+        <label class="lbl">Поля JSON <span class="small" style="font-weight:400">— рядки всередині {} (лише headlines)</span></label>
+        <textarea id="pf_ho_news_fields" rows="2" style="font-family:var(--font-mono, monospace);font-size:12px"><?= pp_str($pp,'headlines_only_news_fields') ?></textarea>
+
+        <label class="lbl" style="margin-top:10px">Вимоги <span class="small" style="font-weight:400">— підтримує {{headlines_count}}, {{tone_label}}, {{tone_short}}</span></label>
+        <textarea id="pf_ho_requirements" rows="3"><?= pp_str($pp,'headlines_only_requirements') ?></textarea>
+
+        <label class="lbl" style="margin-top:10px">Кількість за замовчуванням (4–10)</label>
+        <input type="number" id="pf_ho_default_count" min="4" max="10" value="<?= (int)($pp['headlines_only_default_count'] ?? 6) ?>" style="width:120px">
+      </div>
     </div>
 
     <div class="card" style="margin-top:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:14px 18px">
@@ -793,7 +806,10 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
       source_ref_rule:       val('pf_source_ref_rule'),
       fb_checkbox_on:        val('pf_fb_checkbox_on'),
       fb_style_rules:        lines('pf_fb_style_rules'),
-      facebook_when_disabled: 'omit'
+      facebook_when_disabled: 'omit',
+      headlines_only_news_fields:    val('pf_ho_news_fields'),
+      headlines_only_requirements:   val('pf_ho_requirements'),
+      headlines_only_default_count:  Math.max(4, Math.min(10, Number(document.getElementById('pf_ho_default_count').value || 6)))
     };
   }
 
@@ -899,6 +915,9 @@ var ALLOWED_PROVIDERS = <?= json_encode(PROVIDERS_ALL) ?>;
       sv('pf_source_ref_rule',      p.source_ref_rule);
       sv('pf_fb_checkbox_on',       p.fb_checkbox_on);
       sl('pf_fb_style_rules',       p.fb_style_rules);
+      sv('pf_ho_news_fields',       p.headlines_only_news_fields);
+      sv('pf_ho_requirements',      p.headlines_only_requirements);
+      if (p.headlines_only_default_count) document.getElementById('pf_ho_default_count').value = p.headlines_only_default_count;
       if (p.headlines_count)    document.getElementById('lim_headlines').value = p.headlines_count;
       if (p.leads_count)        document.getElementById('lim_leads').value     = p.leads_count;
       if (p.article_max_chars)  document.getElementById('lim_article').value   = p.article_max_chars;
