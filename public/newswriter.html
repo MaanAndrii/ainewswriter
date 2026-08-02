@@ -72,17 +72,17 @@
 
     <label class="lbl">Режим генерації</label>
     <div class="mode-seg" id="modeSeg">
-      <button type="button" class="mode-btn active" data-mode="full">
+      <button type="button" class="mode-btn active" data-mode="full" title="Заголовки + ліди + текст новини">
+        <div class="mode-icon" style="background:#b5401a">&#128240;</div>
         <div class="mode-name">Повна</div>
-        <div class="mode-desc">Заголовки + ліди + текст</div>
       </button>
-      <button type="button" class="mode-btn" data-mode="fb">
+      <button type="button" class="mode-btn" data-mode="fb" title="Тільки Facebook-допис">
+        <div class="mode-icon" style="background:#1877f2;font-family:Georgia,serif;font-weight:900;font-style:italic">f</div>
         <div class="mode-name">Facebook</div>
-        <div class="mode-desc">Тільки допис</div>
       </button>
-      <button type="button" class="mode-btn" data-mode="headlines">
+      <button type="button" class="mode-btn" data-mode="headlines" title="Кілька варіантів заголовків">
+        <div class="mode-icon" style="background:#4a7fa5">&#9776;</div>
         <div class="mode-name">Заголовки</div>
-        <div class="mode-desc">Кілька варіантів</div>
       </button>
     </div>
     <!-- прихована схема для сумісності зі старим кодом -->
@@ -98,9 +98,9 @@
 
     <div id="headlinesOnlyWrap" style="display:none">
       <label class="lbl">Кількість заголовків: <span id="headlinesOnlyCountLbl" style="color:#b5401a;font-weight:600">6</span></label>
-      <input type="range" id="headlinesOnlyCount" min="4" max="10" step="1" value="6"
+      <input type="range" id="headlinesOnlyCount" min="4" max="20" step="1" value="6"
              oninput="document.getElementById('headlinesOnlyCountLbl').textContent=this.value">
-      <div class="depth-marks"><span>4</span><span></span><span></span><span></span><span></span><span></span><span>10</span></div>
+      <div class="depth-marks"><span>4</span><span>20</span></div>
     </div>
 
     <div id="fbStyleWrap" style="display:none">
